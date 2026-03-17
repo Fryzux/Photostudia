@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from .repositories import BookingRepository
 from .models import Booking, Order, Payment
 from decimal import Decimal
+import uuid
 
 class BookingService:
     @staticmethod
@@ -61,7 +62,7 @@ class PaymentService:
             amount=amount,
             method=method,
             is_successful=True,
-            transaction_id=f"tx_{order.id}_{payment.id}" # mock tx id
+            transaction_id=f"tx_{order.id}_{uuid.uuid4().hex[:8]}"
         )
         
         order.status = 'COMPLETED'

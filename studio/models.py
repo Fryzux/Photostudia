@@ -6,6 +6,7 @@ class Hall(models.Model):
     name = models.CharField(max_length=100, unique=True, null=False)
     capacity = models.PositiveIntegerField()
     price_per_hour = models.DecimalField(max_digits=10, decimal_places=2)
+    image = models.ImageField(upload_to='halls/', null=True, blank=True)
 
     def __str__(self):
         return self.name
