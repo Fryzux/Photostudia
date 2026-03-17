@@ -155,3 +155,110 @@ class PhotostudiaTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertIn('predicted_orders', res.data)
         self.assertIn('explanation', res.data)
+
+    def test_11_payment_success(self):
+        """Create a booking+order and then pay for it successfully."""
+        from studio.models import Order
+        token = self.get_token('testuser', 'Testpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+
+        now = timezone.now()
+        booking_data = {
+            'hall_id': self.hall.id,
+            'start_time': (now + timedelta(days=10)).isoformat(),
+            'end_time': (now + timedelta(days=10, hours=2)).isoformat(),
+        }
+        self.client.post(self.booking_url, booking_data)
+
+        order = Order.objects.get(user=self.user)
+        res = self.client.post('/api/payments/', {'order_id': order.id, 'method': 'card'})
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(res.data['is_successful'])
+        self.assertEqual(res.data['method'], 'card')
+        # Order should now be COMPLETED
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'COMPLETED')
+
+    def test_12_payment_invalid_method(self):
+        """Sending an invalid payment method returns 400."""
+        from studio.models import Order
+        token = self.get_token('testuser', 'Testpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+
+        now = timezone.now()
+        booking_data = {
+            'hall_id': self.hall.id,
+            'start_time': (now + timedelta(days=11)).isoformat(),
+            'end_time': (now + timedelta(days=11, hours=1)).isoformat(),
+        }
+        self.client.post(self.booking_url, booking_data)
+
+        order = Order.objects.get(user=self.user)
+        res = self.client.post('/api/payments/', {'order_id': order.id, 'method': 'bitcoin'})
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_13_payment_wrong_user(self):
+        """User cannot pay for another user's order — returns 403."""
+        from studio.models import Order
+        # Admin creates a booking via direct ORM
+        from studio.models import Booking
+        now = timezone.now()
+        booking = Booking.objects.create(
+            user=self.admin, hall=self.hall,
+            start_time=now + timedelta(days=12),
+            end_time=now + timedelta(days=12, hours=1),
+        )
+        admin_order = Order.objects.create(user=self.admin, booking=booking, total_amount=1500, status='PENDING')
+
+        # Regular user tries to pay for admin's order
+        token = self.get_token('testuser', 'Testpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+        res = self.client.post('/api/payments/', {'order_id': admin_order.id, 'method': 'cash'})
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    # ─── Hall CRUD Tests ────────────────────────────────────────────
+
+    def test_14_hall_list(self):
+        """Any authenticated user can list halls."""
+        token = self.get_token('testuser', 'Testpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+        res = self.client.get('/api/halls/')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        # setUp already created one hall
+        self.assertGreaterEqual(len(res.data), 1)
+
+    def test_15_admin_create_hall(self):
+        """Admin can create a new hall."""
+        token = self.get_token('admin', 'Adminpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+        data = {'name': 'VIP Hall', 'capacity': 10, 'price_per_hour': '5000.00'}
+        res = self.client.post('/api/halls/', data)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data['name'], 'VIP Hall')
+
+    def test_16_user_cannot_create_hall(self):
+        """Regular user cannot create a hall — returns 403."""
+        token = self.get_token('testuser', 'Testpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+        data = {'name': 'Sneaky Hall', 'capacity': 5, 'price_per_hour': '100.00'}
+        res = self.client.post('/api/halls/', data)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_17_admin_update_hall(self):
+        """Admin can update hall price."""
+        token = self.get_token('admin', 'Adminpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+        data = {'name': self.hall.name, 'capacity': self.hall.capacity, 'price_per_hour': '2000.00'}
+        res = self.client.put(f'/api/halls/{self.hall.id}/', data)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['price_per_hour'], '2000.00')
+
+    def test_18_admin_delete_hall(self):
+        """Admin can delete a hall."""
+        from studio.models import Hall as HallModel
+        new_hall = HallModel.objects.create(name='Temp Hall', capacity=5, price_per_hour='300.00')
+        token = self.get_token('admin', 'Adminpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+        res = self.client.delete(f'/api/halls/{new_hall.id}/')
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(HallModel.objects.filter(id=new_hall.id).exists())
