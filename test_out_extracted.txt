@@ -1,0 +1,45 @@
+Found 10 test(s).
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+FFF......F
+======================================================================
+FAIL: test_create_booking_invalid_time (studio.tests.PhotostudiaAPITests.test_create_booking_invalid_time)
+9. Prevent booking where end_time is before start_time
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/app/studio/tests.py", line 117, in test_create_booking_invalid_time
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+AssertionError: 404 != 400
+
+======================================================================
+FAIL: test_create_booking_overlap (studio.tests.PhotostudiaAPITests.test_create_booking_overlap)
+8. Prevent double booking (overlapping time)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/app/studio/tests.py", line 105, in test_create_booking_overlap
+    self.assertIn('Time slot is already booked', str(response.data))
+AssertionError: 'Time slot is already booked' not found in "{'error': 'Error', 'details': {'start_time': [ErrorDetail(string='Datetime has wrong format. Use one of these formats instead: YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z].', code='invalid')], 'end_time': [ErrorDetail(string='Datetime has wrong format. Use one of these formats instead: YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z].', code='invalid')]}}"
+
+======================================================================
+FAIL: test_create_booking_success (studio.tests.PhotostudiaAPITests.test_create_booking_success)
+7. Create a valid booking
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/app/studio/tests.py", line 76, in test_create_booking_success
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+AssertionError: 400 != 201
+
+======================================================================
+FAIL: test_search_and_filter_halls (studio.tests.PhotostudiaAPITests.test_search_and_filter_halls)
+10. Test filtering and searching halls
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/app/studio/tests.py", line 126, in test_search_and_filter_halls
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+AssertionError: 404 != 200
+
+----------------------------------------------------------------------
+Ran 10 tests in 6.771s
+
+FAILED (failures=4)
+Destroying test database for alias 'default'...

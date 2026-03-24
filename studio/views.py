@@ -59,7 +59,7 @@ class HallViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = HallFilter
-    search_fields = ['name', 'description']
+    search_fields = ['name']
 
     @action(detail=True, methods=['get'], url_path='availability', permission_classes=[IsAuthenticated])
     def availability(self, request, pk=None):
