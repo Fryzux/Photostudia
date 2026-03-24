@@ -12,6 +12,7 @@ ALLOWED_HOSTS = ['*']
 CORS_ALLOW_ALL_ORIGINS = True # Allow all origins for development. In production, use CORS_ALLOWED_ORIGINS.
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -21,10 +22,11 @@ INSTALLED_APPS = [
 
     # 3rd party
     'rest_framework',
-    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'drf_yasg',
     'django_filters',
     'corsheaders',
+    'channels',
 
     # Local apps
     'users',
@@ -64,6 +66,16 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'core.wsgi.application'
+ASGI_APPLICATION = 'core.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')],
+        },
+    },
+}
 
 DATABASES = {
     'default': {
@@ -113,9 +125,19 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 # Celery Configuration
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)

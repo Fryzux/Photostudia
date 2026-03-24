@@ -23,9 +23,9 @@ services:
     container_name: photostudia_backend
     restart: always
     command: >
-      sh -c "python manage.py check &&
+      sh -c "python manage.py collectstatic --noinput &&
              python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8000"
+             daphne -b 0.0.0.0 -p 8000 core.asgi:application"
     volumes:
       - .:/app
       - ./media:/app/media
