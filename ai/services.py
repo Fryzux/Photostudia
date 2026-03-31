@@ -1,8 +1,10 @@
 import os
 import joblib
 from django.conf import settings
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
+from booking.models import Booking
+from django.db.models.functions import TruncDate
 
 class AIService:
     _model = None
@@ -31,9 +33,9 @@ class AIService:
         # Mock season (1: Winter, 2: Spring, 3: Summer, 4: Autumn)
         season = (month % 12 + 3) // 3
         
-        # mock previous days orders for the sake of demo since we need historical data.
-        # usually fetched from DB or cached.
-        previous_day_orders = 5 
+        # Fetch real previous day orders from DB
+        prev_day = target_date - timedelta(days=1)
+        previous_day_orders = Booking.objects.filter(start_time__date=prev_day.date()).count()
         
         features = pd.DataFrame([{
             'day_of_week': day_of_week,
