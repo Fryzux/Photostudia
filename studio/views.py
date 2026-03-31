@@ -22,6 +22,21 @@ class IsAdminOrReadOnly(permissions.BasePermission):
         return request.user.is_staff
 
 
+from rest_framework.filters import SearchFilter
+from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter
+from rest_framework.decorators import action
+
+class HallFilter(FilterSet):
+    """Custom filters for halls endpoint."""
+    price_min = NumberFilter(field_name='price_per_hour', lookup_expr='gte')
+    price_max = NumberFilter(field_name='price_per_hour', lookup_expr='lte')
+    capacity_min = NumberFilter(field_name='capacity', lookup_expr='gte')
+
+    class Meta:
+        model = Hall
+        fields = ['price_min', 'price_max', 'capacity_min']
+
+
 class HallViewSet(viewsets.ModelViewSet):
     """
     CRUD for /api/halls/
@@ -31,10 +46,68 @@ class HallViewSet(viewsets.ModelViewSet):
     - GET /api/halls/{id}/    → retrieve a hall (any authenticated user)
     - PUT/PATCH /api/halls/{id}/ → update a hall (admin only)
     - DELETE /api/halls/{id}/ → delete a hall (admin only)
+
+    Filtering:
+      ?price_min=500&price_max=2000&capacity_min=5
+      ?search=студия
+
+    Availability:
+      GET /api/studio/halls/{id}/availability/?date=2026-03-20
     """
     queryset = Hall.objects.all().order_by('name')
     serializer_class = HallSerializer
     permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_class = HallFilter
+    search_fields = ['name']
+
+    @action(detail=True, methods=['get'], url_path='availability', permission_classes=[IsAuthenticated])
+    def availability(self, request, pk=None):
+        """
+        GET /api/studio/halls/{id}/availability/?date=YYYY-MM-DD
+        Returns a list of booked time slots for the given hall on the given date.
+        """
+        from datetime import datetime, date as date_type
+        from django.utils.timezone import make_aware
+
+        hall = self.get_object()
+        date_str = request.query_params.get('date')
+
+        if not date_str:
+            return Response(
+                {"error": "Validation Error", "details": "The 'date' query parameter is required (e.g. ?date=2026-03-20)"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {"error": "Validation Error", "details": "Invalid date format. Use YYYY-MM-DD."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        bookings = Booking.objects.filter(
+            hall=hall,
+            start_time__date=target_date
+        ).order_by('start_time')
+
+        booked_slots = [
+            {
+                "booking_id": b.id,
+                "start_time": b.start_time.isoformat(),
+                "end_time": b.end_time.isoformat(),
+            }
+            for b in bookings
+        ]
+
+        return Response({
+            "hall_id": hall.id,
+            "hall_name": hall.name,
+            "date": date_str,
+            "booked_slots": booked_slots,
+            "is_fully_free": len(booked_slots) == 0,
+        })
 
 
 class BookingViewSet(viewsets.ModelViewSet):
@@ -132,6 +205,23 @@ class OrderStatusUpdateView(generics.UpdateAPIView):
     serializer_class = OrderStatusUpdateSerializer
     permission_classes = [permissions.IsAdminUser]
 
+    def perform_update(self, serializer):
+        order = serializer.save()
+        
+        # Broadcast the new status to the WebSocket group
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'order_{order.id}',
+            {
+                'type': 'order_status_update',
+                'order_id': order.id,
+                'status': order.status
+            }
+        )
+
 
 class PaymentCreateView(views.APIView):
     """
@@ -179,6 +269,20 @@ class PaymentCreateView(views.APIView):
                 {"error": e.message},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Broadcast the PAID status to the WebSocket group
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'order_{order.id}',
+            {
+                'type': 'order_status_update',
+                'order_id': order.id,
+                'status': order.status
+            }
+        )
 
         return Response(
             PaymentSerializer(payment).data,

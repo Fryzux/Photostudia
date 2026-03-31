@@ -5,9 +5,51 @@ import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error
+import django
 from pathlib import Path
+import sys
 
-# Mock generating dataset
+# Setup Django environment
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.append(str(BASE_DIR))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
+django.setup()
+
+from booking.models import Booking
+from django.db.models.functions import TruncDate
+from django.db.models import Count
+
+def get_real_data():
+    print("Fetching real data from database...")
+    # Group bookings by date and count them
+    daily_orders = Booking.objects.annotate(date=TruncDate('start_time')) \
+        .values('date') \
+        .annotate(count=Count('id')) \
+        .order_by('date')
+    
+    if not daily_orders:
+        print("No data found in DB. Falling back to mock.")
+        return generate_mock_data()
+
+    data = []
+    for entry in daily_orders:
+        d = entry['date']
+        count = entry['count']
+        month = d.month
+        data.append({
+            'date': d,
+            'day_of_week': d.weekday(),
+            'month': month,
+            'season': (month % 12 + 3) // 3,
+            'orders': count
+        })
+    
+    df = pd.DataFrame(data)
+    # Add 'prev_orders' feature (shift by 1 day)
+    df['prev_orders'] = df['orders'].shift(1).fillna(0)
+    
+    return df.dropna()
+
 def generate_mock_data(n_samples=1000):
     np.random.seed(42)
     # Features: day_of_week(0-6), month(1-12), season(1-4), prev_orders(int)
@@ -34,8 +76,8 @@ def generate_mock_data(n_samples=1000):
     return df
 
 def train_and_save_model():
-    print("Generating training dataset...")
-    df = generate_mock_data()
+    print("Preparing training dataset...")
+    df = get_real_data()
     
     X = df[['day_of_week', 'month', 'season', 'prev_orders']]
     y = df['orders']

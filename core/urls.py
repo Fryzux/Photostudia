@@ -15,6 +15,7 @@ schema_view = get_schema_view(
     ),
     public=True,
     permission_classes=(permissions.AllowAny,),
+    authentication_classes=(),
 )
 
 urlpatterns = [
@@ -22,6 +23,7 @@ urlpatterns = [
     path('api/auth/', include('users.urls')),
     path('api/', include('studio.urls')),
     path('api/ai/', include('ai.urls')),
+    path('api/booking/', include('booking.urls')),
 
     # Swagger Documentation
     path('api/docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),

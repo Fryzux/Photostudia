@@ -5,6 +5,7 @@ class HallSerializer(serializers.ModelSerializer):
     class Meta:
         model = Hall
         fields = '__all__'
+        ref_name = 'StudioHallSerializer'
 
 class BookingSerializer(serializers.ModelSerializer):
     # For writing
@@ -17,6 +18,7 @@ class BookingSerializer(serializers.ModelSerializer):
         model = Booking
         fields = ['id', 'hall', 'hall_id', 'start_time', 'end_time']
         read_only_fields = ['id', 'user']
+        ref_name = 'StudioBookingSerializer'
 
 class OrderSerializer(serializers.ModelSerializer):
     booking = BookingSerializer(read_only=True)
@@ -25,11 +27,13 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = ['id', 'booking', 'total_amount', 'status', 'created_at']
         read_only_fields = ['id', 'user', 'total_amount', 'created_at']
+        ref_name = 'StudioOrderSerializer'
 
 class OrderStatusUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['status']
+        ref_name = 'StudioOrderStatusUpdateSerializer'
 
 class PaymentCreateSerializer(serializers.Serializer):
     """Input serializer for creating a payment."""
@@ -51,3 +55,4 @@ class PaymentSerializer(serializers.ModelSerializer):
         model = Payment
         fields = ['id', 'order', 'amount', 'method', 'is_successful', 'transaction_id', 'created_at']
         read_only_fields = fields
+        ref_name = 'StudioPaymentSerializer'

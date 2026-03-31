@@ -1,0 +1,21 @@
+# Environment variables
+.env
+
+# Media files
+media/
+
+# Database backups
+backups/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
