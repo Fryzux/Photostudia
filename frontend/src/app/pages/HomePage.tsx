@@ -6,37 +6,64 @@ import { Card, CardContent } from '../components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '../components/ui/carousel';
 import { contacts, hallShowcase, portfolioItems, valuePoints, workflowSteps } from '../data/studio';
 
-const quietPoints = ['Естественный свет', 'Плавные анимации', 'Понятное бронирование'];
+import bgImage from '../../assets/exposition.jpg';
+
+const quietPoints: string[] = [];
 
 export function HomePage() {
   return (
     <div className="space-y-10 pb-8 sm:space-y-14 sm:pb-10">
-      <section id="about" className="soft-fade scroll-mt-32 mx-auto max-w-[112rem] text-center">
-        <div className="mono-panel rounded-[2.1rem] border border-[#111111]/8 px-5 py-12 sm:rounded-[2.4rem] sm:px-10 sm:py-20">
+
+      {/* HERO С ФОНОМ */}
+      <section
+        id="about"
+        className="soft-fade scroll-mt-32 mx-auto max-w-[112rem] text-center"
+        style={{
+          position: 'relative',
+          backgroundImage: `url(${bgImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          borderRadius: '2.4rem',
+          overflow: 'hidden',
+        }}
+      >
+        {/* затемнение */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(255,255,255,0.6)',
+          }}
+        />
+
+        <div className="mono-panel relative z-10 rounded-[2.1rem] border border-white/10 px-5 py-12 sm:rounded-[2.4rem] sm:px-10 sm:py-20">
           <div className="mx-auto max-w-3xl space-y-6 sm:space-y-8">
-            <div className="inline-flex rounded-full border border-[#111111]/10 px-4 py-2 text-[0.68rem] uppercase tracking-[0.3em] text-[#5c5c5c] sm:px-5 sm:text-xs sm:tracking-[0.36em]">
+
+            <div className="inline-flex rounded-full border border-white/20 px-4 py-2 text-[0.68rem] uppercase tracking-[0.3em] text-black sm:px-5 sm:text-xs sm:tracking-[0.36em]">
               Фотостудия Экспозиция
             </div>
 
             <div className="space-y-4 sm:space-y-5">
-              <h1 className="font-display text-5xl leading-[0.92] text-[#111111] sm:text-7xl lg:text-8xl">Экспозиция</h1>
-              <p className="mx-auto max-w-2xl text-lg leading-7 text-[#4e4e4e] sm:text-2xl sm:leading-8">
+              <h1 className="font-display text-5xl leading-[0.92] text-black sm:text-7xl lg:text-8xl">
+                Экспозиция
+              </h1>
+              <p className="mx-auto max-w-2xl text-lg leading-7 text-black/80 sm:text-2xl sm:leading-8">
                 Спокойная фотостудия с чистой геометрией, мягким светом и понятным онлайн-бронированием.
               </p>
             </div>
 
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link to="/halls">
-                <Button size="lg" className="h-11 w-full rounded-full bg-[#111111] px-8 text-white hover:bg-[#2a2a2a] sm:h-12 sm:min-w-56 sm:w-auto">
+                <Button className="h-11 w-full rounded-full bg-white px-8 text-black hover:bg-gray-200 sm:h-12 sm:min-w-56 sm:w-auto">
                   Забронировать зал
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
+
               <Link to="/portfolio">
                 <Button
                   size="lg"
-                  variant="outline"
-                  className="h-11 w-full rounded-full border-[#111111]/12 bg-white px-8 text-[#111111] hover:bg-[#f1f1ee] sm:h-12 sm:min-w-56 sm:w-auto"
+                  className="h-11 w-full rounded-full bg-[#111111] px-8 text-white hover:bg-[#2a2a2a] sm:h-12 sm:min-w-56 sm:w-auto"
                 >
                   Смотреть работы
                 </Button>
@@ -45,15 +72,20 @@ export function HomePage() {
 
             <div className="grid gap-3 sm:grid-cols-3">
               {quietPoints.map((point) => (
-                <div key={point} className="rounded-full border border-[#111111]/8 bg-white/70 px-4 py-3 text-sm leading-6 text-[#555555] sm:text-base">
+                <div
+                  key={point}
+                  className="rounded-full border border-white/20 bg-white/10 px-4 py-3 text-sm leading-6 text-white sm:text-base"
+                >
                   {point}
                 </div>
               ))}
             </div>
+
           </div>
         </div>
       </section>
 
+      {/* О СТУДИИ */}
       <section className="scroll-mt-32 mx-auto max-w-[108rem] text-center">
         <div className="space-y-4">
           <p className="text-xs uppercase tracking-[0.36em] text-[#737373]">О студии</p>
@@ -75,6 +107,7 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* ЗАЛЫ */}
       <section id="home-halls" className="scroll-mt-32 mx-auto max-w-[112rem] text-center">
         <div className="mb-8 space-y-4">
           <p className="text-xs uppercase tracking-[0.36em] text-[#737373]">Залы</p>
@@ -100,12 +133,13 @@ export function HomePage() {
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="hidden border-[#111111]/12 bg-white text-[#111111] md:-left-10 md:flex" />
-            <CarouselNext className="hidden border-[#111111]/12 bg-white text-[#111111] md:-right-10 md:flex" />
+            <CarouselPrevious className="hidden border-[#111111]/12 bg-white text-[#111111] md:flex" />
+            <CarouselNext className="hidden border-[#111111]/12 bg-white text-[#111111] md:flex" />
           </Carousel>
         </div>
       </section>
 
+      {/* БРОНИРОВАНИЕ */}
       <section id="home-booking" className="scroll-mt-32 mx-auto max-w-[108rem] text-center">
         <div className="mono-panel rounded-[2rem] border border-[#111111]/8 px-5 py-8 sm:rounded-[2.2rem] sm:px-10 sm:py-10">
           <div className="space-y-4">
@@ -124,6 +158,7 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* ПОРТФОЛИО */}
       <section id="home-portfolio" className="scroll-mt-32 mx-auto max-w-[112rem] text-center">
         <div className="mb-8 space-y-4">
           <p className="text-xs uppercase tracking-[0.36em] text-[#737373]">Портфолио</p>
@@ -144,12 +179,15 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* КОНТАКТЫ */}
       <section id="contacts" className="scroll-mt-32 mx-auto max-w-[108rem] text-center">
         <div className="mono-panel rounded-[2rem] border border-[#111111]/8 px-5 py-10 sm:rounded-[2.2rem] sm:px-10 sm:py-12">
           <div className="mx-auto max-w-3xl space-y-6 sm:space-y-8">
             <div className="space-y-4">
               <p className="text-xs uppercase tracking-[0.36em] text-[#737373]">Контакты</p>
-              <h2 className="text-3xl text-[#111111] sm:text-5xl">Приезжайте в Экспозицию за чистым кадром и спокойной атмосферой</h2>
+              <h2 className="text-3xl text-[#111111] sm:text-5xl">
+                Приезжайте в Экспозицию за чистым кадром и спокойной атмосферой
+              </h2>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
@@ -157,11 +195,13 @@ export function HomePage() {
                 <p className="text-xs uppercase tracking-[0.32em] text-[#737373]">Адрес</p>
                 <p className="mt-3 text-xl leading-8 text-[#111111] sm:text-2xl">{contacts.address}</p>
               </div>
+
               <div className="rounded-[1.5rem] border border-[#111111]/8 bg-white/70 p-4 sm:p-5">
                 <p className="text-xs uppercase tracking-[0.32em] text-[#737373]">Связь</p>
                 <p className="mt-3 text-xl text-[#111111] sm:text-2xl">{contacts.phone}</p>
                 <p className="mt-1 text-sm text-[#5c5c5c] sm:text-base">{contacts.email}</p>
               </div>
+
               <div className="rounded-[1.5rem] border border-[#111111]/8 bg-white/70 p-4 sm:p-5">
                 <p className="text-xs uppercase tracking-[0.32em] text-[#737373]">Режим</p>
                 <p className="mt-3 text-xl text-[#111111] sm:text-2xl">{contacts.hours}</p>
@@ -170,13 +210,13 @@ export function HomePage() {
 
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link to="/halls">
-                <Button size="lg" className="h-11 w-full rounded-full bg-[#111111] px-8 text-white hover:bg-[#2a2a2a] sm:h-12 sm:min-w-56 sm:w-auto">
+                <Button className="h-11 w-full rounded-full bg-[#111111] px-8 text-white hover:bg-[#2a2a2a] sm:h-12 sm:min-w-56 sm:w-auto">
                   Перейти к залам
                 </Button>
               </Link>
+
               <Link to="/login">
                 <Button
-                  size="lg"
                   variant="outline"
                   className="h-11 w-full rounded-full border-[#111111]/12 bg-white px-8 text-[#111111] hover:bg-[#f1f1ee] sm:h-12 sm:min-w-56 sm:w-auto"
                 >
@@ -184,9 +224,11 @@ export function HomePage() {
                 </Button>
               </Link>
             </div>
+
           </div>
         </div>
       </section>
+
     </div>
   );
 }
