@@ -8,11 +8,13 @@ import {
   CreateBookingData,
   CreateHallData,
   CreatePaymentData,
+  CreatePromoCodeData,
   DemandPrediction,
   Hall,
   LoginCredentials,
   Order,
   Payment,
+  PromoCode,
   RegisterData,
   User,
 } from '../types';
@@ -47,6 +49,9 @@ type BackendBooking = {
 type BackendOrder = {
   id: number;
   booking: BackendBooking;
+  user_id?: number;
+  username?: string;
+  user_email?: string;
   total_amount: number | string;
   status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
   created_at: string;
@@ -86,6 +91,18 @@ type BackendAvailabilityPayload =
       occupied_slots?: Array<{ start?: string; end?: string } | string>;
     }
   | Array<{ start?: string; end?: string; available?: boolean }>;
+
+type BackendPromoCode = {
+  id: number;
+  code: string;
+  description?: string | null;
+  discount_percent: number | string;
+  is_active: boolean;
+  valid_from?: string | null;
+  valid_to?: string | null;
+  created_at: string;
+  updated_at: string;
+};
 
 export const tokenStorage = {
   getAccessToken: () => localStorage.getItem('access_token'),
@@ -170,9 +187,26 @@ function normalizeOrder(raw: BackendOrder): Order {
   return {
     id: raw.id,
     booking: normalizeBooking(raw.booking),
+    user_id: raw.user_id,
+    username: raw.username,
+    user_email: raw.user_email,
     total_amount: Number(raw.total_amount),
     status: raw.status,
     created_at: raw.created_at,
+  };
+}
+
+function normalizePromoCode(raw: BackendPromoCode): PromoCode {
+  return {
+    id: raw.id,
+    code: raw.code,
+    description: raw.description || '',
+    discount_percent: Number(raw.discount_percent),
+    is_active: raw.is_active,
+    valid_from: raw.valid_from || null,
+    valid_to: raw.valid_to || null,
+    created_at: raw.created_at,
+    updated_at: raw.updated_at,
   };
 }
 
@@ -300,6 +334,19 @@ export async function getProfile(): Promise<User> {
   }
 }
 
+export async function getUsers(filters: { search?: string; role?: string } = {}): Promise<User[]> {
+  const payload = (await request(
+    buildUrl('/auth/users/', {
+      search: filters.search,
+      role: filters.role,
+    }),
+    {},
+    true,
+  )) as User[] | PaginatedResponse<User>;
+
+  return unwrapList(payload);
+}
+
 export async function logout(): Promise<void> {
   const refresh = tokenStorage.getRefreshToken();
 
@@ -381,6 +428,19 @@ export async function getBookings(): Promise<Booking[]> {
 export async function getOrders(): Promise<Order[]> {
   const payload = (await request(`${API_URL}/orders/`, {}, true)) as BackendOrder[] | PaginatedResponse<BackendOrder>;
   return unwrapList(payload).map(normalizeOrder);
+}
+
+export async function updateOrderStatus(orderId: number, statusValue: Order['status']): Promise<Order> {
+  const payload = (await request(
+    `${API_URL}/orders/${orderId}/status/`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ status: statusValue }),
+    },
+    true,
+  )) as BackendOrder;
+
+  return normalizeOrder(payload);
 }
 
 export async function createBooking(data: CreateBookingData): Promise<Booking> {
@@ -478,6 +538,51 @@ export async function getActionLogs(filters: AuditLogFilters = {}): Promise<Audi
     details: log.details,
     timestamp: log.timestamp,
   }));
+}
+
+export async function getPromoCodes(filters: { search?: string; is_active?: boolean } = {}): Promise<PromoCode[]> {
+  const payload = (await request(
+    buildUrl('/promos/promocodes/', {
+      search: filters.search,
+      is_active: typeof filters.is_active === 'boolean' ? String(filters.is_active) : undefined,
+    }),
+    {},
+    true,
+  )) as BackendPromoCode[] | PaginatedResponse<BackendPromoCode>;
+
+  return unwrapList(payload).map(normalizePromoCode);
+}
+
+export async function createPromoCode(data: CreatePromoCodeData): Promise<PromoCode> {
+  const payload = (await request(
+    `${API_URL}/promos/promocodes/`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        code: data.code,
+        description: data.description,
+        discount_percent: data.discount_percent,
+        valid_from: data.valid_from,
+        valid_to: data.valid_to,
+      }),
+    },
+    true,
+  )) as BackendPromoCode;
+
+  return normalizePromoCode(payload);
+}
+
+export async function deactivatePromoCode(id: number): Promise<PromoCode> {
+  const payload = (await request(
+    `${API_URL}/promos/promocodes/${id}/deactivate/`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({}),
+    },
+    true,
+  )) as BackendPromoCode;
+
+  return normalizePromoCode(payload);
 }
 
 function normalizeTimeSlot(value: string) {
