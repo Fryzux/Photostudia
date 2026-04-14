@@ -201,6 +201,53 @@
     filter: none;
   }
 
+  .booking-slot {
+    position: relative;
+    overflow: hidden;
+    transition:
+      transform 180ms ease,
+      background-color 220ms ease,
+      border-color 220ms ease,
+      color 220ms ease,
+      box-shadow 220ms ease;
+  }
+
+  .booking-slot--free {
+    background: rgba(255, 255, 255, 0.82);
+  }
+
+  .booking-slot--free:hover {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 10px 20px rgba(17, 17, 17, 0.06);
+  }
+
+  .booking-slot--busy {
+    background: rgba(239, 239, 236, 0.65);
+    backdrop-filter: blur(8px);
+    cursor: not-allowed;
+  }
+
+  .booking-slot--busy::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-image: repeating-linear-gradient(
+      -45deg,
+      rgba(17, 17, 17, 0.06) 0 6px,
+      rgba(17, 17, 17, 0) 6px 12px
+    );
+    pointer-events: none;
+  }
+
+  .booking-slot--selected {
+    border-color: rgba(17, 17, 17, 0.7);
+    background: #111111;
+    color: #ffffff;
+    box-shadow: 0 14px 28px rgba(17, 17, 17, 0.16);
+  }
+
 }
 
 @keyframes soft-fade {

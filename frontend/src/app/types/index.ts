@@ -9,6 +9,9 @@ export interface User {
   phone?: string | null;
   is_staff: boolean;
   is_superuser?: boolean;
+  is_active?: boolean;
+  date_joined?: string;
+  last_login?: string | null;
 }
 
 export interface AuthTokens {
@@ -51,6 +54,9 @@ export interface Booking {
 export interface Order {
   id: number;
   booking: Booking;
+  user_id?: number;
+  username?: string;
+  user_email?: string;
   total_amount: number;
   status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
   created_at: string;
@@ -120,4 +126,24 @@ export interface AvailabilitySlot {
   start: string;
   end: string;
   available: boolean;
+}
+
+export interface PromoCode {
+  id: number;
+  code: string;
+  description?: string;
+  discount_percent: number;
+  is_active: boolean;
+  valid_from?: string | null;
+  valid_to?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePromoCodeData {
+  code: string;
+  description?: string;
+  discount_percent: number;
+  valid_from?: string;
+  valid_to?: string;
 }

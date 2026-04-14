@@ -107,6 +107,16 @@ export function HallDetailPage() {
     setFormErrors(nextErrors);
   };
 
+  const applySlotToForm = (slot: AvailabilitySlot) => {
+    if (!slot.available || !availabilityDate) return;
+
+    const start = `${availabilityDate}T${slot.start.slice(0, 5)}`;
+    const end = `${availabilityDate}T${slot.end.slice(0, 5)}`;
+    const next = { ...bookingData, start_time: start, end_time: end };
+    setBookingData(next);
+    setFormErrors(validateBookingForm(next));
+  };
+
   useEffect(() => {
     const selectedDate = bookingData.start_time.split('T')[0] || '';
 
@@ -123,6 +133,18 @@ export function HallDetailPage() {
     void runPrediction(selectedDate);
     void loadAvailability(selectedDate);
   }, [bookingData.start_time, id]);
+
+  useEffect(() => {
+    if (!availabilityDate || !id) return;
+
+    const intervalId = window.setInterval(() => {
+      void loadAvailability(availabilityDate);
+    }, 15000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [availabilityDate, id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,11 +204,20 @@ export function HallDetailPage() {
 
   const duration = calculateDuration();
   const total = calculateTotal();
+  const selectedSlotKey = (() => {
+    if (!bookingData.start_time || !bookingData.end_time) return '';
+    const start = bookingData.start_time.split('T')[1]?.slice(0, 5) || '';
+    const end = bookingData.end_time.split('T')[1]?.slice(0, 5) || '';
+    return start && end ? `${start}-${end}` : '';
+  })();
   const selectedSlotSummary = (() => {
     if (!availabilitySlots.length) return null;
-    const targetHour = bookingData.start_time ? bookingData.start_time.split('T')[1]?.slice(0, 2) : null;
-    if (!targetHour) return null;
-    return availabilitySlots.find((slot) => slot.start.startsWith(targetHour)) ?? null;
+    if (!selectedSlotKey) return null;
+    return (
+      availabilitySlots.find(
+        (slot) => `${slot.start.slice(0, 5)}-${slot.end.slice(0, 5)}` === selectedSlotKey,
+      ) ?? null
+    );
   })();
 
   return (
@@ -351,7 +382,8 @@ export function HallDetailPage() {
                 Свободные интервалы
               </CardTitle>
               <CardDescription className="text-base leading-7 text-[#5c5c5c]">
-                Если endpoint доступности не подключён на сервере, сервер всё равно защитит бронирование от пересечений.
+                Выбирайте свободный слот кликом: время автоматически подставится в форму. Занятые слоты скрывают детали
+                и помечаются как «Занято».
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
@@ -377,14 +409,19 @@ export function HallDetailPage() {
               {!availabilityLoading && availabilitySlots.length > 0 && (
                 <div className="grid gap-2 sm:grid-cols-2">
                   {availabilitySlots.map((slot) => (
-                    <div
+                    <button
                       key={`${slot.start}-${slot.end}`}
-                      className={`rounded-[1.2rem] border px-4 py-3 text-center text-sm ${
-                        slot.available ? 'border-[#111111]/10 bg-white/80 text-[#111111]' : 'border-[#111111]/8 bg-[#efefec] text-[#555555]'
+                      type="button"
+                      onClick={() => applySlotToForm(slot)}
+                      disabled={!slot.available}
+                      className={`booking-slot rounded-[1.2rem] border px-4 py-3 text-center text-sm ${
+                        slot.available ? 'booking-slot--free border-[#111111]/10 text-[#111111]' : 'booking-slot--busy border-[#111111]/8 text-[#555555]'
+                      } ${
+                        selectedSlotKey === `${slot.start.slice(0, 5)}-${slot.end.slice(0, 5)}` ? 'booking-slot--selected' : ''
                       }`}
                     >
                       {slot.start.slice(0, 5)} - {slot.end.slice(0, 5)} · {slot.available ? 'Свободно' : 'Занято'}
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -404,6 +441,12 @@ export function HallDetailPage() {
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>На эту дату пока нет отображённых слотов. Попробуйте выбрать другой день.</AlertDescription>
                 </Alert>
+              )}
+
+              {!availabilityLoading && availabilityDate && !availabilityUnsupported && (
+                <p className="text-center text-xs uppercase tracking-[0.24em] text-[#737373]">
+                  Календарь обновляется автоматически каждые 15 секунд.
+                </p>
               )}
 
               {selectedSlotSummary && (
