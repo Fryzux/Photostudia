@@ -6,7 +6,7 @@ from django.db.models import Sum
 from django.core.exceptions import ValidationError
 from .models import Booking, Order, Payment, Hall
 from .serializers import BookingSerializer, OrderSerializer, PaymentSerializer, PaymentCreateSerializer, HallSerializer, OrderStatusUpdateSerializer
-from .services import BookingService, PaymentService
+from .services import BookingService, PaymentService, BookingConflictError
 
 
 class IsAdminOrReadOnly(permissions.BasePermission):
@@ -129,13 +129,19 @@ class BookingViewSet(viewsets.ModelViewSet):
         promo_code = serializer.validated_data.pop('promo_code', None)
         
         # Service layer orchestrates atomic creation and overlap check
-        booking, order, applied_promo = BookingService.create_booking(
-            user=request.user,
-            hall=serializer.validated_data['hall'],
-            start_time=serializer.validated_data['start_time'],
-            end_time=serializer.validated_data['end_time'],
-            promo_code=promo_code or None,
-        )
+        try:
+            booking, order, applied_promo = BookingService.create_booking(
+                user=request.user,
+                hall=serializer.validated_data['hall'],
+                start_time=serializer.validated_data['start_time'],
+                end_time=serializer.validated_data['end_time'],
+                promo_code=promo_code or None,
+            )
+        except BookingConflictError as e:
+            return Response(
+                {"error": "Конфликт бронирования", "details": str(e)},
+                status=status.HTTP_409_CONFLICT
+            )
         
         # Trigger background task
         from .tasks import send_booking_confirmation_email

@@ -5,6 +5,11 @@ from .models import Booking, Order, Payment
 from decimal import Decimal
 import uuid
 
+
+class BookingConflictError(Exception):
+    """Raised when a booking slot is already taken — maps to HTTP 409."""
+    pass
+
 class BookingService:
     @staticmethod
     @transaction.atomic
@@ -16,10 +21,10 @@ class BookingService:
         if start_time >= end_time:
             raise ValidationError("End time must be after start time.")
         
-        # Check overlaps
-        overlapping = BookingRepository.get_overlapping_bookings(hall, start_time, end_time)
+        # Check overlaps with SELECT FOR UPDATE to prevent race conditions
+        overlapping = BookingRepository.get_overlapping_bookings(hall, start_time, end_time, lock=True)
         if overlapping.exists():
-            raise ValidationError("This hall is already booked for the selected time slot.")
+            raise BookingConflictError("This hall is already booked for the selected time slot.")
         
         # Create Booking
         booking = Booking.objects.create(
