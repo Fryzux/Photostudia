@@ -3,18 +3,22 @@ from .models import Booking, Hall
 
 class BookingRepository:
     @staticmethod
-    def get_overlapping_bookings(hall, start_time, end_time, exclude_booking_id=None):
+    def get_overlapping_bookings(hall, start_time, end_time, exclude_booking_id=None, lock=False):
         """
         Check if there are any bookings for the given hall that overlap with the requested time.
+        lock=True adds SELECT FOR UPDATE to prevent race conditions.
         """
         query = Q(hall=hall) & (
             Q(start_time__lt=end_time) & Q(end_time__gt=start_time)
         )
         queryset = Booking.objects.filter(query)
-        
+
         if exclude_booking_id:
             queryset = queryset.exclude(id=exclude_booking_id)
-            
+
+        if lock:
+            queryset = queryset.select_for_update()
+
         return queryset
 
     @staticmethod
