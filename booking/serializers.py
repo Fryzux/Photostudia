@@ -11,10 +11,17 @@ class UserSerializer(serializers.ModelSerializer):
         ref_name = 'BookingUserSerializer'
 
 class HallSerializer(serializers.ModelSerializer):
+    images = serializers.SerializerMethodField()
+
     class Meta:
         model = Hall
-        fields = '__all__'
+        fields = ['id', 'name', 'price_per_hour', 'capacity', 'description', 'image', 'images']
         ref_name = 'BookingHallSerializer'
+
+    def get_images(self, obj):
+        if obj.image:
+            return [obj.image.url]
+        return []
 
 class BookingSerializer(serializers.ModelSerializer):
     user_detail = UserSerializer(source='user', read_only=True)

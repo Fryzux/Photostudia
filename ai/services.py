@@ -3,11 +3,13 @@ import joblib
 from django.conf import settings
 from datetime import datetime, timedelta
 import pandas as pd
-from booking.models import Booking
+from studio.models import Booking
 from django.db.models.functions import TruncDate
+
 
 class AIService:
     _model = None
+    _hourly_model = None
 
     @classmethod
     def load_model(cls):
@@ -20,40 +22,99 @@ class AIService:
         return cls._model
 
     @classmethod
+    def load_hourly_model(cls):
+        if cls._hourly_model is None:
+            model_path = os.path.join(settings.BASE_DIR, 'ai', 'ai_hourly_model.pkl')
+            if os.path.exists(model_path):
+                cls._hourly_model = joblib.load(model_path)
+            else:
+                raise FileNotFoundError(f"Hourly model not found at {model_path}. Run: python manage.py train_hourly_model")
+        return cls._hourly_model
+
+    @classmethod
     def predict(cls, date_str):
-        """
-        Predicts orders for a given date string 'YYYY-MM-DD'.
-        """
         model = cls.load_model()
-        
+
         target_date = datetime.strptime(date_str, '%Y-%m-%d')
-        # Extract features (should match training features)
         day_of_week = target_date.weekday()
         month = target_date.month
-        # Mock season (1: Winter, 2: Spring, 3: Summer, 4: Autumn)
         season = (month % 12 + 3) // 3
-        
-        # Fetch real previous day orders from DB
+
         prev_day = target_date - timedelta(days=1)
         previous_day_orders = Booking.objects.filter(start_time__date=prev_day.date()).count()
-        
+
         features = pd.DataFrame([{
             'day_of_week': day_of_week,
             'month': month,
             'season': season,
             'prev_orders': previous_day_orders
         }])
-        
+
         predicted_value = model.predict(features)[0]
-        
-        # Determine explanation based on input features or prediction rules
-        explanation = "Standard demand expected."
-        if day_of_week >= 5: # Weekend
+
+        if predicted_value < 5:
+            explanation = "Ожидается минимальный спрос. Рекомендуется запустить акцию."
+        elif 5 <= predicted_value < 12:
+            explanation = "Ожидается обычный (стандартный) спрос залов."
+        else:
+            explanation = "Ожидается высокая загрузка студии."
+
+        if day_of_week >= 5:
             explanation = "Ожидается повышенный спрос из-за выходного дня"
         elif month in [11, 12]:
             explanation = "Высокий спрос в связи с праздничным сезоном"
-            
+
         return {
             "predicted_orders": int(max(0, round(predicted_value))),
             "explanation": explanation
         }
+
+    @classmethod
+    def predict_weekly_demand(cls, hall_id: int):
+        """
+        Возвращает почасовой прогноз загрузки для заданного зала на следующие 7 дней.
+        Формат: список дней, каждый содержит список слотов 09:00–21:00 с вероятностью бронирования.
+        """
+        model = cls.load_hourly_model()
+
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        result = []
+
+        for day_offset in range(7):
+            day = today + timedelta(days=day_offset)
+            day_of_week = day.weekday()
+            month = day.month
+            season = (month % 12 + 3) // 3
+
+            hours = list(range(9, 21))  # 09:00 – 20:00 (12 слотов)
+            features = pd.DataFrame([{
+                'hall_id': hall_id,
+                'day_of_week': day_of_week,
+                'month': month,
+                'season': season,
+                'hour': h,
+            } for h in hours])
+
+            probabilities = model.predict_proba(features)[:, 1]  # probability of 'booked'
+
+            slots = []
+            for i, hour in enumerate(hours):
+                prob = float(probabilities[i])
+                slots.append({
+                    'hour': hour,
+                    'label': f"{hour:02d}:00–{hour + 1:02d}:00",
+                    'booking_probability': round(prob, 3),
+                    'demand_level': (
+                        'high' if prob >= 0.6
+                        else 'medium' if prob >= 0.3
+                        else 'low'
+                    ),
+                })
+
+            result.append({
+                'date': day.strftime('%Y-%m-%d'),
+                'day_label': ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'][day_of_week],
+                'slots': slots,
+            })
+
+        return result

@@ -138,13 +138,15 @@ export function ProfilePage() {
                 <Shield className="h-5 w-5 text-[#5c5c5c]" />
                 <div className="flex-1">
                   <p className="text-sm text-[#5c5c5c]">Роль</p>
-                  {user.is_staff ? (
-                    <Badge className="rounded-full bg-[#111111] text-white">Администратор</Badge>
-                  ) : (
-                    <Badge variant="secondary" className="rounded-full bg-white text-[#111111]">
-                      Пользователь
-                    </Badge>
-                  )}
+                  <div className="flex gap-2">
+                    {user.is_staff && <Badge className="rounded-full bg-[#111111] text-white">Администратор</Badge>}
+                    {user.is_manager && <Badge className="rounded-full bg-amber-500 text-white hover:bg-amber-600">Менеджер</Badge>}
+                    {!user.is_staff && !user.is_manager && (
+                      <Badge variant="secondary" className="rounded-full bg-white text-[#111111]">
+                        Пользователь
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

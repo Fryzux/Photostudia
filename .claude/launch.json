@@ -1,0 +1,35 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Django Dev Server",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["manage.py", "runserver", "0.0.0.0:8000"],
+      "port": 8000
+    },
+    {
+      "name": "Celery Worker",
+      "runtimeExecutable": "celery",
+      "runtimeArgs": ["-A", "core", "worker", "-l", "INFO"],
+      "port": null
+    },
+    {
+      "name": "Celery Beat",
+      "runtimeExecutable": "celery",
+      "runtimeArgs": ["-A", "core", "beat", "-l", "INFO"],
+      "port": null
+    },
+    {
+      "name": "Docker Compose (all services)",
+      "runtimeExecutable": "docker-compose",
+      "runtimeArgs": ["up", "--build"],
+      "port": 8000
+    },
+    {
+      "name": "Docker Compose (infra only: db + redis)",
+      "runtimeExecutable": "docker-compose",
+      "runtimeArgs": ["up", "db", "redis"],
+      "port": 5432
+    }
+  ]
+}
