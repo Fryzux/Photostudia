@@ -25,7 +25,7 @@ services:
     command: >
       sh -c "python manage.py collectstatic --noinput &&
              python manage.py migrate &&
-             python manage.py loaddata studio/fixtures/initial_halls.json --ignorenonexistent 2>/dev/null || true &&
+             python manage.py init_halls &&
              daphne -b 0.0.0.0 -p 8000 core.asgi:application"
     volumes:
       - .:/app
