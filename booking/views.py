@@ -42,8 +42,26 @@ class AnalyticsSummaryView(APIView):
     permission_classes = [permissions.IsAdminUser]
 
     def get(self, request):
+        from django.utils import timezone
+        from datetime import timedelta
+        from django.db.models.functions import TruncDate
+
         paid_orders = Order.objects.filter(status='PAID')
         total_revenue = paid_orders.aggregate(total=Sum('total_price'))['total'] or 0
+
+        # Calculate 7-day revenue trend
+        seven_days_ago = timezone.now() - timedelta(days=7)
+        recent_orders = paid_orders.filter(created_at__gte=seven_days_ago)
+        daily_revenue = (
+            recent_orders
+            .annotate(date=TruncDate('created_at'))
+            .values('date')
+            .annotate(revenue=Sum('total_price'))
+            .order_by('date')
+        )
+        
+        # Format the trend
+        trend_data = [{"date": item['date'].strftime('%Y-%m-%d'), "revenue": float(item['revenue'])} for item in daily_revenue]
 
         summary = {
             "total_users": User.objects.count(),
@@ -51,6 +69,7 @@ class AnalyticsSummaryView(APIView):
             "total_bookings": Booking.objects.count(),
             "paid_orders_count": paid_orders.count(),
             "total_revenue": float(total_revenue),
-            "popular_halls": Booking.objects.values('hall__name').annotate(count=Count('id')).order_by('-count')[:3]
+            "popular_halls": Booking.objects.values('hall__name').annotate(count=Count('id')).order_by('-count')[:3],
+            "revenue_trend": trend_data
         }
         return Response(summary)

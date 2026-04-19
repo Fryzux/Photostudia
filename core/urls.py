@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/', include('studio.urls')),
     path('api/ai/', include('ai.urls')),
     path('api/booking/', include('booking.urls')),
+    path('api/promo/', include('promo.urls')),
 
     # Swagger Documentation
     path('api/docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),

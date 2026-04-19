@@ -11,12 +11,14 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django_asgi_app = get_asgi_application()
 
 import studio.routing
+import booking.routing
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
     "websocket": AuthMiddlewareStack(
         URLRouter(
-            studio.routing.websocket_urlpatterns
+            studio.routing.websocket_urlpatterns +
+            booking.routing.websocket_urlpatterns
         )
     ),
 })

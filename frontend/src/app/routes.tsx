@@ -1,20 +1,32 @@
+import { lazy, Suspense } from 'react';
 import type { ReactNode } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router';
 import { Layout } from './components/Layout';
 import { useAuth } from './context/AuthContext';
-import { LoginPage } from './pages/LoginPage';
-import { HomePage } from './pages/HomePage';
-import { PortfolioPage } from './pages/PortfolioPage';
-import { HallsPage } from './pages/HallsPage';
-import { HallDetailPage } from './pages/HallDetailPage';
-import { MyBookingsPage } from './pages/MyBookingsPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { AdminPage } from './pages/AdminPage';
-import { AuditLogPage } from './pages/AuditLogPage';
-import { AiInsightsPage } from './pages/AiInsightsPage';
-import { CheckoutPage } from './pages/CheckoutPage';
-import { ForbiddenPage } from './pages/ForbiddenPage';
-import { NotFoundPage } from './pages/NotFoundPage';
+
+// Lazy load pages for better performance
+const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
+const HomePage = lazy(() => import('./pages/HomePage').then(m => ({ default: m.HomePage })));
+const PortfolioPage = lazy(() => import('./pages/PortfolioPage').then(m => ({ default: m.PortfolioPage })));
+const HallsPage = lazy(() => import('./pages/HallsPage').then(m => ({ default: m.HallsPage })));
+const HallDetailPage = lazy(() => import('./pages/HallDetailPage').then(m => ({ default: m.HallDetailPage })));
+const MyBookingsPage = lazy(() => import('./pages/MyBookingsPage').then(m => ({ default: m.MyBookingsPage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const AdminPage = lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
+const AuditLogPage = lazy(() => import('./pages/AuditLogPage').then(m => ({ default: m.AuditLogPage })));
+const AiInsightsPage = lazy(() => import('./pages/AiInsightsPage').then(m => ({ default: m.AiInsightsPage })));
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage').then(m => ({ default: m.CheckoutPage })));
+const ForbiddenPage = lazy(() => import('./pages/ForbiddenPage').then(m => ({ default: m.ForbiddenPage })));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
+const ManagerPage = lazy(() => import('./pages/ManagerPage').then(m => ({ default: m.ManagerPage })));
+
+function PageLoader() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#111111]/10 border-t-[#111111]" />
+    </div>
+  );
+}
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
@@ -38,6 +50,20 @@ function AdminRoute({ children }: { children: ReactNode }) {
   }
 
   if (!isAdmin) {
+    return <Navigate to="/forbidden" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function ManagerRoute({ children }: { children: ReactNode }) {
+  const { isManager, loading } = useAuth();
+
+  if (loading) {
+    return <div className="py-12 text-center text-sm text-slate-500">Проверяем права доступа...</div>;
+  }
+
+  if (!isManager) {
     return <Navigate to="/forbidden" replace />;
   }
 
@@ -69,7 +95,11 @@ export const router = createBrowserRouter([
   },
   {
     path: '/',
-    element: <Layout />,
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <Layout />
+      </Suspense>
+    ),
     children: [
       {
         index: true,
@@ -125,6 +155,14 @@ export const router = createBrowserRouter([
           <ProtectedRoute>
             <AiInsightsPage />
           </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'manager',
+        element: (
+          <ManagerRoute>
+            <ManagerPage />
+          </ManagerRoute>
         ),
       },
       {

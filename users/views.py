@@ -20,11 +20,13 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 
+class UserListView(generics.ListAPIView):
+    queryset = User.objects.all().order_by('-date_joined')
+    serializer_class = UserSerializer
+    permission_classes = (permissions.IsAdminUser,)
+
+
 class LogoutView(APIView):
-    """
-    POST /api/auth/logout/
-    Expects { "refresh": "token_string" } and adds it to the blacklist.
-    """
     permission_classes = (permissions.IsAuthenticated,)
 
     def post(self, request):

@@ -2,21 +2,29 @@ from rest_framework import serializers
 from .models import Hall, Booking, Order, Payment
 
 class HallSerializer(serializers.ModelSerializer):
+    images = serializers.SerializerMethodField()
+
     class Meta:
         model = Hall
-        fields = '__all__'
+        fields = ['id', 'name', 'description', 'capacity', 'price_per_hour', 'image', 'images']
         ref_name = 'StudioHallSerializer'
+
+    def get_images(self, obj):
+        if obj.image:
+            return [obj.image.url]
+        return []
 
 class BookingSerializer(serializers.ModelSerializer):
     # For writing
     hall_id = serializers.PrimaryKeyRelatedField(queryset=Hall.objects.all(), source='hall', write_only=True)
+    promo_code = serializers.CharField(write_only=True, required=False, allow_null=True, allow_blank=True)
     
     # For reading
     hall = HallSerializer(read_only=True)
 
     class Meta:
         model = Booking
-        fields = ['id', 'hall', 'hall_id', 'start_time', 'end_time']
+        fields = ['id', 'hall', 'hall_id', 'promo_code', 'start_time', 'end_time']
         read_only_fields = ['id', 'user']
         ref_name = 'StudioBookingSerializer'
 

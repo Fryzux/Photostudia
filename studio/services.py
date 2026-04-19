@@ -8,17 +8,16 @@ import uuid
 class BookingService:
     @staticmethod
     @transaction.atomic
-    def create_booking(user, hall, start_time, end_time):
+    def create_booking(user, hall, start_time, end_time, promo_code=None):
         """
         Creates a booking with overlap validation and generates an order within a transaction.
+        Optionally applies a promo code discount to the order total.
         """
         if start_time >= end_time:
             raise ValidationError("End time must be after start time.")
         
         # Check overlaps
         overlapping = BookingRepository.get_overlapping_bookings(hall, start_time, end_time)
-        # We can lock rows or depend on isolation level, but simple select inside atomic is standard.
-        # For stricter consistency, select_for_update() could be used on the hall row or a specific constraint could be added.
         if overlapping.exists():
             raise ValidationError("This hall is already booked for the selected time slot.")
         
@@ -30,9 +29,31 @@ class BookingService:
             end_time=end_time
         )
         
-        # Calculate amount (simple hours calculation)
+        # Calculate amount
         duration_hours = Decimal((end_time - start_time).total_seconds()) / Decimal(3600)
         total_amount = hall.price_per_hour * duration_hours
+        
+        # Apply promo code discount if provided
+        applied_promo = None
+        if promo_code:
+            from django.utils import timezone
+            from promo.models import PromoCode
+            now = timezone.now()
+            try:
+                promo = PromoCode.objects.get(
+                    code=promo_code,
+                    hall=hall,
+                    is_active=True,
+                    valid_from__lte=now,
+                    valid_to__gte=now,
+                    hour_from__lte=start_time.hour,
+                    hour_to__gt=start_time.hour,
+                )
+                discount = Decimal(promo.discount_percent) / Decimal(100)
+                total_amount = total_amount * (Decimal(1) - discount)
+                applied_promo = promo.code
+            except PromoCode.DoesNotExist:
+                raise ValidationError(f"Промокод '{promo_code}' недействителен или не подходит для этого слота.")
         
         # Create pending Order
         order = Order.objects.create(
@@ -42,7 +63,7 @@ class BookingService:
             status='PENDING'
         )
         
-        return booking, order
+        return booking, order, applied_promo
 
 class PaymentService:
     @staticmethod

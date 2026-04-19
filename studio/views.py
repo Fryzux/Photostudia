@@ -11,15 +11,13 @@ from .services import BookingService, PaymentService
 
 class IsAdminOrReadOnly(permissions.BasePermission):
     """
-    Authenticated users can read (GET, HEAD, OPTIONS).
+    Anybody can read (GET, HEAD, OPTIONS).
     Only staff/admin users can write (POST, PUT, PATCH, DELETE).
     """
     def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
         if request.method in permissions.SAFE_METHODS:
             return True
-        return request.user.is_staff
+        return request.user and request.user.is_authenticated and request.user.is_staff
 
 
 from rest_framework.filters import SearchFilter
@@ -61,7 +59,7 @@ class HallViewSet(viewsets.ModelViewSet):
     filterset_class = HallFilter
     search_fields = ['name']
 
-    @action(detail=True, methods=['get'], url_path='availability', permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['get'], url_path='availability', permission_classes=[permissions.AllowAny])
     def availability(self, request, pk=None):
         """
         GET /api/studio/halls/{id}/availability/?date=YYYY-MM-DD
@@ -128,21 +126,28 @@ class BookingViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
+        promo_code = serializer.validated_data.pop('promo_code', None)
+        
         # Service layer orchestrates atomic creation and overlap check
-        booking, order = BookingService.create_booking(
+        booking, order, applied_promo = BookingService.create_booking(
             user=request.user,
             hall=serializer.validated_data['hall'],
             start_time=serializer.validated_data['start_time'],
-            end_time=serializer.validated_data['end_time']
+            end_time=serializer.validated_data['end_time'],
+            promo_code=promo_code or None,
         )
         
         # Trigger background task
         from .tasks import send_booking_confirmation_email
         send_booking_confirmation_email.delay(booking.id, request.user.email)
         
-        # We can return the serialized booking
         result_serializer = self.get_serializer(booking)
-        return Response(result_serializer.data, status=status.HTTP_201_CREATED)
+        data = result_serializer.data
+        data['order_id'] = order.id
+        data['total_amount'] = str(order.total_amount)
+        if applied_promo:
+            data['promo_applied'] = applied_promo
+        return Response(data, status=status.HTTP_201_CREATED)
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -154,7 +159,7 @@ class AnalyticsSummaryView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        operation_description="Get a summary of total orders and revenue.",
+        operation_description="Get a summary of analytics. Admin gets global stats, users get their own.",
         responses={
             200: openapi.Response(
                 description="Analytics summary",
@@ -162,25 +167,41 @@ class AnalyticsSummaryView(views.APIView):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         'total_orders': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'total_bookings': openapi.Schema(type=openapi.TYPE_INTEGER),
                         'total_revenue': openapi.Schema(type=openapi.TYPE_NUMBER),
+                        'total_users': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'total_halls': openapi.Schema(type=openapi.TYPE_INTEGER),
                     }
                 )
             )
         }
     )
     def get(self, request):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
         if not request.user.is_staff:
-            # Maybe standard users get their own summary, admin gets global
             total_orders = Order.objects.filter(user=request.user).count()
+            total_bookings = Booking.objects.filter(user=request.user).count()
             total_revenue = Order.objects.filter(user=request.user, status='COMPLETED').aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+            return Response({
+                "total_orders": total_orders,
+                "total_bookings": total_bookings,
+                "total_revenue": float(total_revenue),
+            })
         else:
             total_orders = Order.objects.count()
+            total_bookings = Booking.objects.count()
             total_revenue = Order.objects.filter(status='COMPLETED').aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-            
-        return Response({
-            "total_orders": total_orders,
-            "total_revenue": total_revenue
-        })
+            total_users = User.objects.count()
+            total_halls = Hall.objects.count()
+            return Response({
+                "total_orders": total_orders,
+                "total_bookings": total_bookings,
+                "total_revenue": float(total_revenue),
+                "total_users": total_users,
+                "total_halls": total_halls,
+            })
 
 
 class OrderListView(generics.ListAPIView):

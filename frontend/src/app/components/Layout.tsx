@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { useEffect, useState } from 'react';
-import { LogOut, Menu, User } from 'lucide-react';
+import { Instagram, LogOut, Mail, MapPin, Menu, Phone, User } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 
 import { useAuth } from '../context/AuthContext';
 import { Button } from './ui/button';
@@ -15,7 +16,7 @@ const homeSectionItems = [
 ];
 
 export function Layout() {
-  const { user, logout, isAdmin, isAuthenticated } = useAuth();
+  const { user, logout, isAdmin, isManager, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -73,6 +74,7 @@ export function Layout() {
     { label: 'Каталог', to: '/halls', active: isActive('/halls') || isActive('/booking') },
     ...(isAuthenticated ? [{ label: 'Брони', to: '/my-bookings', active: isActive('/my-bookings') }] : []),
     ...(isAuthenticated ? [{ label: 'AI', to: '/ai-insights', active: isActive('/ai-insights') }] : []),
+    ...(isManager ? [{ label: 'Менеджер', to: '/manager', active: isActive('/manager') }] : []),
     ...(isAdmin ? [{ label: 'Админ', to: '/admin-panel', active: isActive('/admin') || isActive('/admin-panel') }] : []),
     ...(isAdmin ? [{ label: 'Аудит', to: '/admin/audit', active: isActive('/admin/audit') }] : []),
   ];
@@ -214,13 +216,83 @@ export function Layout() {
         </div>
       </header>
 
-      <main className="mx-auto w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
-        <Outlet />
+      <main className="mx-auto w-full flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
 
-      <footer className="border-t border-[#111111]/8 bg-white/82">
-        <div className="mx-auto w-full px-4 py-5 text-center sm:px-6 lg:px-10">
-          <p className="text-sm leading-6 text-[#5f5f5f]">© 2026 Фотостудия "Экспозиция". Чёрно-белый минимализм для бронирования и съёмок.</p>
+      <footer className="border-t border-[#111111]/8 bg-[#efefec]/50 backdrop-blur-sm">
+        <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-10">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
+            <div className="space-y-4">
+              <Link to="/" className="text-[#111111]">
+                <p className="font-display text-4xl leading-none">Экспозиция</p>
+              </Link>
+              <p className="text-sm leading-6 text-[#5c5c5c]">
+                Пространство для творчества, где свет и тень создают искусство. 
+                Чёрно-белый минимализм и современное оборудование для ваших идей.
+              </p>
+              <div className="flex gap-4 pt-2">
+                <a href="#" className="h-9 w-9 flex items-center justify-center rounded-full border border-[#111111]/10 bg-white text-[#111111] transition hover:bg-[#111111] hover:text-white">
+                  <Instagram className="h-4 w-4" />
+                </a>
+                <a href="#" className="h-9 w-9 flex items-center justify-center rounded-full border border-[#111111]/10 bg-white text-[#111111] transition hover:bg-[#111111] hover:text-white">
+                  <Mail className="h-4 w-4" />
+                </a>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <h4 className="text-xs font-bold uppercase tracking-[0.3em] text-[#111111]">Навигация</h4>
+              <ul className="grid grid-cols-2 gap-x-4 gap-y-3">
+                {homeSectionItems.map(item => (
+                  <li key={item.section}>
+                    <Link to={item.to} className="text-sm text-[#5c5c5c] transition hover:text-[#111111]">
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+                <li>
+                  <Link to="/halls" className="text-sm text-[#5c5c5c] transition hover:text-[#111111]">
+                    Каталог залов
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div className="space-y-6">
+              <h4 className="text-xs font-bold uppercase tracking-[0.3em] text-[#111111]">Контакты</h4>
+              <ul className="space-y-4">
+                <li className="flex items-start gap-3 text-sm text-[#5c5c5c]">
+                  <MapPin className="h-4 w-4 shrink-0 text-[#111111]" />
+                  <span>ул. Световая, 24, Москва,<br />студия 402, вход с торца</span>
+                </li>
+                <li className="flex items-center gap-3 text-sm text-[#5c5c5c]">
+                  <Phone className="h-4 w-4 shrink-0 text-[#111111]" />
+                  <span>+7 (999) 123-45-67</span>
+                </li>
+                <li className="flex items-center gap-3 text-sm text-[#5c5c5c]">
+                  <Mail className="h-4 w-4 shrink-0 text-[#111111]" />
+                  <span>hello@exposition.studio</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-16 border-t border-[#111111]/8 pt-8">
+            <p className="text-center text-xs leading-6 text-[#737373]">
+              © 2026 Фотостудия "Экспозиция". Все права защищены. Чёрно-белый минимализм во всём.
+            </p>
+          </div>
         </div>
       </footer>
     </div>

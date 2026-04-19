@@ -4,6 +4,7 @@ from django.db.models import F, Q
 
 class Hall(models.Model):
     name = models.CharField(max_length=100, unique=True, null=False)
+    description = models.TextField(null=True, blank=True)
     capacity = models.PositiveIntegerField()
     price_per_hour = models.DecimalField(max_digits=10, decimal_places=2)
     image = models.ImageField(upload_to='halls/', null=True, blank=True)
