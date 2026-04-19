@@ -2,9 +2,9 @@ import os
 import joblib
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error
+from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error, r2_score
 import django
 from pathlib import Path
 import sys
@@ -50,7 +50,7 @@ def get_real_data():
     
     return df.dropna()
 
-def generate_mock_data(n_samples=1000):
+def generate_mock_data(n_samples=1500):
     np.random.seed(42)
     # Features: day_of_week(0-6), month(1-12), season(1-4), prev_orders(int)
     day_of_week = np.random.randint(0, 7, n_samples)
@@ -84,22 +84,27 @@ def train_and_save_model():
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
+    model = GradientBoostingRegressor(n_estimators=200, learning_rate=0.05, max_depth=4, random_state=42)
     model.fit(X_train, y_train)
-    
+
     preds = model.predict(X_test)
     mae = mean_absolute_error(y_test, preds)
-    mape = mean_absolute_percentage_error(y_test, preds)
-    
-    mae_percentage = mape * 100
-    
-    print(f"Mean Absolute Error (raw): {mae:.2f}")
-    print(f"MAE Percentage (MAPE): {mae_percentage:.2f}%")
-    
-    if mae_percentage <= 15.0 or mae <= 2.0:
-        print("Model satisfies MAE requirements.")
+    mape = mean_absolute_percentage_error(y_test, preds) * 100
+    r2 = r2_score(y_test, preds)
+
+    print(f"Mean Absolute Error (MAE):  {mae:.4f}")
+    print(f"MAE Percentage (MAPE):      {mape:.2f}%")
+    print(f"R² Score:                   {r2:.4f}")
+
+    if mape <= 15.0 or mae <= 2.0:
+        print("✅ Model satisfies MAE requirements.")
     else:
-        print("WARNING: MAE might be higher than 15% depending on measurement scale.")
+        print("⚠️  WARNING: MAE might be higher than 15%.")
+
+    if r2 >= 0.7:
+        print("✅ R² is good (≥ 0.7).")
+    else:
+        print(f"⚠️  R² is low ({r2:.4f}). Consider more features or data.")
         
     # Save the model
     base_dir = Path(__file__).resolve().parent.parent

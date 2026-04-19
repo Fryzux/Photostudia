@@ -70,6 +70,50 @@ class AIService:
         }
 
     @classmethod
+    def forecast_hourly(cls, studio_id: int, date_str: str):
+        """
+        Возвращает почасовой прогноз загрузки для студии на конкретную дату.
+        Формат: [{date, hour, load_pct}, ...]  (часы 08:00–22:00)
+        """
+        try:
+            model = cls.load_hourly_model()
+            use_ml = True
+        except FileNotFoundError:
+            use_ml = False
+
+        target_date = datetime.strptime(date_str, '%Y-%m-%d')
+        day_of_week = target_date.weekday()
+        month = target_date.month
+        season = (month % 12 + 3) // 3
+        hours = list(range(8, 22))  # 08:00–21:00 (14 слотов)
+
+        if use_ml:
+            features = pd.DataFrame([{
+                'hall_id': studio_id,
+                'day_of_week': day_of_week,
+                'month': month,
+                'season': season,
+                'hour': h,
+            } for h in hours])
+            probabilities = model.predict_proba(features)[:, 1]
+        else:
+            # Fallback: эвристика на основе дня недели
+            weekend_boost = 0.3 if day_of_week >= 5 else 0.0
+            probabilities = [
+                min(1.0, 0.2 + weekend_boost + (0.1 if 10 <= h <= 18 else 0.0))
+                for h in hours
+            ]
+
+        result = []
+        for i, hour in enumerate(hours):
+            result.append({
+                'date': date_str,
+                'hour': hour,
+                'load_pct': round(float(probabilities[i]) * 100, 1),
+            })
+        return result
+
+    @classmethod
     def predict_weekly_demand(cls, hall_id: int):
         """
         Возвращает почасовой прогноз загрузки для заданного зала на следующие 7 дней.
