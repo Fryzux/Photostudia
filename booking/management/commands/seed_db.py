@@ -3,7 +3,10 @@ from datetime import timedelta
 from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from booking.models import User, Hall, Booking, Order, Payment, ActionLog
+from django.contrib.auth import get_user_model
+from booking.models import Hall, Booking, Order, Payment, AuditLog
+
+User = get_user_model()
 
 class Command(BaseCommand):
     help = 'Наполнение базы тестовыми данными'
@@ -29,18 +32,21 @@ class Command(BaseCommand):
             hall, _ = Hall.objects.get_or_create(name=h_data['name'], defaults=h_data)
             halls.append(hall)
 
-        # 3. Создание истории бронирований и заказов
+        # 3. Создание истории бронирований и заказов за последние 2 года (730 дней)
         now = timezone.now()
-        last_month = now - timedelta(days=30)
+        start_history = now - timedelta(days=730)
         
-        for i in range(20):
+        self.stdout.write('Генерация истории бронирований за 2 года...')
+        
+        for i in range(1000): # Генерируем 1000 записей
             hall = random.choice(halls)
-            days_ago = random.randint(1, 29)
+            days_ago = random.randint(0, 729)
             hour = random.randint(9, 20)
-            start_time = last_month + timedelta(days=days_ago, hours=hour)
-            duration_hours = random.randint(1, 3)
+            start_time = start_history + timedelta(days=days_ago, hours=hour)
+            duration_hours = random.randint(1, 4)
             end_time = start_time + timedelta(hours=duration_hours)
 
+            # Проверка на наложение (простая версия для сида)
             if not Booking.objects.filter(hall=hall, start_time__lt=end_time, end_time__gt=start_time).exists():
                 booking = Booking.objects.create(
                     user=client,
@@ -49,9 +55,11 @@ class Command(BaseCommand):
                     end_time=end_time
                 )
                 
-                # Создание заказа
+                # Коэффициент цены может зависеть от зала
                 total_price = Decimal(hall.price_per_hour) * Decimal(duration_hours)
-                status = random.choice(['PAID', 'PENDING'])
+                
+                # Большинство заказов оплачены в прошлом
+                status = 'PAID' if days_ago > 2 else random.choice(['PAID', 'PENDING'])
                 order = Order.objects.create(
                     booking=booking,
                     total_price=total_price,
@@ -62,11 +70,11 @@ class Command(BaseCommand):
                     Payment.objects.create(
                         order=order,
                         amount=total_price,
-                        payment_method='card'
+                        payment_method=random.choice(['card', 'cash', 'online'])
                     )
 
         # 4. Лог действий
-        ActionLog.objects.create(user=admin, action="База данных инициализирована и наполнена по ТЗ 2026", details={"total_records": 20})
+        AuditLog.objects.create(user=admin, action="База данных инициализирована и наполнена по ТЗ 2026", details={"total_records": 20})
         
         self.stdout.write(self.style.SUCCESS('База данных успешно наполнена данными!'))
         self.stdout.write(f'Админ: admin / admin123')

@@ -1,15 +1,27 @@
 from rest_framework import serializers
-from .models import User, Hall, Booking, AuditLog
+from django.contrib.auth import get_user_model
+from .models import Hall, Booking, AuditLog
+
+User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'is_staff']
+        ref_name = 'BookingUserSerializer'
 
 class HallSerializer(serializers.ModelSerializer):
+    images = serializers.SerializerMethodField()
+
     class Meta:
         model = Hall
-        fields = '__all__'
+        fields = ['id', 'name', 'price_per_hour', 'capacity', 'description', 'image', 'images']
+        ref_name = 'BookingHallSerializer'
+
+    def get_images(self, obj):
+        if obj.image:
+            return [obj.image.url]
+        return []
 
 class BookingSerializer(serializers.ModelSerializer):
     user_detail = UserSerializer(source='user', read_only=True)
@@ -18,6 +30,7 @@ class BookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = ['id', 'user', 'user_detail', 'hall', 'hall_detail', 'start_time', 'end_time', 'status', 'created_at']
+        ref_name = 'BookingAppSerializer'
 
     def validate(self, data):
         """Проверка на пересечение бронирований."""
@@ -49,3 +62,4 @@ class AuditLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AuditLog
         fields = '__all__'
+        ref_name = 'BookingAuditLogSerializer'

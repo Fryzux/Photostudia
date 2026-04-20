@@ -2,11 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
 
-class User(AbstractUser):
-    phone = models.CharField(max_length=20, blank=True, null=True)
-    
-    def __str__(self):
-        return self.username
+
 
 class Hall(models.Model):
     name = models.CharField(max_length=100)
@@ -19,10 +15,16 @@ class Hall(models.Model):
         return f"{self.name} ({self.capacity} чел.)"
 
 class Booking(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bookings')
-    hall = models.ForeignKey(Hall, on_delete=models.CASCADE, related_name='bookings')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='booking_entries')
+    hall = models.ForeignKey(Hall, on_delete=models.CASCADE, related_name='booking_entries')
+    STATUS_CHOICES = [
+        ('PENDING', 'Ожидает'),
+        ('CONFIRMED', 'Подтверждено'),
+        ('CANCELLED', 'Отменено'),
+    ]
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -51,7 +53,7 @@ class Payment(models.Model):
     def __str__(self):
         return f"Оплата {self.amount} для Заказа {self.order.id}"
 
-class ActionLog(models.Model):
+class AuditLog(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     action = models.CharField(max_length=255)
     timestamp = models.DateTimeField(auto_now_add=True)
