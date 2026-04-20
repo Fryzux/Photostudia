@@ -101,3 +101,30 @@ class PaymentService:
         OrderRepository.update_status(order, 'COMPLETED')
         
         return payment
+
+
+class OrderService:
+    @staticmethod
+    def change_status(order, new_status):
+        # Используем Repository (Задание #10)
+        from .repositories import OrderRepository
+        OrderRepository.update_status(order, new_status)
+        
+        # Если заказ отменяется, освобождаем слот (Задание #8)
+        if new_status == 'CANCELLED' and getattr(order, 'booking', None):
+            order.booking.delete()
+            
+        # Broadcast the new status to the WebSocket group
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'order_{order.id}',
+            {
+                'type': 'order_status_update',
+                'order_id': order.id,
+                'status': new_status
+            }
+        )
+        return order

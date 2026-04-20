@@ -219,21 +219,10 @@ class OrderStatusUpdateView(generics.UpdateAPIView):
     permission_classes = [permissions.IsAdminUser]
 
     def perform_update(self, serializer):
-        order = serializer.save()
-        
-        # Broadcast the new status to the WebSocket group
-        from channels.layers import get_channel_layer
-        from asgiref.sync import async_to_sync
-        
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            f'order_{order.id}',
-            {
-                'type': 'order_status_update',
-                'order_id': order.id,
-                'status': order.status
-            }
-        )
+        # Переносим логику в Service Layer (Задание #10)
+        new_status = serializer.validated_data.get('status')
+        order = serializer.instance
+        OrderService.change_status(order, new_status)
 
 
 class PaymentCreateView(views.APIView):
