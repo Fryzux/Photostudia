@@ -5,6 +5,11 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, blank=True, null=True)
     is_manager = models.BooleanField(default=False, help_text='Менеджер: доступ к AI-дашборду и системе промокодов')
 
+    # 2FA TOTP fields
+    totp_secret = models.CharField(max_length=64, blank=True, default='')
+    pending_totp_secret = models.CharField(max_length=64, blank=True, default='')
+    is_2fa_enabled = models.BooleanField(default=False)
+
     def __str__(self):
         return self.username
 
