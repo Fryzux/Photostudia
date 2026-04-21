@@ -216,7 +216,7 @@
     background: rgba(255, 255, 255, 0.82);
   }
 
-  .booking-slot--free:hover {
+  .booking-slot--free:not(.booking-slot--selected):hover {
     transform: translateY(-1px);
     background: rgba(255, 255, 255, 0.95);
     box-shadow: 0 10px 20px rgba(17, 17, 17, 0.06);
@@ -246,6 +246,11 @@
     background: #111111;
     color: #ffffff;
     box-shadow: 0 14px 28px rgba(17, 17, 17, 0.16);
+  }
+
+  .booking-slot--selected:hover {
+    background: #111111;
+    color: #ffffff;
   }
 
 }

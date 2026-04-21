@@ -31,7 +31,7 @@ export function MyBookingsPage() {
   });
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'online'>('card');
   const [paying, setPaying] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
+  const [cancellingBookingId, setCancellingBookingId] = useState<number | null>(null);
 
   const search = searchParams.get('search') ?? '';
   const status = searchParams.get('status') ?? 'all';
@@ -70,8 +70,9 @@ export function MyBookingsPage() {
 
   const handleCancel = async () => {
     if (!deleteDialog.bookingId) return;
+    if (cancellingBookingId === deleteDialog.bookingId) return;
 
-    setCancelling(true);
+    setCancellingBookingId(deleteDialog.bookingId);
     try {
       await cancelBooking(deleteDialog.bookingId);
       toast.success('Бронирование отменено');
@@ -80,7 +81,7 @@ export function MyBookingsPage() {
     } catch (error: any) {
       toast.error(error.message || 'Не удалось отменить бронирование');
     } finally {
-      setCancelling(false);
+      setCancellingBookingId(null);
     }
   };
 
@@ -113,11 +114,13 @@ export function MyBookingsPage() {
     return matchesSearch && matchesStatus;
   });
 
+  const cancellableStatuses = new Set(['NEW', 'PENDING', 'CONFIRMED']);
+
   const calculateDuration = (start: string, end: string) => {
     const startDate = new Date(start);
     const endDate = new Date(end);
     const hours = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
-    return hours.toFixed(1);
+    return Math.max(0, hours);
   };
 
   if (loading) {
@@ -171,7 +174,9 @@ export function MyBookingsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Все статусы</SelectItem>
+                <SelectItem value="NEW">Новый</SelectItem>
                 <SelectItem value="PENDING">Ожидает оплаты</SelectItem>
+                <SelectItem value="CONFIRMED">Подтверждено</SelectItem>
                 <SelectItem value="COMPLETED">Оплачено</SelectItem>
                 <SelectItem value="CANCELLED">Отменено</SelectItem>
               </SelectContent>
@@ -191,6 +196,8 @@ export function MyBookingsPage() {
           {filteredOrders.map((order) => {
             const { booking } = order;
             const duration = calculateDuration(booking.start_time, booking.end_time);
+            const isCancellingCurrent = cancellingBookingId === booking.id;
+            const canCancel = cancellableStatuses.has(order.status);
 
             return (
               <Card key={order.id} className="mono-panel border border-[#111111]/8">
@@ -240,7 +247,7 @@ export function MyBookingsPage() {
                     <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
                       <div className="mb-2 flex items-center justify-between">
                         <span className="text-sm text-[#5c5c5c]">Длительность:</span>
-                        <span className="font-medium text-[#111111]">{duration} ч.</span>
+                        <span className="font-medium text-[#111111]">{duration.toFixed(1)} ч.</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-[#5c5c5c]">Сумма к оплате:</span>
@@ -256,14 +263,17 @@ export function MyBookingsPage() {
                         </Button>
                       )}
 
-                      <Button
-                        variant={order.status === 'PENDING' ? 'outline' : 'secondary'}
-                        className="h-11 w-full gap-2 rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee] sm:h-12 sm:w-auto"
-                        onClick={() => setDeleteDialog({ open: true, bookingId: booking.id })}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        {order.status === 'PENDING' ? 'Отменить' : 'Удалить'}
-                      </Button>
+                      {canCancel ? (
+                        <Button
+                          variant="outline"
+                          className="h-11 w-full gap-2 rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee] sm:h-12 sm:w-auto"
+                          disabled={isCancellingCurrent}
+                          onClick={() => setDeleteDialog({ open: true, bookingId: booking.id })}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          {isCancellingCurrent ? 'Обрабатываем...' : 'Отменить'}
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
                 </CardContent>
@@ -342,8 +352,8 @@ export function MyBookingsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Назад</AlertDialogCancel>
-            <AlertDialogAction onClick={handleCancel} disabled={cancelling}>
-              {cancelling ? 'Отменяем...' : 'Подтвердить'}
+            <AlertDialogAction onClick={handleCancel} disabled={cancellingBookingId !== null}>
+              {cancellingBookingId !== null ? 'Отменяем...' : 'Подтвердить'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

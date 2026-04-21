@@ -1,41 +1,62 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { AlertCircle, ArrowLeft, CalendarRange, Info, Lock, TrendingDown, TrendingUp, Users } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CalendarRange, Info, PackageCheck, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
-import type { AvailabilitySlot, CreateBookingData, DemandPrediction, Hall } from '../types';
-import { createBooking, getHall, getHallAvailability, predictDemand } from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import type { AvailabilitySlot, CreateBookingData, Hall, StudioService } from '../types';
+import { createBooking, getHall, getHallAvailability, getOrders } from '../services/api';
+import { getStudioServices } from '../services/studioServices';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Input } from '../components/ui/input';
+import { DatePickerInput } from '../components/ui/date-picker-input';
 import { Label } from '../components/ui/label';
 import { Skeleton } from '../components/ui/skeleton';
-import { toLocalDateTimeInputValue } from '../utils/date';
-import { hasValidationErrors, validateBookingForm } from '../utils/validation';
+
+function getTime(value: string) {
+  return value.slice(0, 5);
+}
+
+function combineDateTime(date: string, time: string) {
+  if (!date || !time) return '';
+  const [year, month, day] = date.split('-').map(Number);
+  const [hours, minutes] = time.slice(0, 5).split(':').map(Number);
+
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(month) ||
+    !Number.isFinite(day) ||
+    !Number.isFinite(hours) ||
+    !Number.isFinite(minutes)
+  ) {
+    return '';
+  }
+
+  const localDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  if (Number.isNaN(localDate.getTime())) return '';
+
+  // Отправляем в backend timezone-aware ISO, чтобы избежать сдвига часов.
+  return localDate.toISOString();
+}
+
+function formatMoney(value: number) {
+  return Math.round(value).toLocaleString('ru-RU');
+}
 
 export function HallDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
   const [hall, setHall] = useState<Hall | null>(null);
   const [loading, setLoading] = useState(true);
-  const [bookingData, setBookingData] = useState<CreateBookingData>({
-    hall_id: Number(id),
-    start_time: '',
-    end_time: '',
-  });
-  const [formErrors, setFormErrors] = useState<Partial<Record<'start_time' | 'end_time', string>>>({});
-  const [submitting, setSubmitting] = useState(false);
-  const [prediction, setPrediction] = useState<DemandPrediction | null>(null);
-  const [predictionLoading, setPredictionLoading] = useState(false);
   const [availabilityDate, setAvailabilityDate] = useState('');
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [availabilityUnsupported, setAvailabilityUnsupported] = useState(false);
   const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([]);
-  const latestPredictionDateRef = useRef('');
+  const [selectedSlotKey, setSelectedSlotKey] = useState('');
+  const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
+  const [submittingBooking, setSubmittingBooking] = useState(false);
+  const [services] = useState<StudioService[]>(() => getStudioServices().filter((item) => item.is_active));
 
   useEffect(() => {
     if (!id) return;
@@ -55,31 +76,10 @@ export function HallDetailPage() {
     loadHall();
   }, [id, navigate]);
 
-  const runPrediction = async (date: string) => {
-    if (!id || !date) return;
-
-    latestPredictionDateRef.current = date;
-    setPredictionLoading(true);
-    setPrediction(null);
-    try {
-      const nextPrediction = await predictDemand(Number(id), date);
-      if (latestPredictionDateRef.current === date) {
-        setPrediction(nextPrediction);
-      }
-    } catch (error) {
-      if (latestPredictionDateRef.current === date) {
-        toast.error('Не удалось получить прогноз спроса.');
-      }
-    } finally {
-      if (latestPredictionDateRef.current === date) {
-        setPredictionLoading(false);
-      }
-    }
-  };
-
   const loadAvailability = async (date: string) => {
     if (!id || !date) {
       setAvailabilitySlots([]);
+      setSelectedSlotKey('');
       return;
     }
 
@@ -99,40 +99,10 @@ export function HallDetailPage() {
     }
   };
 
-  const updateField = (field: 'start_time' | 'end_time', value: string) => {
-    const next = { ...bookingData, [field]: value };
-    setBookingData(next);
-
-    const nextErrors = validateBookingForm(next);
-    setFormErrors(nextErrors);
-  };
-
-  const applySlotToForm = (slot: AvailabilitySlot) => {
+  const selectSlot = (slot: AvailabilitySlot) => {
     if (!slot.available || !availabilityDate) return;
-
-    const start = `${availabilityDate}T${slot.start.slice(0, 5)}`;
-    const end = `${availabilityDate}T${slot.end.slice(0, 5)}`;
-    const next = { ...bookingData, start_time: start, end_time: end };
-    setBookingData(next);
-    setFormErrors(validateBookingForm(next));
+    setSelectedSlotKey(`${getTime(slot.start)}-${getTime(slot.end)}`);
   };
-
-  useEffect(() => {
-    const selectedDate = bookingData.start_time.split('T')[0] || '';
-
-    if (!selectedDate) {
-      latestPredictionDateRef.current = '';
-      setPrediction(null);
-      setPredictionLoading(false);
-      setAvailabilityDate('');
-      setAvailabilitySlots([]);
-      return;
-    }
-
-    setAvailabilityDate(selectedDate);
-    void runPrediction(selectedDate);
-    void loadAvailability(selectedDate);
-  }, [bookingData.start_time, id]);
 
   useEffect(() => {
     if (!availabilityDate || !id) return;
@@ -145,48 +115,6 @@ export function HallDetailPage() {
       window.clearInterval(intervalId);
     };
   }, [availabilityDate, id]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!isAuthenticated) {
-      toast.error('Для бронирования нужно войти в аккаунт');
-      navigate('/login');
-      return;
-    }
-
-    const nextErrors = validateBookingForm(bookingData);
-    setFormErrors(nextErrors);
-
-    if (hasValidationErrors(nextErrors)) {
-      toast.error('Исправьте ошибки в форме бронирования.');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await createBooking(bookingData);
-      toast.success('Бронирование создано! Перейдите в раздел "Мои бронирования" для оплаты.');
-      navigate('/checkout');
-    } catch (error: any) {
-      toast.error(error.message || 'Не удалось создать бронирование');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const calculateDuration = () => {
-    if (!bookingData.start_time || !bookingData.end_time) return 0;
-    const start = new Date(bookingData.start_time);
-    const end = new Date(bookingData.end_time);
-    const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-    return Math.max(0, hours);
-  };
-
-  const calculateTotal = () => {
-    if (!hall) return 0;
-    return calculateDuration() * hall.price_per_hour;
-  };
 
   if (loading) {
     return (
@@ -202,23 +130,76 @@ export function HallDetailPage() {
 
   if (!hall) return null;
 
-  const duration = calculateDuration();
-  const total = calculateTotal();
-  const selectedSlotKey = (() => {
-    if (!bookingData.start_time || !bookingData.end_time) return '';
-    const start = bookingData.start_time.split('T')[1]?.slice(0, 5) || '';
-    const end = bookingData.end_time.split('T')[1]?.slice(0, 5) || '';
-    return start && end ? `${start}-${end}` : '';
-  })();
   const selectedSlotSummary = (() => {
     if (!availabilitySlots.length) return null;
     if (!selectedSlotKey) return null;
     return (
       availabilitySlots.find(
-        (slot) => `${slot.start.slice(0, 5)}-${slot.end.slice(0, 5)}` === selectedSlotKey,
+        (slot) => `${getTime(slot.start)}-${getTime(slot.end)}` === selectedSlotKey,
       ) ?? null
     );
   })();
+
+  const selectedServices = services.filter((service) => selectedServiceIds.includes(service.id));
+  const bookingDurationHours = selectedSlotSummary
+    ? Math.max(
+        0,
+        (new Date(`1970-01-01T${selectedSlotSummary.end}`).getTime() -
+          new Date(`1970-01-01T${selectedSlotSummary.start}`).getTime()) /
+          (60 * 60 * 1000),
+      )
+    : 0;
+  const hallCost = bookingDurationHours * hall.price_per_hour;
+  const servicesCost = selectedServices.reduce((sum, service) => {
+    if (service.pricing_mode === 'hourly') return sum + service.price * bookingDurationHours;
+    return sum + service.price;
+  }, 0);
+  const estimatedTotal = hallCost + servicesCost;
+
+  const toggleService = (serviceId: number) => {
+    setSelectedServiceIds((current) =>
+      current.includes(serviceId) ? current.filter((idValue) => idValue !== serviceId) : [...current, serviceId],
+    );
+  };
+
+  const submitBooking = async () => {
+    if (!availabilityDate || !selectedSlotSummary) {
+      toast.error('Выберите дату и свободный интервал.');
+      return;
+    }
+
+    if (!selectedSlotSummary.available) {
+      toast.error('Этот интервал уже недоступен. Выберите другой.');
+      return;
+    }
+
+    const bookingPayload: CreateBookingData = {
+      hall_id: hall.id,
+      start_time: combineDateTime(availabilityDate, getTime(selectedSlotSummary.start)),
+      end_time: combineDateTime(availabilityDate, getTime(selectedSlotSummary.end)),
+      extra_services_total: Number(servicesCost.toFixed(2)),
+    };
+
+    setSubmittingBooking(true);
+    try {
+      const booking = await createBooking(bookingPayload);
+      const orders = await getOrders();
+      const relatedOrder =
+        orders.find((order) => order.booking.id === booking.id) ??
+        orders.find((order) => order.status === 'PENDING' || order.status === 'NEW');
+
+      toast.success('Бронь создана. Переходим к оплате.');
+      if (relatedOrder) {
+        navigate(`/checkout?orderId=${relatedOrder.id}`);
+      } else {
+        navigate('/my-bookings');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Не удалось создать бронирование.');
+    } finally {
+      setSubmittingBooking(false);
+    }
+  };
 
   return (
     <div>
@@ -253,11 +234,23 @@ export function HallDetailPage() {
 
               <p className="mx-auto max-w-xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">{hall.description}</p>
 
+              {hall.equipment?.length ? (
+                <div className="rounded-[1.25rem] border border-[#111111]/8 bg-white/70 p-4">
+                  <p className="mb-3 text-xs uppercase tracking-[0.24em] text-[#737373]">Оборудование</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {hall.equipment.map((item) => (
+                      <Badge key={`${hall.id}-${item}`} variant="secondary" className="rounded-full bg-white px-3 py-1 text-xs text-[#4f4f4f]">
+                        {item}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
               <Alert className="border-[#111111]/8 bg-white/70 text-left">
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  После создания бронирования у вас будет 24 часа на оплату. Неоплаченные бронирования автоматически
-                  отменяются.
+                  Отмечайте свободный слот справа и сразу оформляйте бронь в этой же карточке.
                 </AlertDescription>
               </Alert>
             </div>
@@ -267,123 +260,12 @@ export function HallDetailPage() {
         <div className="space-y-6">
           <Card className="mono-panel border border-[#111111]/8">
             <CardHeader className="px-5 pt-5 text-center sm:px-6 sm:pt-6">
-              <CardTitle className="text-2xl text-[#111111] sm:text-3xl">Забронировать зал</CardTitle>
-              <CardDescription className="text-base leading-7 text-[#5c5c5c]">
-                Выберите дату и время. Интерфейс сразу подскажет базовые ошибки ещё до отправки запроса на сервер.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-5 pb-5 sm:px-6 sm:pb-6">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="start_time" className="block text-center text-xs uppercase tracking-[0.32em] text-[#737373]">
-                    Начало
-                  </Label>
-                  <Input
-                    id="start_time"
-                    type="datetime-local"
-                    value={bookingData.start_time}
-                    onChange={(e) => updateField('start_time', e.target.value)}
-                    aria-invalid={!!formErrors.start_time}
-                    min={toLocalDateTimeInputValue(new Date())}
-                    className="h-11 rounded-full border-[#111111]/12 bg-white text-center text-sm sm:h-12 sm:text-base"
-                  />
-                  {formErrors.start_time && <p className="text-center text-sm text-rose-600">{formErrors.start_time}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="end_time" className="block text-center text-xs uppercase tracking-[0.32em] text-[#737373]">
-                    Конец
-                  </Label>
-                  <Input
-                    id="end_time"
-                    type="datetime-local"
-                    value={bookingData.end_time}
-                    onChange={(e) => updateField('end_time', e.target.value)}
-                    aria-invalid={!!formErrors.end_time}
-                    min={bookingData.start_time || toLocalDateTimeInputValue(new Date())}
-                    className="h-11 rounded-full border-[#111111]/12 bg-white text-center text-sm sm:h-12 sm:text-base"
-                  />
-                  {formErrors.end_time && <p className="text-center text-sm text-rose-600">{formErrors.end_time}</p>}
-                </div>
-
-                {!isAuthenticated && (
-                  <Alert className="border-[#111111]/8 bg-white/70">
-                    <Lock className="h-4 w-4" />
-                    <AlertDescription>Чтобы завершить бронирование, сначала войдите в аккаунт.</AlertDescription>
-                  </Alert>
-                )}
-
-                {duration > 0 && (
-                  <div className="rounded-[1.5rem] border border-[#111111]/8 bg-white/70 p-4 sm:p-5">
-                    <div className="flex items-center justify-between gap-4 text-sm text-[#5c5c5c]">
-                      <span>Длительность</span>
-                      <span className="font-medium text-[#111111]">{duration.toFixed(1)} ч.</span>
-                    </div>
-                    <div className="mt-2 flex items-center justify-between gap-4 text-sm text-[#5c5c5c]">
-                      <span>Стоимость часа</span>
-                      <span className="font-medium text-[#111111]">{hall.price_per_hour} ₽</span>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between gap-4 border-t border-[#111111]/8 pt-3">
-                      <span className="text-lg text-[#111111]">Итого</span>
-                      <span className="text-xl text-[#111111] sm:text-2xl">{total.toLocaleString('ru-RU')} ₽</span>
-                    </div>
-                  </div>
-                )}
-
-                <Button type="submit" className="h-11 w-full rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a] sm:h-12" disabled={submitting || !duration}>
-                  {submitting ? 'Бронирование...' : 'Забронировать'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          <Card className="mono-panel border border-[#111111]/8">
-            <CardHeader className="px-5 pt-5 text-center sm:px-6 sm:pt-6">
-              <CardTitle className="text-2xl text-[#111111] sm:text-3xl">Прогноз загрузки</CardTitle>
-              <CardDescription className="text-base text-[#5c5c5c]">
-                {prediction?.date
-                  ? `Прогноз рассчитан для даты ${new Date(`${prediction.date}T12:00:00`).toLocaleDateString('ru-RU')}.`
-                  : 'Появляется после выбора даты начала бронирования.'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
-              {predictionLoading && <p className="text-center text-sm text-[#5c5c5c]">Собираем прогноз по выбранной дате...</p>}
-
-              {!predictionLoading && prediction && (
-                <Alert className="border-[#111111]/8 bg-white/70">
-                  {prediction.prediction === 'HIGH' ? <TrendingUp className="h-4 w-4 text-[#111111]" /> : <TrendingDown className="h-4 w-4 text-[#111111]" />}
-                  <AlertDescription className="space-y-2">
-                    <p>
-                      <strong>Статус:</strong> {prediction.prediction === 'HIGH' ? 'Высокий спрос' : 'Низкий спрос'}
-                    </p>
-                    <p>
-                      <strong>Ожидаемые заказы:</strong> {prediction.predicted_orders}
-                    </p>
-                    <p>
-                      <strong>Пояснение:</strong> {prediction.explanation}
-                    </p>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {!predictionLoading && !prediction && (
-                <Alert className="border-dashed border-[#111111]/12 bg-white/60">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>Выберите дату начала, чтобы увидеть прогноз загрузки и пояснение.</AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="mono-panel border border-[#111111]/8">
-            <CardHeader className="px-5 pt-5 text-center sm:px-6 sm:pt-6">
               <CardTitle className="flex items-center justify-center gap-2 text-2xl text-[#111111] sm:text-3xl">
                 <CalendarRange className="h-5 w-5" />
                 Свободные интервалы
               </CardTitle>
               <CardDescription className="text-base leading-7 text-[#5c5c5c]">
-                Выбирайте свободный слот кликом: время автоматически подставится в форму. Занятые слоты скрывают детали
-                и помечаются как «Занято».
+                Выберите дату и отмечайте свободный слот кликом. Занятые интервалы недоступны для выбора.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
@@ -391,16 +273,16 @@ export function HallDetailPage() {
                 <Label htmlFor="availability-date" className="block text-center text-xs uppercase tracking-[0.32em] text-[#737373]">
                   Проверить дату
                 </Label>
-                <Input
+                <DatePickerInput
                   id="availability-date"
-                  type="date"
                   min={new Date().toISOString().slice(0, 10)}
                   value={availabilityDate}
-                  onChange={(e) => {
-                    setAvailabilityDate(e.target.value);
-                    loadAvailability(e.target.value);
+                  onChange={(nextDate) => {
+                    setAvailabilityDate(nextDate);
+                    setSelectedSlotKey('');
+                    void loadAvailability(nextDate);
                   }}
-                  className="h-11 rounded-full border-[#111111]/12 bg-white text-center text-sm sm:h-12 sm:text-base"
+                  className="text-center"
                 />
               </div>
 
@@ -412,15 +294,15 @@ export function HallDetailPage() {
                     <button
                       key={`${slot.start}-${slot.end}`}
                       type="button"
-                      onClick={() => applySlotToForm(slot)}
+                      onClick={() => selectSlot(slot)}
                       disabled={!slot.available}
                       className={`booking-slot rounded-[1.2rem] border px-4 py-3 text-center text-sm ${
                         slot.available ? 'booking-slot--free border-[#111111]/10 text-[#111111]' : 'booking-slot--busy border-[#111111]/8 text-[#555555]'
                       } ${
-                        selectedSlotKey === `${slot.start.slice(0, 5)}-${slot.end.slice(0, 5)}` ? 'booking-slot--selected' : ''
+                        selectedSlotKey === `${getTime(slot.start)}-${getTime(slot.end)}` ? 'booking-slot--selected' : ''
                       }`}
                     >
-                      {slot.start.slice(0, 5)} - {slot.end.slice(0, 5)} · {slot.available ? 'Свободно' : 'Занято'}
+                      {getTime(slot.start)} - {getTime(slot.end)} · {slot.available ? 'Свободно' : 'Занято'}
                     </button>
                   ))}
                 </div>
@@ -430,8 +312,7 @@ export function HallDetailPage() {
                 <Alert className="border-[#111111]/8 bg-white/70">
                   <Info className="h-4 w-4" />
                   <AlertDescription>
-                    Endpoint доступности пока не подключён на сервере. Бронирование всё равно защищено серверной
-                    проверкой пересечений.
+                    Endpoint доступности пока не подключён на сервере. Попробуйте позже или выберите другую дату.
                   </AlertDescription>
                 </Alert>
               )}
@@ -454,6 +335,79 @@ export function HallDetailPage() {
                   Для выбранного стартового времени слот сейчас: {selectedSlotSummary.available ? 'свободен' : 'занят'}.
                 </p>
               )}
+
+              <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4 sm:p-5">
+                {services.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <PackageCheck className="h-4 w-4 text-[#5c5c5c]" />
+                      <p className="text-sm uppercase tracking-[0.22em] text-[#737373]">Доп. услуги</p>
+                    </div>
+
+                    <div className="grid gap-2">
+                      {services.map((service) => {
+                        const checked = selectedServiceIds.includes(service.id);
+                        return (
+                          <label
+                            key={service.id}
+                            className={`flex cursor-pointer items-start justify-between gap-3 rounded-[1rem] border px-3 py-2.5 transition ${
+                              checked ? 'border-[#111111]/24 bg-white' : 'border-[#111111]/10 bg-[#fafaf8] hover:border-[#111111]/18'
+                            }`}
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-[#111111]">{service.name}</p>
+                              {service.description ? <p className="text-xs text-[#5c5c5c]">{service.description}</p> : null}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <p className="text-xs text-[#4f4f4f]">
+                                {service.pricing_mode === 'hourly' ? `${formatMoney(service.price)} ₽/ч` : `${formatMoney(service.price)} ₽`}
+                              </p>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleService(service.id)}
+                                className="h-4 w-4 rounded border-[#111111]/20 accent-[#111111]"
+                              />
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4 rounded-[1rem] border border-[#111111]/10 bg-[#fbfbf8] p-3 text-sm text-[#4f4f4f]">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span>Выбранный интервал</span>
+                    <span>{selectedSlotSummary ? `${getTime(selectedSlotSummary.start)} - ${getTime(selectedSlotSummary.end)}` : '—'}</span>
+                  </div>
+                  <div className="mb-1 flex items-center justify-between">
+                    <span>Длительность</span>
+                    <span>{bookingDurationHours > 0 ? `${bookingDurationHours.toFixed(1)} ч.` : '—'}</span>
+                  </div>
+                  <div className="mb-1 flex items-center justify-between">
+                    <span>Зал</span>
+                    <span>{formatMoney(hallCost)} ₽</span>
+                  </div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span>Доп. услуги</span>
+                    <span>{formatMoney(servicesCost)} ₽</span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-[#111111]/10 pt-2 font-semibold text-[#111111]">
+                    <span>Итого (оценка на клиенте)</span>
+                    <span>{formatMoney(estimatedTotal)} ₽</span>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  className="mt-4 h-11 w-full rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a] sm:h-12"
+                  disabled={submittingBooking || !availabilityDate || !selectedSlotSummary}
+                  onClick={() => void submitBooking()}
+                >
+                  {submittingBooking ? 'Создаём бронирование...' : 'Создать бронирование'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

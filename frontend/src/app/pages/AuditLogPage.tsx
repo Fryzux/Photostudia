@@ -6,9 +6,10 @@ import { ClipboardList, Filter, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
 import type { AuditLog } from '../types';
-import { getActionLogs } from '../services/api';
+import { getActionLogsPage } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { DatePickerInput } from '../components/ui/date-picker-input';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
@@ -25,23 +26,54 @@ export function AuditLogPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPrevPage, setHasPrevPage] = useState(false);
 
   const search = searchParams.get('search') ?? '';
   const action = searchParams.get('action') ?? 'all';
   const dateFrom = searchParams.get('date_from') ?? '';
   const dateTo = searchParams.get('date_to') ?? '';
+  const page = Math.max(1, Number(searchParams.get('page') || 1));
+  const [debouncedFilters, setDebouncedFilters] = useState(() => ({
+    search,
+    action,
+    dateFrom,
+    dateTo,
+    page,
+  }));
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedFilters({
+        search,
+        action,
+        dateFrom,
+        dateTo,
+        page,
+      });
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [action, dateFrom, dateTo, page, search]);
 
   useEffect(() => {
     const loadLogs = async () => {
       setLoading(true);
       try {
-        const data = await getActionLogs({
-          search,
-          action,
-          date_from: dateFrom,
-          date_to: dateTo,
+        const response = await getActionLogsPage({
+          search: debouncedFilters.search,
+          action: debouncedFilters.action,
+          date_from: debouncedFilters.dateFrom,
+          date_to: debouncedFilters.dateTo,
+          page: debouncedFilters.page,
         });
-        setLogs(data);
+        setLogs(response.results);
+        setTotalCount(response.count);
+        setHasNextPage(Boolean(response.next));
+        setHasPrevPage(Boolean(response.previous));
       } catch (error: any) {
         toast.error(error.message || 'Не удалось загрузить журнал действий.');
       } finally {
@@ -49,8 +81,8 @@ export function AuditLogPage() {
       }
     };
 
-    loadLogs();
-  }, [action, dateFrom, dateTo, search]);
+    void loadLogs();
+  }, [debouncedFilters]);
 
   const updateParam = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -61,6 +93,19 @@ export function AuditLogPage() {
       next.set(key, value);
     }
 
+    if (key !== 'page') {
+      next.delete('page');
+    }
+    setSearchParams(next, { replace: true });
+  };
+
+  const goToPage = (nextPage: number) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextPage <= 1) {
+      next.delete('page');
+    } else {
+      next.set('page', String(nextPage));
+    }
     setSearchParams(next, { replace: true });
   };
 
@@ -126,12 +171,12 @@ export function AuditLogPage() {
 
           <div className="space-y-2">
             <Label htmlFor="date-from" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Дата от</Label>
-            <Input id="date-from" type="date" value={dateFrom} onChange={(e) => updateParam('date_from', e.target.value)} className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base" />
+            <DatePickerInput id="date-from" value={dateFrom} onChange={(nextDate) => updateParam('date_from', nextDate)} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="date-to" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Дата до</Label>
-            <Input id="date-to" type="date" value={dateTo} onChange={(e) => updateParam('date_to', e.target.value)} className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base" />
+            <DatePickerInput id="date-to" value={dateTo} onChange={(nextDate) => updateParam('date_to', nextDate)} />
           </div>
         </CardContent>
       </Card>
@@ -142,7 +187,9 @@ export function AuditLogPage() {
             <ClipboardList className="h-5 w-5 text-[#111111]" />
             Лента событий
           </CardTitle>
-          <CardDescription className="text-[#5c5c5c]">{loading ? 'Загружаем события...' : `Найдено событий: ${logs.length}`}</CardDescription>
+          <CardDescription className="text-[#5c5c5c]">
+            {loading ? 'Загружаем события...' : `Всего событий: ${totalCount} · Страница ${page}`}
+          </CardDescription>
         </CardHeader>
         <CardContent className="px-5 pb-5 sm:px-6 sm:pb-6">
           <div className="overflow-x-auto">
@@ -176,6 +223,30 @@ export function AuditLogPage() {
           {!loading && logs.length === 0 && (
             <div className="rounded-[1.5rem] border border-dashed border-[#111111]/12 px-6 py-12 text-center text-[#5c5c5c]">
               События по выбранным фильтрам не найдены.
+            </div>
+          )}
+
+          {!loading && logs.length > 0 && (
+            <div className="mt-5 flex items-center justify-between gap-3">
+              <Button
+                variant="outline"
+                className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                disabled={!hasPrevPage}
+                onClick={() => goToPage(page - 1)}
+              >
+                Назад
+              </Button>
+              <p className="text-sm text-[#5c5c5c]">
+                Показано {logs.length} из {totalCount}
+              </p>
+              <Button
+                variant="outline"
+                className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                disabled={!hasNextPage}
+                onClick={() => goToPage(page + 1)}
+              >
+                Вперёд
+              </Button>
             </div>
           )}
         </CardContent>

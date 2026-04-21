@@ -1,25 +1,67 @@
 from rest_framework import viewsets, views, generics, permissions
+from rest_framework.decorators import action
+from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+from datetime import datetime, time, timedelta
 from django.db.models import Sum
 from django.core.exceptions import ValidationError
+from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter
+from django.utils import timezone
+import os
 from .models import Booking, Order, Payment, Hall
 from .serializers import BookingSerializer, OrderSerializer, PaymentSerializer, PaymentCreateSerializer, HallSerializer, OrderStatusUpdateSerializer
 from .services import BookingService, PaymentService
+from django.contrib.auth import get_user_model
+import logging
+
+logger = logging.getLogger(__name__)
+
+User = get_user_model()
+
+
+def broadcast_order_status_update(order: Order) -> None:
+    """
+    Sends realtime status update to order websocket group.
+    If channel layer (e.g. Redis) is unavailable, logs warning without breaking API flow.
+    """
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'order_{order.id}',
+            {
+                'type': 'order_status_update',
+                'order_id': order.id,
+                'status': order.status,
+            },
+        )
+    except Exception as exc:
+        logger.warning('Realtime order update skipped for order %s: %s', order.id, exc)
 
 
 class IsAdminOrReadOnly(permissions.BasePermission):
     """
-    Authenticated users can read (GET, HEAD, OPTIONS).
+    Anyone can read (GET, HEAD, OPTIONS).
     Only staff/admin users can write (POST, PUT, PATCH, DELETE).
     """
     def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
         if request.method in permissions.SAFE_METHODS:
             return True
-        return request.user.is_staff
+        return bool(request.user and request.user.is_authenticated and request.user.is_staff)
+
+
+class HallFilter(FilterSet):
+    price_min = NumberFilter(field_name='price_per_hour', lookup_expr='gte')
+    price_max = NumberFilter(field_name='price_per_hour', lookup_expr='lte')
+    capacity_min = NumberFilter(field_name='capacity', lookup_expr='gte')
+
+    class Meta:
+        model = Hall
+        fields = ['price_min', 'price_max', 'capacity_min']
 
 
 class HallViewSet(viewsets.ModelViewSet):
@@ -35,6 +77,94 @@ class HallViewSet(viewsets.ModelViewSet):
     queryset = Hall.objects.all().order_by('name')
     serializer_class = HallSerializer
     permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_class = HallFilter
+    search_fields = ['name']
+
+    @action(detail=True, methods=['get'], url_path='availability', permission_classes=[IsAuthenticated])
+    def availability(self, request, pk=None):
+        hall = self.get_object()
+        date_str = request.query_params.get('date')
+
+        if not date_str:
+            return Response(
+                {
+                    'error': 'Validation Error',
+                    'details': "The 'date' query parameter is required (for example ?date=2026-03-20).",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'error': 'Validation Error', 'details': 'Invalid date format. Use YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        bookings = Booking.objects.filter(
+            hall=hall,
+            start_time__date=target_date,
+        ).order_by('start_time')
+
+        booked_slots = [
+            {
+                'booking_id': booking.id,
+                'start_time': booking.start_time.isoformat(),
+                'end_time': booking.end_time.isoformat(),
+            }
+            for booking in bookings
+        ]
+
+        raw_open_hour = request.query_params.get('open_hour') or os.environ.get('BOOKING_OPEN_HOUR', '8')
+        raw_close_hour = request.query_params.get('close_hour') or os.environ.get('BOOKING_CLOSE_HOUR', '23')
+
+        try:
+            open_hour = int(raw_open_hour)
+            close_hour = int(raw_close_hour)
+        except ValueError:
+            return Response(
+                {'error': 'Validation Error', 'details': 'open_hour and close_hour must be integers.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if open_hour < 0 or close_hour > 24 or open_hour >= close_hour:
+            return Response(
+                {'error': 'Validation Error', 'details': 'Invalid open/close hour range.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        current_tz = timezone.get_current_timezone()
+        slots = []
+
+        for hour in range(open_hour, close_hour):
+            slot_start = timezone.make_aware(datetime.combine(target_date, time(hour=hour)), current_tz)
+            slot_end = slot_start + timedelta(hours=1)
+
+            is_busy = any(
+                booking.start_time < slot_end and booking.end_time > slot_start
+                for booking in bookings
+            )
+
+            slots.append(
+                {
+                    'start': slot_start.strftime('%H:%M:%S'),
+                    'end': slot_end.strftime('%H:%M:%S'),
+                    'available': not is_busy,
+                }
+            )
+
+        return Response(
+            {
+                'hall_id': hall.id,
+                'hall_name': hall.name,
+                'date': date_str,
+                'slots': slots,
+                'booked_slots': booked_slots,
+                'is_fully_free': len(booked_slots) == 0,
+            }
+        )
 
 
 class BookingViewSet(viewsets.ModelViewSet):
@@ -60,12 +190,17 @@ class BookingViewSet(viewsets.ModelViewSet):
             user=request.user,
             hall=serializer.validated_data['hall'],
             start_time=serializer.validated_data['start_time'],
-            end_time=serializer.validated_data['end_time']
+            end_time=serializer.validated_data['end_time'],
+            extra_services_total=serializer.validated_data.get('extra_services_total', 0),
         )
         
         # Trigger background task
         from .tasks import send_booking_confirmation_email
-        send_booking_confirmation_email.delay(booking.id, request.user.email)
+        try:
+            send_booking_confirmation_email.delay(booking.id, request.user.email)
+        except Exception as exc:
+            logger.warning("Celery broker is unavailable, sending booking email synchronously: %s", exc)
+            send_booking_confirmation_email(booking.id, request.user.email)
         
         # We can return the serialized booking
         result_serializer = self.get_serializer(booking)
@@ -98,14 +233,21 @@ class AnalyticsSummaryView(views.APIView):
     def get(self, request):
         if not request.user.is_staff:
             # Maybe standard users get their own summary, admin gets global
-            total_orders = Order.objects.filter(user=request.user).count()
+            total_bookings = Order.objects.filter(user=request.user).count()
             total_revenue = Order.objects.filter(user=request.user, status='COMPLETED').aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+            total_users = 1
+            total_halls = Hall.objects.count()
         else:
-            total_orders = Order.objects.count()
+            total_bookings = Order.objects.count()
             total_revenue = Order.objects.filter(status='COMPLETED').aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+            total_users = User.objects.count()
+            total_halls = Hall.objects.count()
             
         return Response({
-            "total_orders": total_orders,
+            "total_users": total_users,
+            "total_halls": total_halls,
+            "total_bookings": total_bookings,
+            "total_orders": total_bookings,
             "total_revenue": total_revenue
         })
 
@@ -120,17 +262,32 @@ class OrderListView(generics.ListAPIView):
 
     def get_queryset(self):
         if self.request.user.is_staff:
-            return Order.objects.select_related('booking__hall').all().order_by('-created_at')
-        return Order.objects.select_related('booking__hall').filter(user=self.request.user).order_by('-created_at')
+            return Order.objects.select_related('booking__hall', 'user').all().order_by('-created_at')
+        return Order.objects.select_related('booking__hall', 'user').filter(user=self.request.user).order_by('-created_at')
 
 
 class OrderStatusUpdateView(generics.UpdateAPIView):
     """
     PATCH /api/orders/{id}/status/ — update order status (admin only).
     """
-    queryset = Order.objects.all()
+    queryset = Order.objects.select_related('booking__hall', 'user').all()
     serializer_class = OrderStatusUpdateSerializer
     permission_classes = [permissions.IsAdminUser]
+
+    def perform_update(self, serializer):
+        order = serializer.save()
+        broadcast_order_status_update(order)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        # Frontend expects full order payload with booking details.
+        full_payload = OrderSerializer(instance).data
+        return Response(full_payload, status=status.HTTP_200_OK)
 
 
 class PaymentCreateView(views.APIView):
@@ -180,8 +337,9 @@ class PaymentCreateView(views.APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        broadcast_order_status_update(order)
+
         return Response(
             PaymentSerializer(payment).data,
             status=status.HTTP_201_CREATED
         )
-

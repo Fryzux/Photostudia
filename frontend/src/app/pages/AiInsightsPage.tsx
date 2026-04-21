@@ -1,41 +1,62 @@
-import { useEffect, useState } from 'react';
-import { BrainCircuit, CalendarDays, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { addDays, format, parseISO } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { CalendarDays, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
-import type { DemandPrediction, Hall } from '../types';
-import { getHalls, predictDemand } from '../services/api';
+import type { ForecastHeatmapCell, ForecastResult, Hall } from '../types';
+import { getForecast, getHalls } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Input } from '../components/ui/input';
+import { DatePickerInput } from '../components/ui/date-picker-input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
-const defaultForecastDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+function toIsoDate(date: Date) {
+  return format(date, 'yyyy-MM-dd');
+}
+
+function getLoadToneClass(loadPercent: number) {
+  if (loadPercent >= 80) return 'bg-[#111111] text-white border-[#111111]';
+  if (loadPercent >= 60) return 'bg-[#3a3a3a] text-white border-[#3a3a3a]';
+  if (loadPercent >= 40) return 'bg-[#7a7a7a] text-white border-[#7a7a7a]';
+  if (loadPercent >= 20) return 'bg-[#d8d8d3] text-[#111111] border-[#c8c8c2]';
+  return 'bg-[#f3f3f0] text-[#4f4f4f] border-[#ddddda]';
+}
 
 export function AiInsightsPage() {
   const [halls, setHalls] = useState<Hall[]>([]);
   const [selectedHallId, setSelectedHallId] = useState<string>('');
-  const [date, setDate] = useState(defaultForecastDate);
+  const [dateFrom, setDateFrom] = useState(() => toIsoDate(new Date()));
+  const [dateTo, setDateTo] = useState(() => toIsoDate(addDays(new Date(), 6)));
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [prediction, setPrediction] = useState<DemandPrediction | null>(null);
+  const [hallsError, setHallsError] = useState<string | null>(null);
+  const [forecast, setForecast] = useState<ForecastResult | null>(null);
+
+  const loadHalls = async () => {
+    setLoading(true);
+    setHallsError(null);
+    try {
+      const hallsData = await getHalls();
+      setHalls(hallsData);
+      setSelectedHallId((current) => {
+        if (current && hallsData.some((hall) => String(hall.id) === current)) {
+          return current;
+        }
+        return hallsData[0] ? String(hallsData[0].id) : '';
+      });
+    } catch {
+      const message = 'Не удалось загрузить список залов для AI-модуля.';
+      setHallsError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadHalls = async () => {
-      try {
-        const hallsData = await getHalls();
-        setHalls(hallsData);
-        if (hallsData[0]) {
-          setSelectedHallId(String(hallsData[0].id));
-        }
-      } catch (error) {
-        toast.error('Не удалось загрузить список залов для AI-модуля.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadHalls();
+    void loadHalls();
   }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -46,43 +67,77 @@ export function AiInsightsPage() {
       return;
     }
 
+    if (!dateFrom || !dateTo) {
+      toast.error('Выберите период прогноза.');
+      return;
+    }
+
+    if (dateFrom > dateTo) {
+      toast.error('Дата окончания должна быть позже даты начала.');
+      return;
+    }
+
     setSubmitting(true);
+    setForecast(null);
     try {
-      const result = await predictDemand(Number(selectedHallId), date);
-      setPrediction(result);
+      const result = await getForecast({
+        hall_id: Number(selectedHallId),
+        date_from: dateFrom,
+        date_to: dateTo,
+      });
+      setForecast(result);
     } catch (error: any) {
-      toast.error(error.message || 'Не удалось получить прогноз.');
+      toast.error(error.message || 'Не удалось построить прогноз загрузки.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const selectedHall = halls.find((hall) => String(hall.id) === selectedHallId);
+  const selectedHall = halls.find((hall) => String(hall.id) === selectedHallId) ?? null;
+
+  const heatmapMap = useMemo(() => {
+    const map = new Map<string, ForecastHeatmapCell>();
+    if (!forecast) return map;
+
+    forecast.heatmap.forEach((cell) => {
+      map.set(`${cell.date}-${cell.hour}`, cell);
+    });
+    return map;
+  }, [forecast]);
 
   return (
     <div className="space-y-6 sm:space-y-8">
       <section className="mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8 p-5 sm:p-8">
         <p className="mb-3 text-xs uppercase tracking-[0.36em] text-[#737373]">AI-модуль</p>
-        <h1 className="mb-3 text-4xl text-[#111111] sm:text-5xl">Прогноз спроса и пояснение результата</h1>
+        <h1 className="mb-3 text-4xl text-[#111111] sm:text-5xl">Прогноз загрузки по периоду</h1>
         <p className="max-w-3xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">
-          Страница показывает результат работы модели в понятном виде: ожидаемую нагрузку, текстовое объяснение и
-          рекомендацию по работе с расписанием.
+          Выберите студию и период, чтобы увидеть тепловую карту загрузки: по оси X дни, по оси Y часы, цвет показывает
+          процент ожидаемой загрузки.
         </p>
       </section>
 
       <div className="grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <Card className="mono-panel border border-[#111111]/8">
-          <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-            <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
-              <BrainCircuit className="h-5 w-5 text-[#111111]" />
-              Запрос к модели
-            </CardTitle>
-            <CardDescription className="text-[#5c5c5c]">Выберите зал и дату, чтобы получить результат работы AI-модуля.</CardDescription>
-          </CardHeader>
-          <CardContent className="px-5 pb-5 sm:px-6 sm:pb-6">
+          <CardContent className="px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
+            {hallsError && (
+              <div className="mb-4 rounded-[1.2rem] border border-dashed border-[#111111]/15 bg-white/70 p-4 text-sm text-[#5c5c5c]">
+                <p>{hallsError}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-3 rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                  onClick={() => void loadHalls()}
+                >
+                  Повторить загрузку
+                </Button>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="hall-select" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Зал</Label>
+                <Label htmlFor="hall-select" className="text-xs uppercase tracking-[0.32em] text-[#737373]">
+                  Студия
+                </Label>
                 <Select disabled={loading || halls.length === 0} value={selectedHallId} onValueChange={setSelectedHallId}>
                   <SelectTrigger id="hall-select" className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base">
                     <SelectValue placeholder="Выберите зал" />
@@ -97,21 +152,28 @@ export function AiInsightsPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="forecast-date" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Дата прогноза</Label>
-                <Input
-                  id="forecast-date"
-                  type="date"
-                  value={date}
-                  min={new Date().toISOString().slice(0, 10)}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base"
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="forecast-from" className="text-xs uppercase tracking-[0.32em] text-[#737373]">
+                    Начало периода
+                  </Label>
+                  <DatePickerInput id="forecast-from" value={dateFrom} min={toIsoDate(new Date())} onChange={setDateFrom} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="forecast-to" className="text-xs uppercase tracking-[0.32em] text-[#737373]">
+                    Конец периода
+                  </Label>
+                  <DatePickerInput id="forecast-to" value={dateTo} min={dateFrom || toIsoDate(new Date())} onChange={setDateTo} />
+                </div>
               </div>
 
-              <Button type="submit" className="h-11 w-full gap-2 rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a] sm:h-12" disabled={loading || submitting || !selectedHallId}>
+              <Button
+                type="submit"
+                className="h-11 w-full gap-2 rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a] sm:h-12"
+                disabled={loading || submitting || !selectedHallId}
+              >
                 <Sparkles className="h-4 w-4" />
-                {submitting ? 'Формируем прогноз...' : 'Получить прогноз'}
+                {submitting ? 'Строим прогноз...' : 'Построить прогноз'}
               </Button>
             </form>
           </CardContent>
@@ -119,88 +181,106 @@ export function AiInsightsPage() {
 
         <Card className="mono-panel border border-[#111111]/8">
           <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-            <CardTitle className="text-2xl text-[#111111]">Что показывает результат</CardTitle>
-            <CardDescription className="text-[#5c5c5c]">Этот блок помогает объяснить пользователю, как интерпретировать ответ модели.</CardDescription>
+            <CardTitle className="text-2xl text-[#111111]">Легенда загрузки</CardTitle>
+            <CardDescription className="text-[#5c5c5c]">Чем темнее ячейка, тем выше ожидаемая загрузка этого часа.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4 px-5 pb-5 text-sm text-[#5c5c5c] sm:px-6 sm:pb-6">
-            <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-              <p className="font-medium text-[#111111]">Выход модели</p>
-              <p>Ожидаемое количество заказов на выбранную дату и объяснение факторов спроса.</p>
-            </div>
-            <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-              <p className="font-medium text-[#111111]">Пояснение результата</p>
-              <p>Фронтенд преобразует числовой прогноз в понятный статус и рекомендацию для планирования загрузки.</p>
-            </div>
-            <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-              <p className="font-medium text-[#111111]">Повторное использование модели</p>
-              <p>Результат запрашивается через серверный API, который использует сохраненный файл модели без повторного обучения.</p>
-            </div>
+          <CardContent className="space-y-3 px-5 pb-5 text-sm sm:px-6 sm:pb-6">
+            {[
+              { label: '80–100% · Пиковая загрузка', tone: 'bg-[#111111] text-white border-[#111111]' },
+              { label: '60–79% · Высокая загрузка', tone: 'bg-[#3a3a3a] text-white border-[#3a3a3a]' },
+              { label: '40–59% · Средняя загрузка', tone: 'bg-[#7a7a7a] text-white border-[#7a7a7a]' },
+              { label: '20–39% · Низкая загрузка', tone: 'bg-[#d8d8d3] text-[#111111] border-[#c8c8c2]' },
+              { label: '0–19% · Свободное окно', tone: 'bg-[#f3f3f0] text-[#4f4f4f] border-[#ddddda]' },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center gap-3 rounded-[1rem] border border-[#111111]/8 bg-white/70 p-3">
+                <span className={`inline-block h-5 w-5 rounded-md border ${item.tone}`} />
+                <span className="text-[#4f4f4f]">{item.label}</span>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
 
-      {prediction && selectedHall && (
-        <section className="grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+      {forecast && selectedHall && (
+        <section className="space-y-6">
           <Card className="mono-panel border border-[#111111]/8">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
               <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
-                {prediction.prediction === 'HIGH' ? (
-                  <TrendingUp className="h-5 w-5 text-[#111111]" />
-                ) : (
-                  <TrendingDown className="h-5 w-5 text-[#111111]" />
-                )}
-                Результат прогноза
+                <CalendarDays className="h-5 w-5 text-[#111111]" />
+                Тепловая карта загрузки
               </CardTitle>
               <CardDescription className="text-[#5c5c5c]">
-                {selectedHall.name} · <CalendarDays className="mb-0.5 inline h-4 w-4" /> {prediction.date}
+                {selectedHall.name} · {forecast.date_from} — {forecast.date_to}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-5 px-5 pb-5 sm:px-6 sm:pb-6">
+            <CardContent className="space-y-6 px-5 pb-5 sm:px-6 sm:pb-6">
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-                  <p className="text-sm text-[#5c5c5c]">Ожидаемый спрос</p>
+                  <p className="text-sm text-[#5c5c5c]">Средняя загрузка</p>
+                  <p className="mt-2 text-2xl font-semibold text-[#111111]">{forecast.summary.average_load_percent}%</p>
+                </div>
+                <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
+                  <p className="text-sm text-[#5c5c5c]">Средняя уверенность</p>
+                  <p className="mt-2 text-2xl font-semibold text-[#111111]">{Math.round(forecast.summary.average_confidence * 100)}%</p>
+                </div>
+                <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
+                  <p className="text-sm text-[#5c5c5c]">Пиковый час</p>
                   <p className="mt-2 text-2xl font-semibold text-[#111111]">
-                    {prediction.prediction === 'HIGH' ? 'Высокий' : 'Низкий'}
+                    {forecast.summary.peak ? `${forecast.summary.peak.hour.toString().padStart(2, '0')}:00` : '—'}
                   </p>
                 </div>
-                <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-                  <p className="text-sm text-[#5c5c5c]">Прогноз заказов</p>
-                  <p className="mt-2 text-2xl font-semibold text-[#111111]">{prediction.predicted_orders}</p>
-                </div>
-                <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-                  <p className="text-sm text-[#5c5c5c]">Уверенность</p>
-                  <p className="mt-2 text-2xl font-semibold text-[#111111]">{Math.round(prediction.confidence * 100)}%</p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <div className="min-w-[860px] space-y-2">
+                  <div
+                    className="grid gap-2"
+                    style={{ gridTemplateColumns: `120px repeat(${forecast.days.length}, minmax(92px, 1fr))` }}
+                  >
+                    <div className="text-xs uppercase tracking-[0.2em] text-[#7a7a7a]">Часы</div>
+                    {forecast.days.map((day) => (
+                      <div key={day} className="rounded-xl border border-[#111111]/8 bg-white/70 px-2 py-2 text-center">
+                        <p className="text-xs uppercase tracking-[0.18em] text-[#7a7a7a]">{format(parseISO(day), 'EEE', { locale: ru })}</p>
+                        <p className="text-sm font-medium text-[#111111]">{format(parseISO(day), 'dd.MM')}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {forecast.hours.map((hour) => (
+                    <div
+                      key={hour}
+                      className="grid gap-2"
+                      style={{ gridTemplateColumns: `120px repeat(${forecast.days.length}, minmax(92px, 1fr))` }}
+                    >
+                      <div className="flex items-center justify-center rounded-xl border border-[#111111]/8 bg-white/70 px-2 py-2 text-sm text-[#4f4f4f]">
+                        {hour.toString().padStart(2, '0')}:00
+                      </div>
+
+                      {forecast.days.map((day) => {
+                        const cell = heatmapMap.get(`${day}-${hour}`);
+                        const load = cell?.load_percent ?? 0;
+                        return (
+                          <div
+                            key={`${day}-${hour}`}
+                            className={`rounded-xl border px-2 py-2 text-center text-sm font-medium ${getLoadToneClass(load)}`}
+                            title={`${format(parseISO(day), 'dd.MM.yyyy')} ${hour.toString().padStart(2, '0')}:00 · ${load}%`}
+                          >
+                            {load}%
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
               </div>
 
               <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-5">
-                <p className="mb-2 text-sm font-medium text-[#111111]">Пояснение результата</p>
-                <p className="text-[#4e4e4e]">{prediction.explanation || 'Модель не вернула текстовое объяснение.'}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="mono-panel border border-[#111111]/8">
-            <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-              <CardTitle className="text-2xl text-[#111111]">Рекомендация интерфейса</CardTitle>
-              <CardDescription className="text-[#5c5c5c]">Фронтенд должен показывать не только цифру, но и действие, которое она подсказывает.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 px-5 pb-5 text-sm text-[#5c5c5c] sm:px-6 sm:pb-6">
-              <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-                <p className="font-medium text-[#111111]">Для пользователя</p>
-                <p>
-                  {prediction.prediction === 'HIGH'
-                    ? 'Рекомендуется бронировать слот заранее и подтверждать оплату без задержек.'
-                    : 'Дата выглядит спокойной: можно предложить гибкие временные окна и дополнительные услуги.'}
-                </p>
-              </div>
-              <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-                <p className="font-medium text-[#111111]">Для администратора</p>
-                <p>
-                  {prediction.prediction === 'HIGH'
-                    ? 'Стоит подготовить персонал, проверить доступность зала и загрузку расписания.'
-                    : 'Можно использовать дату для акций, тестовых съемок или перераспределения нагрузки.'}
-                </p>
+                <p className="mb-3 text-sm font-medium text-[#111111]">Рекомендации по расписанию</p>
+                <div className="space-y-2 text-sm text-[#4e4e4e]">
+                  {forecast.recommendations.map((item) => (
+                    <p key={item}>• {item}</p>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>

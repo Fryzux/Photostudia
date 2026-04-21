@@ -14,6 +14,9 @@ const homeSectionItems = [
   { label: 'Контакты', to: '/#contacts', section: 'contacts' },
 ];
 
+const HEADER_SCROLL_ENTER = 56;
+const HEADER_SCROLL_EXIT = 16;
+
 export function Layout() {
   const { user, logout, isAdmin, isAuthenticated } = useAuth();
   const location = useLocation();
@@ -39,30 +42,45 @@ export function Layout() {
   useEffect(() => {
     const sectionIds = homeSectionItems.map((item) => item.section);
 
+    let rafId = 0;
+
     const updateHeaderState = () => {
-      setIsScrolled(window.scrollY > 20);
-
-      if (location.pathname !== '/') return;
-
-      let currentSection = 'about';
-      for (const sectionId of sectionIds) {
-        const element = document.getElementById(sectionId);
-        if (!element) continue;
-
-        const rect = element.getBoundingClientRect();
-        if (rect.top <= 140) {
-          currentSection = sectionId;
+      const y = window.scrollY;
+      setIsScrolled((current) => {
+        if (current) {
+          return y > HEADER_SCROLL_EXIT;
         }
-      }
+        return y > HEADER_SCROLL_ENTER;
+      });
 
-      setActiveSection(currentSection);
+      if (location.pathname === '/') {
+        let currentSection = 'about';
+        for (const sectionId of sectionIds) {
+          const element = document.getElementById(sectionId);
+          if (!element) continue;
+
+          const rect = element.getBoundingClientRect();
+          if (rect.top <= 140) {
+            currentSection = sectionId;
+          }
+        }
+
+        setActiveSection((current) => (current === currentSection ? current : currentSection));
+      }
+      rafId = 0;
+    };
+
+    const onScroll = () => {
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(updateHeaderState);
     };
 
     updateHeaderState();
-    window.addEventListener('scroll', updateHeaderState, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
 
     return () => {
-      window.removeEventListener('scroll', updateHeaderState);
+      window.removeEventListener('scroll', onScroll);
+      if (rafId) window.cancelAnimationFrame(rafId);
     };
   }, [location.pathname]);
 
@@ -73,6 +91,7 @@ export function Layout() {
     { label: 'Каталог', to: '/halls', active: isActive('/halls') || isActive('/booking') },
     ...(isAuthenticated ? [{ label: 'Брони', to: '/my-bookings', active: isActive('/my-bookings') }] : []),
     ...(isAuthenticated ? [{ label: 'AI', to: '/ai-insights', active: isActive('/ai-insights') }] : []),
+    ...(isAdmin ? [{ label: 'Расписание', to: '/manager/schedule', active: isActive('/manager/schedule') || isActive('/manager-schedule') }] : []),
     ...(isAdmin ? [{ label: 'Админ', to: '/admin-panel', active: isActive('/admin') || isActive('/admin-panel') }] : []),
     ...(isAdmin ? [{ label: 'Аудит', to: '/admin/audit', active: isActive('/admin/audit') }] : []),
   ];
@@ -120,12 +139,14 @@ export function Layout() {
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#fafaf8_0%,#f3f3f0_100%)]">
       <header
-        className={`sticky top-0 z-40 border-b border-[#111111]/8 bg-white/90 backdrop-blur transition-all duration-300 ${
+        className={`sticky top-0 z-40 border-b border-[#111111]/8 bg-white/90 backdrop-blur transition-shadow duration-300 ${
           isScrolled ? 'shadow-[0_10px_30px_rgba(17,17,17,0.05)]' : ''
         }`}
       >
-        <div className={`mx-auto w-full px-4 sm:px-6 lg:px-10 transition-all duration-300 ${isScrolled ? 'py-3' : 'py-4 sm:py-5'}`}>
-          <div className="hidden items-center justify-between gap-8 md:flex">
+        <div
+          className={`mx-auto w-full px-4 transition-[padding] duration-300 sm:px-6 lg:px-10 ${isScrolled ? 'py-3' : 'py-4 sm:py-5'}`}
+        >
+          <div className="hidden min-w-0 items-center justify-between gap-4 md:flex">
             <Link to="/" className="shrink-0 text-[#111111]">
               <p className={`font-display leading-none transition-all duration-300 ${isScrolled ? 'text-4xl' : 'text-5xl'}`}>Экспозиция</p>
             </Link>

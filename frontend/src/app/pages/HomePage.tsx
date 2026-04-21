@@ -8,8 +8,6 @@ import { contacts, hallShowcase, portfolioItems, valuePoints, workflowSteps } fr
 
 import bgImage from '../../assets/exposition.jpg';
 
-const quietPoints: string[] = [];
-
 export function HomePage() {
   return (
     <div className="space-y-10 pb-8 sm:space-y-14 sm:pb-10">
@@ -52,33 +50,13 @@ export function HomePage() {
               </p>
             </div>
 
-            <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link to="/halls">
-                <Button className="h-11 w-full rounded-full bg-white px-8 text-black hover:bg-gray-200 sm:h-12 sm:min-w-56 sm:w-auto">
+            <div className="flex justify-center">
+              <Link to="/halls" className="inline-flex justify-center">
+                <Button className="h-14 rounded-full bg-white px-12 text-xl text-black hover:bg-gray-200 sm:h-16 sm:min-w-80 sm:px-16 sm:text-2xl">
                   Забронировать зал
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  <ArrowRight className="ml-3 h-6 w-6" />
                 </Button>
               </Link>
-
-              <Link to="/portfolio">
-                <Button
-                  size="lg"
-                  className="h-11 w-full rounded-full bg-[#111111] px-8 text-white hover:bg-[#2a2a2a] sm:h-12 sm:min-w-56 sm:w-auto"
-                >
-                  Смотреть работы
-                </Button>
-              </Link>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              {quietPoints.map((point) => (
-                <div
-                  key={point}
-                  className="rounded-full border border-white/20 bg-white/10 px-4 py-3 text-sm leading-6 text-white sm:text-base"
-                >
-                  {point}
-                </div>
-              ))}
             </div>
 
           </div>
@@ -117,7 +95,7 @@ export function HomePage() {
         <div className="px-0.5 md:px-12">
           <Carousel opts={{ align: 'start', loop: true }}>
             <CarouselContent>
-              {hallShowcase.map((hall, index) => (
+              {hallShowcase.map((hall) => (
                 <CarouselItem key={hall.key} className="md:basis-1/2 lg:basis-1/3">
                   <article className="mono-panel lift-card overflow-hidden rounded-[1.7rem] border border-[#111111]/8 text-center">
                     <img src={hall.image} alt={hall.title} className="grayscale-photo h-64 w-full object-cover sm:h-80" />
@@ -126,7 +104,7 @@ export function HomePage() {
                       <h3 className="text-3xl text-[#111111] sm:text-4xl">{hall.title}</h3>
                       <p className="text-sm leading-7 text-[#5c5c5c] sm:text-base">{hall.description}</p>
                       <p className="text-sm uppercase tracking-[0.28em] text-[#777777]">
-                        от {(3500 + index * 1000).toLocaleString('ru-RU')} ₽ / час
+                        от {hall.price_per_hour.toLocaleString('ru-RU')} ₽ / час
                       </p>
                     </div>
                   </article>

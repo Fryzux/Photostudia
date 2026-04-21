@@ -20,21 +20,26 @@ const paymentOptions = [
 export function CheckoutPage() {
   const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState<Order[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'online'>('card');
+  const [justPaidOrderId, setJustPaidOrderId] = useState<number | null>(null);
+
+  const loadOrders = async () => {
+    setLoadError(null);
+    try {
+      const data = await getOrders();
+      setOrders(data);
+    } catch (error: any) {
+      const message = error?.message || 'Не удалось загрузить заказ для оплаты.';
+      toast.error(message);
+      setLoadError(message);
+      setOrders([]);
+    }
+  };
 
   useEffect(() => {
-    const loadOrders = async () => {
-      try {
-        const data = await getOrders();
-        setOrders(data);
-      } catch (error: any) {
-        toast.error(error.message || 'Не удалось загрузить заказ для оплаты.');
-        setOrders([]);
-      }
-    };
-
-    loadOrders();
+    void loadOrders();
   }, []);
 
   const orderId = searchParams.get('orderId');
@@ -53,6 +58,7 @@ export function CheckoutPage() {
     try {
       await createPayment({ order_id: pendingOrder.id, method: paymentMethod });
       toast.success('Платёж прошёл успешно.');
+      setJustPaidOrderId(pendingOrder.id);
       const data = await getOrders();
       setOrders(data);
     } catch (error: any) {
@@ -71,6 +77,24 @@ export function CheckoutPage() {
     );
   }
 
+  if (loadError) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-6">
+        <Card className="mono-panel border border-[#111111]/8">
+          <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
+            <CardTitle className="text-[#111111]">Не удалось загрузить заказы</CardTitle>
+            <CardDescription className="text-[#5c5c5c]">{loadError}</CardDescription>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 sm:px-6 sm:pb-6">
+            <Button className="rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a]" onClick={() => void loadOrders()}>
+              Повторить
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!pendingOrder) {
     return (
       <div className="mx-auto max-w-3xl space-y-6">
@@ -78,9 +102,13 @@ export function CheckoutPage() {
           <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
             <CardTitle className="flex items-center gap-2 text-[#111111]">
               <CheckCircle2 className="h-5 w-5 text-[#111111]" />
-              Активных заказов на оплату нет
+              {justPaidOrderId ? `Заказ #${justPaidOrderId} успешно оплачен` : 'Активных заказов на оплату нет'}
             </CardTitle>
-            <CardDescription className="text-[#5c5c5c]">Можно вернуться в каталог залов или открыть историю бронирований.</CardDescription>
+            <CardDescription className="text-[#5c5c5c]">
+              {justPaidOrderId
+                ? 'Оплата подтверждена. Можно перейти в историю бронирований для проверки статуса.'
+                : 'Можно вернуться в каталог залов или открыть историю бронирований.'}
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 px-5 pb-5 sm:flex-row sm:px-6 sm:pb-6">
             <Link to="/halls">

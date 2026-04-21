@@ -8,7 +8,7 @@ import uuid
 class BookingService:
     @staticmethod
     @transaction.atomic
-    def create_booking(user, hall, start_time, end_time):
+    def create_booking(user, hall, start_time, end_time, extra_services_total=Decimal('0')):
         """
         Creates a booking with overlap validation and generates an order within a transaction.
         """
@@ -30,9 +30,13 @@ class BookingService:
             end_time=end_time
         )
         
+        extra_services_total = Decimal(str(extra_services_total or 0))
+        if extra_services_total < 0:
+            raise ValidationError("extra_services_total must be non-negative.")
+
         # Calculate amount (simple hours calculation)
         duration_hours = Decimal((end_time - start_time).total_seconds()) / Decimal(3600)
-        total_amount = hall.price_per_hour * duration_hours
+        total_amount = (hall.price_per_hour * duration_hours) + extra_services_total
         
         # Create pending Order
         order = Order.objects.create(
