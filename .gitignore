@@ -22,3 +22,5 @@ Thumbs.db
 
 # Virtual environments
 .venv/
+celerybeat-schedule
+__pycache__/
