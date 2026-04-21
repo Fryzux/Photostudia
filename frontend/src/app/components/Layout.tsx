@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { useEffect, useState } from 'react';
 import { LogOut, Menu, User } from 'lucide-react';
@@ -7,11 +8,9 @@ import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 
 const homeSectionItems = [
-  { label: 'О студии', to: '/#about', section: 'about' },
   { label: 'Залы', to: '/#home-halls', section: 'home-halls' },
   { label: 'Бронирование', to: '/#home-booking', section: 'home-booking' },
   { label: 'Портфолио', to: '/#home-portfolio', section: 'home-portfolio' },
-  { label: 'Контакты', to: '/#contacts', section: 'contacts' },
 ];
 
 const HEADER_SCROLL_ENTER = 56;
@@ -30,6 +29,19 @@ export function Layout() {
     navigate('/login');
   };
 
+  const handleBrandClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (location.pathname !== '/') return;
+
+    event.preventDefault();
+    const aboutSection = document.getElementById('about');
+    if (aboutSection) {
+      aboutSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   useEffect(() => {
     if (!location.hash) return;
 
@@ -40,7 +52,7 @@ export function Layout() {
   }, [location.pathname, location.hash]);
 
   useEffect(() => {
-    const sectionIds = homeSectionItems.map((item) => item.section);
+    const sectionIds = [...homeSectionItems.map((item) => item.section), 'contacts'];
 
     let rafId = 0;
 
@@ -89,16 +101,13 @@ export function Layout() {
 
   const pageItems = [
     { label: 'Каталог', to: '/halls', active: isActive('/halls') || isActive('/booking') },
-    ...(isAuthenticated ? [{ label: 'Брони', to: '/my-bookings', active: isActive('/my-bookings') }] : []),
     ...(isAuthenticated ? [{ label: 'AI', to: '/ai-insights', active: isActive('/ai-insights') }] : []),
-    ...(isAdmin ? [{ label: 'Расписание', to: '/manager/schedule', active: isActive('/manager/schedule') || isActive('/manager-schedule') }] : []),
     ...(isAdmin ? [{ label: 'Админ', to: '/admin-panel', active: isActive('/admin') || isActive('/admin-panel') }] : []),
-    ...(isAdmin ? [{ label: 'Аудит', to: '/admin/audit', active: isActive('/admin/audit') }] : []),
   ];
 
   const navItemClass = (active: boolean) =>
     [
-      'relative text-[0.95rem] uppercase tracking-[0.12em] transition-colors',
+      'relative whitespace-nowrap text-[0.9rem] uppercase tracking-[0.1em] transition-colors xl:text-[0.95rem] xl:tracking-[0.12em]',
       active ? 'text-[#111111]' : 'text-[#434343] hover:text-[#111111]',
       "after:absolute after:-bottom-2 after:left-0 after:h-px after:bg-[#111111] after:transition-all",
       active ? 'after:w-full' : 'after:w-0 hover:after:w-full',
@@ -133,29 +142,55 @@ export function Layout() {
           </Link>
         ),
       )}
+
+      {mobile ? (
+        <Link to="/#contacts" onClick={() => setMobileMenuOpen(false)}>
+          <Button variant="ghost" size="sm" className="w-full justify-start rounded-full text-[#111111]">
+            Контакты
+          </Button>
+        </Link>
+      ) : (
+        <Link key="contacts" to="/#contacts" className={navItemClass(location.pathname === '/' && activeSection === 'contacts')}>
+          Контакты
+        </Link>
+      )}
     </>
   );
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#fafaf8_0%,#f3f3f0_100%)]">
       <header
-        className={`sticky top-0 z-40 border-b border-[#111111]/8 bg-white/90 backdrop-blur transition-shadow duration-300 ${
-          isScrolled ? 'shadow-[0_10px_30px_rgba(17,17,17,0.05)]' : ''
+        className={`sticky top-0 z-40 border-b backdrop-blur transition-all duration-300 ${
+          isScrolled
+            ? 'border-[#111111]/12 bg-white/95 shadow-[0_10px_30px_rgba(17,17,17,0.06)]'
+            : 'border-[#111111]/8 bg-white/88'
         }`}
       >
-        <div
-          className={`mx-auto w-full px-4 transition-[padding] duration-300 sm:px-6 lg:px-10 ${isScrolled ? 'py-3' : 'py-4 sm:py-5'}`}
-        >
-          <div className="hidden min-w-0 items-center justify-between gap-4 md:flex">
-            <Link to="/" className="shrink-0 text-[#111111]">
-              <p className={`font-display leading-none transition-all duration-300 ${isScrolled ? 'text-4xl' : 'text-5xl'}`}>Экспозиция</p>
+        <div className="mx-auto w-full px-4 py-2 sm:px-6 sm:py-3 lg:px-10">
+          <div className="hidden h-20 min-w-0 items-center justify-between gap-4 xl:flex">
+            <Link to="/#about" onClick={handleBrandClick} className="shrink-0 text-[#111111]">
+              <p
+                className={`font-display origin-left text-5xl leading-none transition-transform duration-300 will-change-transform ${
+                  isScrolled ? 'scale-[0.88]' : 'scale-100'
+                }`}
+              >
+                Экспозиция
+              </p>
             </Link>
 
-            <nav className="flex flex-1 items-center justify-center gap-6 lg:gap-8">
+            <nav
+              className={`flex flex-1 items-center justify-center gap-4 transition-transform duration-300 2xl:gap-7 ${
+                isScrolled ? 'translate-y-[-1px]' : 'translate-y-0'
+              }`}
+            >
               <NavigationLinks />
             </nav>
 
-            <div className="flex shrink-0 items-center gap-3">
+            <div
+              className={`flex shrink-0 items-center gap-3 transition-transform duration-300 ${
+                isScrolled ? 'translate-y-[-1px]' : 'translate-y-0'
+              }`}
+            >
               {isAuthenticated ? (
                 <>
                   <Link to="/profile">
@@ -179,9 +214,15 @@ export function Layout() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between md:hidden">
-            <Link to="/" className="text-[#111111]">
-              <p className="font-display text-[2.35rem] leading-none sm:text-4xl">Экспозиция</p>
+          <div className="flex h-14 items-center justify-between sm:h-16 xl:hidden">
+            <Link to="/#about" onClick={handleBrandClick} className="text-[#111111]">
+              <p
+                className={`font-display origin-left text-[2.35rem] leading-none transition-transform duration-300 will-change-transform sm:text-4xl ${
+                  isScrolled ? 'scale-[0.93]' : 'scale-100'
+                }`}
+              >
+                Экспозиция
+              </p>
             </Link>
 
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -241,7 +282,7 @@ export function Layout() {
 
       <footer className="border-t border-[#111111]/8 bg-white/82">
         <div className="mx-auto w-full px-4 py-5 text-center sm:px-6 lg:px-10">
-          <p className="text-sm leading-6 text-[#5f5f5f]">© 2026 Фотостудия "Экспозиция". Чёрно-белый минимализм для бронирования и съёмок.</p>
+          <p className="text-sm leading-6 text-[#5f5f5f]">© 2026 Фотостудия "Экспозиция".</p>
         </div>
       </footer>
     </div>

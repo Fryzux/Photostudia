@@ -19,6 +19,9 @@ type CarouselProps = {
   plugins?: CarouselPlugin;
   orientation?: "horizontal" | "vertical";
   setApi?: (api: CarouselApi) => void;
+  autoplay?: boolean;
+  autoplayInterval?: number;
+  pauseOnHover?: boolean;
 };
 
 type CarouselContextProps = {
@@ -47,8 +50,15 @@ function Carousel({
   opts,
   setApi,
   plugins,
+  autoplay = false,
+  autoplayInterval = 4200,
+  pauseOnHover = true,
   className,
   children,
+  onMouseEnter,
+  onMouseLeave,
+  onFocusCapture,
+  onBlurCapture,
   ...props
 }: React.ComponentProps<"div"> & CarouselProps) {
   const [carouselRef, api] = useEmblaCarousel(
@@ -60,6 +70,7 @@ function Carousel({
   );
   const [canScrollPrev, setCanScrollPrev] = React.useState(false);
   const [canScrollNext, setCanScrollNext] = React.useState(false);
+  const [autoplayPaused, setAutoplayPaused] = React.useState(false);
 
   const onSelect = React.useCallback((api: CarouselApi) => {
     if (!api) return;
@@ -104,6 +115,23 @@ function Carousel({
     };
   }, [api, onSelect]);
 
+  React.useEffect(() => {
+    if (!api || !autoplay || autoplayPaused) return;
+
+    const timerId = window.setInterval(() => {
+      if (!api) return;
+      if (!api.canScrollNext() && !opts?.loop) {
+        api.scrollTo(0);
+        return;
+      }
+      api.scrollNext();
+    }, autoplayInterval);
+
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [api, autoplay, autoplayInterval, autoplayPaused, opts?.loop]);
+
   return (
     <CarouselContext.Provider
       value={{
@@ -120,6 +148,22 @@ function Carousel({
     >
       <div
         onKeyDownCapture={handleKeyDown}
+        onMouseEnter={(event) => {
+          if (pauseOnHover) setAutoplayPaused(true);
+          onMouseEnter?.(event);
+        }}
+        onMouseLeave={(event) => {
+          if (pauseOnHover) setAutoplayPaused(false);
+          onMouseLeave?.(event);
+        }}
+        onFocusCapture={(event) => {
+          if (pauseOnHover) setAutoplayPaused(true);
+          onFocusCapture?.(event);
+        }}
+        onBlurCapture={(event) => {
+          if (pauseOnHover) setAutoplayPaused(false);
+          onBlurCapture?.(event);
+        }}
         className={cn("relative", className)}
         role="region"
         aria-roledescription="carousel"

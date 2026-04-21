@@ -1,3 +1,7 @@
+import editorialPortraitImage from '../../assets/portfolio-editorial-portrait.jpg';
+import familySessionImage from '../../assets/portfolio-family-session.jpg';
+import weddingSessionImage from '../../assets/portfolio-wedding-session.jpg';
+
 export const portfolioItems = [
   {
     id: 1,
@@ -11,17 +15,22 @@ export const portfolioItems = [
     id: 2,
     title: 'Редакционный кадр',
     category: 'Editorial',
-    image:
-      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80',
+    image: editorialPortraitImage,
     description: 'Сдержанная fashion-подача для лукбуков, брендов и персональных визуальных историй.',
   },
   {
     id: 3,
-    title: 'Повседневная сцена',
-    category: 'Lifestyle',
-    image:
-      'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1200&q=80',
-    description: 'Камерные кадры с естественным ритмом, воздухом и спокойной бытовой пластикой.',
+    title: 'Семейная история',
+    category: 'Family',
+    image: familySessionImage,
+    description: 'Тёплая семейная съёмка в светлой палитре: естественные эмоции, мягкий свет и живой контакт в кадре.',
+  },
+  {
+    id: 4,
+    title: 'Свадебный фотосет',
+    category: 'Wedding',
+    image: weddingSessionImage,
+    description: 'Нежные свадебные кадры с чистым светом, естественной пластикой и акцентом на эмоции пары и семьи.',
   },
 ];
 

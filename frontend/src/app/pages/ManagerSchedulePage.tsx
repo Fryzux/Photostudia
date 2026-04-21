@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { addDays, format, parseISO } from 'date-fns';
+import { useSearchParams } from 'react-router';
 import { ru } from 'date-fns/locale';
 import { CalendarClock, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -45,10 +46,13 @@ function statusTone(status: Order['status']) {
 }
 
 export function ManagerSchedulePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dateFrom, setDateFrom] = useState(() => toIsoDate(new Date()));
-  const [dateTo, setDateTo] = useState(() => toIsoDate(addDays(new Date(), 6)));
+  const dateFromParam = searchParams.get('schedule_from') || toIsoDate(new Date());
+  const dateToParam = searchParams.get('schedule_to') || toIsoDate(addDays(new Date(), 6));
+  const [dateFrom, setDateFrom] = useState(dateFromParam);
+  const [dateTo, setDateTo] = useState(dateToParam);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [updating, setUpdating] = useState(false);
 
@@ -70,6 +74,20 @@ export function ManagerSchedulePage() {
   useEffect(() => {
     void loadOrders();
   }, []);
+
+  useEffect(() => {
+    setDateFrom(dateFromParam);
+    setDateTo(dateToParam);
+  }, [dateFromParam, dateToParam]);
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    next.set('schedule_from', dateFrom);
+    next.set('schedule_to', dateTo);
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [dateFrom, dateTo, searchParams, setSearchParams]);
 
   const visibleOrders = useMemo(() => {
     if (!days.length) return [];

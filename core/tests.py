@@ -2,6 +2,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.test import override_settings
 from datetime import timedelta
 from studio.models import Hall, Booking, Order
 from audit.models import ActionLog
@@ -105,6 +106,44 @@ class PhotostudiaTests(APITestCase):
         res2 = self.client.post(self.booking_url, data_conflict)
         self.assertEqual(res2.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('error', res2.data)
+
+    @override_settings(STUDIO_TIME_ZONE='Europe/Moscow')
+    def test_5_1_availability_marks_busy_slot_for_other_user(self):
+        """
+        Regression: a slot booked by one user must be unavailable for another user
+        in studio local timeline (09:00 Moscow -> 06:00 UTC payload).
+        """
+        token = self.get_token('testuser', 'Testpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+
+        create_res = self.client.post(
+            self.booking_url,
+            {
+                'hall_id': self.hall.id,
+                'start_time': '2026-04-22T06:00:00Z',
+                'end_time': '2026-04-22T07:00:00Z',
+            },
+        )
+        self.assertEqual(create_res.status_code, status.HTTP_201_CREATED)
+
+        User.objects.create_user(
+            username='seconduser',
+            password='Secondpassword123',
+            email='second@test.com',
+            first_name='Second',
+        )
+        second_token = self.get_token('seconduser', 'Secondpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + second_token)
+
+        availability_res = self.client.get(
+            f'/api/halls/{self.hall.id}/availability/?date=2026-04-22&open_hour=8&close_hour=11'
+        )
+        self.assertEqual(availability_res.status_code, status.HTTP_200_OK)
+
+        slots = availability_res.data.get('slots', [])
+        slot_09 = next((slot for slot in slots if slot.get('start') == '09:00:00'), None)
+        self.assertIsNotNone(slot_09)
+        self.assertFalse(slot_09.get('available', True))
 
     def test_6_booking_deletion(self):
         token = self.get_token('testuser', 'Testpassword123')
