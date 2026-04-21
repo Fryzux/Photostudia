@@ -11,11 +11,16 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import { DatePickerInput } from '../components/ui/date-picker-input';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Skeleton } from '../components/ui/skeleton';
+
+const BOOKING_CACHE_KEY = 'exposition-bookings-cache-v1';
+const CACHE_TTL_MS = 60_000;
+const PAGE_SIZE = 6;
 
 export function MyBookingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -35,12 +40,35 @@ export function MyBookingsPage() {
 
   const search = searchParams.get('search') ?? '';
   const status = searchParams.get('status') ?? 'all';
+  const dateFrom = searchParams.get('date_from') ?? '';
+  const dateTo = searchParams.get('date_to') ?? '';
+  const page = Math.max(1, Number(searchParams.get('page') || 1));
 
   useEffect(() => {
     const loadBookings = async () => {
+      const cachedRaw = sessionStorage.getItem(BOOKING_CACHE_KEY);
+      if (cachedRaw) {
+        try {
+          const cached = JSON.parse(cachedRaw) as { timestamp: number; orders: Order[] };
+          if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
+            setOrders(cached.orders);
+            setLoading(false);
+          }
+        } catch {
+          sessionStorage.removeItem(BOOKING_CACHE_KEY);
+        }
+      }
+
       try {
         const data = await getOrders();
         setOrders(data);
+        sessionStorage.setItem(
+          BOOKING_CACHE_KEY,
+          JSON.stringify({
+            timestamp: Date.now(),
+            orders: data,
+          }),
+        );
       } catch (error) {
         toast.error('Не удалось загрузить ваши заказы');
       } finally {
@@ -54,6 +82,13 @@ export function MyBookingsPage() {
   const reloadOrders = async () => {
     const data = await getOrders();
     setOrders(data);
+    sessionStorage.setItem(
+      BOOKING_CACHE_KEY,
+      JSON.stringify({
+        timestamp: Date.now(),
+        orders: data,
+      }),
+    );
   };
 
   const updateParam = (key: string, value: string) => {
@@ -110,9 +145,21 @@ export function MyBookingsPage() {
       order.booking.hall.name.toLowerCase().includes(search.toLowerCase()) ||
       String(order.id).includes(search);
     const matchesStatus = status === 'all' || order.status === status;
+    const bookingDate = format(new Date(order.booking.start_time), 'yyyy-MM-dd');
+    const matchesDateFrom = !dateFrom || bookingDate >= dateFrom;
+    const matchesDateTo = !dateTo || bookingDate <= dateTo;
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedOrders = filteredOrders.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  useEffect(() => {
+    if (page <= totalPages) return;
+    updateParam('page', String(totalPages));
+  }, [page, totalPages]);
 
   const cancellableStatuses = new Set(['NEW', 'PENDING', 'CONFIRMED']);
 
@@ -151,7 +198,7 @@ export function MyBookingsPage() {
           <CardTitle className="text-2xl text-[#111111]">Поиск и фильтрация</CardTitle>
           <CardDescription className="text-[#5c5c5c]">Можно быстро найти заказ по номеру, названию зала или статусу.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6 md:grid-cols-[minmax(0,1fr)_220px_160px]">
+        <CardContent className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_220px_220px_220px_160px]">
           <div className="space-y-2">
             <Label htmlFor="booking-search" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Поиск</Label>
             <div className="relative">
@@ -181,6 +228,16 @@ export function MyBookingsPage() {
                 <SelectItem value="CANCELLED">Отменено</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="booking-date-from" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Дата от</Label>
+            <DatePickerInput id="booking-date-from" value={dateFrom} onChange={(value) => updateParam('date_from', value)} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="booking-date-to" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Дата до</Label>
+            <DatePickerInput id="booking-date-to" value={dateTo} onChange={(value) => updateParam('date_to', value)} />
           </div>
 
           <div className="flex items-end">

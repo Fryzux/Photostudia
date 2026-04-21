@@ -4,13 +4,16 @@ from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser
 from datetime import datetime, time, timedelta
 from django.db.models import Sum
 from django.core.exceptions import ValidationError
+from django.conf import settings
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter
 from django.utils import timezone
 import os
-from .models import Booking, Order, Payment, Hall
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from .models import Booking, HallImage, Order, Payment, Hall
 from .serializers import BookingSerializer, OrderSerializer, PaymentSerializer, PaymentCreateSerializer, HallSerializer, OrderStatusUpdateSerializer
 from .services import BookingService, PaymentService
 from django.contrib.auth import get_user_model
@@ -19,6 +22,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
+
+
+def get_studio_timezone():
+    """
+    Returns timezone used for booking-grid rendering in availability endpoint.
+    Defaults to Europe/Moscow (project domain), can be overridden by STUDIO_TIME_ZONE.
+    """
+    tz_name = os.environ.get('STUDIO_TIME_ZONE') or getattr(settings, 'STUDIO_TIME_ZONE', None) or 'Europe/Moscow'
+    try:
+        return ZoneInfo(tz_name)
+    except ZoneInfoNotFoundError:
+        logger.warning("Unknown STUDIO_TIME_ZONE=%s, fallback to Django current timezone.", tz_name)
+        return timezone.get_current_timezone()
 
 
 def broadcast_order_status_update(order: Order) -> None:
@@ -81,6 +97,65 @@ class HallViewSet(viewsets.ModelViewSet):
     filterset_class = HallFilter
     search_fields = ['name']
 
+    @action(
+        detail=True,
+        methods=['post'],
+        url_path='images',
+        permission_classes=[permissions.IsAdminUser],
+        parser_classes=[MultiPartParser, FormParser],
+    )
+    def upload_images(self, request, pk=None):
+        hall = self.get_object()
+        files = request.FILES.getlist('images')
+        if not files and request.FILES.get('image'):
+            files = [request.FILES['image']]
+
+        if not files:
+            return Response(
+                {'error': 'Validation Error', 'details': 'Attach at least one image file via image/images field.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        max_images = int(os.environ.get('HALL_MAX_IMAGES', 10))
+        max_image_size = int(os.environ.get('HALL_MAX_IMAGE_SIZE', 5 * 1024 * 1024))
+        allowed_ext = {'.jpg', '.jpeg', '.png', '.webp'}
+
+        existing_count = hall.gallery_images.count()
+        if existing_count + len(files) > max_images:
+            return Response(
+                {
+                    'error': 'Validation Error',
+                    'details': f'Image limit exceeded. Current={existing_count}, adding={len(files)}, max={max_images}.',
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        created = 0
+        for file in files:
+            _, ext = os.path.splitext(file.name.lower())
+            if ext not in allowed_ext:
+                return Response(
+                    {
+                        'error': 'Validation Error',
+                        'details': f'Unsupported image format: {file.name}. Allowed: jpg, jpeg, png, webp.',
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if file.size > max_image_size:
+                return Response(
+                    {
+                        'error': 'Validation Error',
+                        'details': f'File {file.name} is too large (max {max_image_size // (1024 * 1024)} MB).',
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            HallImage.objects.create(hall=hall, image=file)
+            created += 1
+
+        payload = HallSerializer(hall, context={'request': request}).data
+        payload['uploaded'] = created
+        return Response(payload, status=status.HTTP_201_CREATED)
+
     @action(detail=True, methods=['get'], url_path='availability', permission_classes=[IsAuthenticated])
     def availability(self, request, pk=None):
         hall = self.get_object()
@@ -103,20 +178,6 @@ class HallViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        bookings = Booking.objects.filter(
-            hall=hall,
-            start_time__date=target_date,
-        ).order_by('start_time')
-
-        booked_slots = [
-            {
-                'booking_id': booking.id,
-                'start_time': booking.start_time.isoformat(),
-                'end_time': booking.end_time.isoformat(),
-            }
-            for booking in bookings
-        ]
-
         raw_open_hour = request.query_params.get('open_hour') or os.environ.get('BOOKING_OPEN_HOUR', '8')
         raw_close_hour = request.query_params.get('close_hour') or os.environ.get('BOOKING_CLOSE_HOUR', '23')
 
@@ -135,11 +196,30 @@ class HallViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        current_tz = timezone.get_current_timezone()
+        studio_tz = get_studio_timezone()
+        day_start = timezone.make_aware(datetime.combine(target_date, time(hour=open_hour)), studio_tz)
+        day_end = timezone.make_aware(datetime.combine(target_date, time(hour=close_hour)), studio_tz)
+
+        # Include every booking that overlaps the target business day in studio timezone.
+        bookings = Booking.objects.filter(
+            hall=hall,
+            start_time__lt=day_end,
+            end_time__gt=day_start,
+        ).order_by('start_time')
+
+        booked_slots = [
+            {
+                'booking_id': booking.id,
+                'start_time': booking.start_time.isoformat(),
+                'end_time': booking.end_time.isoformat(),
+            }
+            for booking in bookings
+        ]
+
         slots = []
 
         for hour in range(open_hour, close_hour):
-            slot_start = timezone.make_aware(datetime.combine(target_date, time(hour=hour)), current_tz)
+            slot_start = timezone.make_aware(datetime.combine(target_date, time(hour=hour)), studio_tz)
             slot_end = slot_start + timedelta(hours=1)
 
             is_busy = any(
@@ -277,6 +357,12 @@ class OrderStatusUpdateView(generics.UpdateAPIView):
     def perform_update(self, serializer):
         order = serializer.save()
         broadcast_order_status_update(order)
+        from .tasks import send_order_status_changed_email
+        try:
+            send_order_status_changed_email.delay(order.id, order.user.email, order.status)
+        except Exception as exc:
+            logger.warning("Celery broker unavailable for status email, sending synchronously: %s", exc)
+            send_order_status_changed_email(order.id, order.user.email, order.status)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -329,7 +415,8 @@ class PaymentCreateView(views.APIView):
             payment = PaymentService.process_payment(
                 order=order,
                 amount=order.total_amount,
-                method=serializer.validated_data['method']
+                method=serializer.validated_data['method'],
+                promo_code=serializer.validated_data.get('promo_code'),
             )
         except ValidationError as e:
             return Response(

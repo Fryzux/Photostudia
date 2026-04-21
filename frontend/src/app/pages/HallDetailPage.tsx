@@ -11,6 +11,7 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { DatePickerInput } from '../components/ui/date-picker-input';
+import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Skeleton } from '../components/ui/skeleton';
 
@@ -55,6 +56,7 @@ export function HallDetailPage() {
   const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([]);
   const [selectedSlotKey, setSelectedSlotKey] = useState('');
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
+  const [promoCode, setPromoCode] = useState('');
   const [submittingBooking, setSubmittingBooking] = useState(false);
   const [services] = useState<StudioService[]>(() => getStudioServices().filter((item) => item.is_active));
 
@@ -179,6 +181,7 @@ export function HallDetailPage() {
       end_time: combineDateTime(availabilityDate, getTime(selectedSlotSummary.end)),
       extra_services_total: Number(servicesCost.toFixed(2)),
     };
+    const normalizedPromoCode = promoCode.trim().toUpperCase();
 
     setSubmittingBooking(true);
     try {
@@ -190,9 +193,13 @@ export function HallDetailPage() {
 
       toast.success('Бронь создана. Переходим к оплате.');
       if (relatedOrder) {
-        navigate(`/checkout?orderId=${relatedOrder.id}`);
+        const nextParams = new URLSearchParams({ orderId: String(relatedOrder.id) });
+        if (normalizedPromoCode) {
+          nextParams.set('promo', normalizedPromoCode);
+        }
+        navigate(`/checkout?${nextParams.toString()}`);
       } else {
-        navigate('/my-bookings');
+        navigate('/profile/bookings');
       }
     } catch (error: any) {
       toast.error(error.message || 'Не удалось создать бронирование.');
@@ -375,6 +382,23 @@ export function HallDetailPage() {
                     </div>
                   </div>
                 )}
+
+                <div className="mt-4 space-y-2">
+                  <Label htmlFor="hall-promo-code" className="text-sm uppercase tracking-[0.22em] text-[#737373]">
+                    Промокод
+                  </Label>
+                  <Input
+                    id="hall-promo-code"
+                    value={promoCode}
+                    onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
+                    placeholder="Введите промокод (если есть)"
+                    maxLength={32}
+                    className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base"
+                  />
+                  <p className="text-xs text-[#6a6a6a]">
+                    Код проверится и применится на экране оплаты после создания бронирования.
+                  </p>
+                </div>
 
                 <div className="mt-4 rounded-[1rem] border border-[#111111]/10 bg-[#fbfbf8] p-3 text-sm text-[#4f4f4f]">
                   <div className="mb-1 flex items-center justify-between">

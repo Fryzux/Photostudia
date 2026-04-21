@@ -16,6 +16,7 @@ import {
   Order,
   Payment,
   PromoCode,
+  PromoValidationResult,
   RegisterData,
   User,
 } from '../types';
@@ -36,9 +37,11 @@ type BackendHall = {
   id: number;
   name: string;
   description?: string | null;
+  is_active?: boolean;
   capacity: number;
   price_per_hour: number | string;
   image?: string | null;
+  images?: Array<{ id: number; image?: string | null; created_at?: string }>;
 };
 
 type BackendBooking = {
@@ -55,6 +58,9 @@ type BackendOrder = {
   username?: string;
   user_email?: string;
   total_amount: number | string;
+  discount_amount?: number | string;
+  final_amount?: number | string | null;
+  promo_code?: string | null;
   status: 'NEW' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
   created_at: string;
 };
@@ -100,6 +106,11 @@ type BackendPromoCode = {
   code: string;
   description?: string | null;
   discount_percent: number | string;
+  promo_type?: 'PERCENT' | 'FIXED';
+  value?: number | string;
+  expiry?: string | null;
+  usage_limit?: number | string | null;
+  usage_count?: number | string | null;
   is_active: boolean;
   hall?: number | null;
   hour_from?: string | null;
@@ -214,16 +225,26 @@ function normalizeMediaUrl(value?: string | null) {
 function normalizeHall(raw: BackendHall): Hall {
   const hallId = parseNumber(raw.id, 'hall.id');
   const presentation = getHallPresentation(raw.name, raw.id);
-  const image = presentation.image || normalizeMediaUrl(raw.image);
+  const coverImage = normalizeMediaUrl(raw.image);
+  const galleryImages = Array.isArray(raw.images)
+    ? raw.images
+        .map((entry) => normalizeMediaUrl(entry?.image || null))
+        .filter((value): value is string => Boolean(value))
+    : [];
+
+  const fallbackImage = presentation.image;
+  const baseImage = coverImage || galleryImages[0] || fallbackImage;
+  const images = galleryImages.length ? galleryImages : baseImage ? [baseImage] : [];
 
   return {
     id: hallId,
     name: presentation.title,
+    is_active: typeof raw.is_active === 'boolean' ? raw.is_active : true,
     capacity: parseNumber(raw.capacity, 'hall.capacity'),
     price_per_hour: parseNumber(raw.price_per_hour, 'hall.price_per_hour'),
     equipment: presentation.equipment,
-    image,
-    images: image ? [image] : [],
+    image: baseImage || null,
+    images,
     description: (raw.description || presentation.description || '').trim(),
   };
 }
@@ -264,6 +285,9 @@ function normalizeOrder(raw: BackendOrder): Order {
     username: typeof raw.username === 'string' ? raw.username : undefined,
     user_email: typeof raw.user_email === 'string' ? raw.user_email : undefined,
     total_amount: parseNumber(raw.total_amount, 'order.total_amount'),
+    discount_amount: parseOptionalNumber(raw.discount_amount) ?? 0,
+    final_amount: parseOptionalNumber(raw.final_amount) ?? null,
+    promo_code: typeof raw.promo_code === 'string' ? raw.promo_code : null,
     status: raw.status,
     created_at: typeof raw.created_at === 'string' ? raw.created_at : '',
   };
@@ -272,17 +296,25 @@ function normalizeOrder(raw: BackendOrder): Order {
 function normalizePromoCode(raw: BackendPromoCode): PromoCode {
   const usesCount = parseOptionalNumber(raw.uses_count);
   const maxUses = parseOptionalNumber(raw.max_uses);
+  const usageCount = parseOptionalNumber(raw.usage_count);
+  const usageLimit = parseOptionalNumber(raw.usage_limit);
+  const promoValue = parseOptionalNumber(raw.value);
 
   return {
     id: parseNumber(raw.id, 'promo.id'),
     code: typeof raw.code === 'string' ? raw.code : '',
     description: typeof raw.description === 'string' ? raw.description : '',
     discount_percent: parseNumber(raw.discount_percent, 'promo.discount_percent'),
+    promo_type: raw.promo_type || 'PERCENT',
+    value: promoValue ?? parseNumber(raw.discount_percent, 'promo.discount_percent'),
+    expiry: raw.expiry || raw.valid_to || null,
+    usage_limit: usageLimit ?? maxUses ?? null,
+    usage_count: usageCount ?? usesCount ?? 0,
     is_active: raw.is_active,
     hall: parseOptionalNumber(raw.hall) ?? null,
     hour_from: typeof raw.hour_from === 'string' ? raw.hour_from : null,
     hour_to: typeof raw.hour_to === 'string' ? raw.hour_to : null,
-    uses_count: usesCount ?? 0,
+    uses_count: usesCount ?? usageCount ?? 0,
     max_uses: maxUses ?? null,
     valid_from: raw.valid_from || null,
     valid_to: raw.valid_to || null,
@@ -470,6 +502,8 @@ export async function createHall(data: CreateHallData): Promise<Hall> {
       method: 'POST',
       body: JSON.stringify({
         name: data.name,
+        description: data.description || '',
+        is_active: data.is_active ?? true,
         capacity: data.capacity,
         price_per_hour: data.price_per_hour,
       }),
@@ -481,6 +515,13 @@ export async function createHall(data: CreateHallData): Promise<Hall> {
 }
 
 export async function updateHall(id: number, data: Partial<CreateHallData>): Promise<Hall> {
+  const body: Record<string, unknown> = {};
+  if (typeof data.name === 'string') body.name = data.name;
+  if (typeof data.description === 'string') body.description = data.description;
+  if (typeof data.is_active === 'boolean') body.is_active = data.is_active;
+  if (typeof data.capacity === 'number') body.capacity = data.capacity;
+  if (typeof data.price_per_hour === 'number') body.price_per_hour = data.price_per_hour;
+
   const payload = (await request(
     `${API_URL}/halls/${id}/`,
     {
@@ -488,16 +529,64 @@ export async function updateHall(id: number, data: Partial<CreateHallData>): Pro
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        name: data.name,
-        capacity: data.capacity,
-        price_per_hour: data.price_per_hour,
-      }),
+      body: JSON.stringify(body),
     },
     true,
   )) as BackendHall;
 
   return normalizeHall(payload);
+}
+
+export async function uploadHallImages(
+  hallId: number,
+  files: File[],
+  onProgress?: (filename: string, progress: number) => void,
+): Promise<Hall> {
+  if (!files.length) {
+    return getHall(hallId);
+  }
+
+  const token = tokenStorage.getAccessToken();
+
+  for (const file of files) {
+    await new Promise<void>((resolve, reject) => {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_URL}/halls/${hallId}/images/`);
+
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+
+      xhr.upload.onprogress = (event) => {
+        if (!onProgress || !event.lengthComputable) return;
+        const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
+        onProgress(file.name, percent);
+      };
+
+      xhr.onerror = () => reject(new Error('Ошибка сети при загрузке изображения.'));
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          onProgress?.(file.name, 100);
+          resolve();
+          return;
+        }
+
+        try {
+          const payload = JSON.parse(xhr.responseText) as { details?: string; error?: string };
+          reject(new Error(payload.details || payload.error || `Upload failed (${xhr.status})`));
+        } catch {
+          reject(new Error(`Upload failed (${xhr.status})`));
+        }
+      };
+
+      xhr.send(formData);
+    });
+  }
+
+  return getHall(hallId);
 }
 
 export async function deleteHall(id: number): Promise<void> {
@@ -578,7 +667,11 @@ export async function createPayment(data: CreatePaymentData): Promise<Payment> {
     `${API_URL}/payments/`,
     {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        order_id: data.order_id,
+        method: data.method,
+        promo_code: data.promo_code,
+      }),
     },
     true,
   )) as BackendPayment;
@@ -738,6 +831,10 @@ export async function createPromoCode(data: CreatePromoCodeData): Promise<PromoC
         code: data.code,
         description: data.description,
         discount_percent: data.discount_percent,
+        promo_type: data.promo_type || 'PERCENT',
+        value: data.value ?? data.discount_percent,
+        usage_limit: data.usage_limit,
+        expiry: data.expiry || data.valid_to,
         valid_from: data.valid_from,
         valid_to: data.valid_to,
       }),
@@ -772,6 +869,34 @@ export async function activatePromoCode(id: number): Promise<PromoCode> {
   )) as BackendPromoCode;
 
   return normalizePromoCode(payload);
+}
+
+export async function validatePromoCode(code: string, orderId: number): Promise<PromoValidationResult> {
+  const payload = (await request(
+    `${API_URL}/promos/promocodes/validate/`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        code,
+        order_id: orderId,
+      }),
+    },
+    true,
+  )) as {
+    promo: BackendPromoCode;
+    order_id: number;
+    base_total: number | string;
+    discount_amount: number | string;
+    final_total: number | string;
+  };
+
+  return {
+    promo: normalizePromoCode(payload.promo),
+    order_id: payload.order_id,
+    base_total: parseNumber(payload.base_total, 'promo.base_total'),
+    discount_amount: parseNumber(payload.discount_amount, 'promo.discount_amount'),
+    final_total: parseNumber(payload.final_total, 'promo.final_total'),
+  };
 }
 
 function normalizeTimeSlot(value: string) {

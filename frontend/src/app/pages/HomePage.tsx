@@ -93,9 +93,9 @@ export function HomePage() {
         </div>
 
         <div className="px-0.5 md:px-12">
-          <Carousel opts={{ align: 'start', loop: true }}>
+          <Carousel opts={{ align: 'start', loop: true }} autoplay autoplayInterval={4200}>
             <CarouselContent>
-              {hallShowcase.map((hall) => (
+              {hallShowcase.map((hall, index) => (
                 <CarouselItem key={hall.key} className="md:basis-1/2 lg:basis-1/3">
                   <article className="mono-panel lift-card overflow-hidden rounded-[1.7rem] border border-[#111111]/8 text-center">
                     <img src={hall.image} alt={hall.title} className="grayscale-photo h-64 w-full object-cover sm:h-80" />
@@ -106,6 +106,11 @@ export function HomePage() {
                       <p className="text-sm uppercase tracking-[0.28em] text-[#777777]">
                         от {hall.price_per_hour.toLocaleString('ru-RU')} ₽ / час
                       </p>
+                      <Link to={`/booking?hall_id=${index + 1}`}>
+                        <Button className="h-10 w-full rounded-full bg-[#111111] text-white transition hover:bg-[#2a2a2a] focus-visible:ring-2 focus-visible:ring-[#111111]/40 sm:h-11">
+                          Забронировать
+                        </Button>
+                      </Link>
                     </div>
                   </article>
                 </CarouselItem>
@@ -143,17 +148,25 @@ export function HomePage() {
           <h2 className="text-3xl text-[#111111] sm:text-5xl">Кадры в нашей спокойной тональности</h2>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {portfolioItems.map((item) => (
-            <article key={item.id} className="mono-panel lift-card overflow-hidden rounded-[1.7rem] border border-[#111111]/8 text-center">
-              <img src={item.image} alt={item.title} className="grayscale-photo h-64 w-full object-cover sm:h-80" />
-              <div className="space-y-3 p-5 sm:p-6">
-                <p className="text-xs uppercase tracking-[0.32em] text-[#737373]">{item.category}</p>
-                <h3 className="text-2xl text-[#111111] sm:text-3xl">{item.title}</h3>
-                <p className="text-sm leading-7 text-[#5c5c5c] sm:text-base">{item.description}</p>
-              </div>
-            </article>
-          ))}
+        <div className="px-0.5 md:px-12">
+          <Carousel opts={{ align: 'start', loop: true }} autoplay autoplayInterval={4300}>
+            <CarouselContent>
+              {portfolioItems.map((item) => (
+                <CarouselItem key={item.id} className="sm:basis-1/2 lg:basis-1/3">
+                  <article className="mono-panel lift-card overflow-hidden rounded-[1.7rem] border border-[#111111]/8 text-center">
+                    <img src={item.image} alt={item.title} className="grayscale-photo h-64 w-full object-cover sm:h-80" />
+                    <div className="space-y-3 p-5 sm:p-6">
+                      <p className="text-xs uppercase tracking-[0.32em] text-[#737373]">{item.category}</p>
+                      <h3 className="text-2xl text-[#111111] sm:text-3xl">{item.title}</h3>
+                      <p className="text-sm leading-7 text-[#5c5c5c] sm:text-base">{item.description}</p>
+                    </div>
+                  </article>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="hidden border-[#111111]/12 bg-white text-[#111111] md:flex" />
+            <CarouselNext className="hidden border-[#111111]/12 bg-white text-[#111111] md:flex" />
+          </Carousel>
         </div>
       </section>
 
