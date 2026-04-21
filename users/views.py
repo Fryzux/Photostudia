@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import get_user_model
-from .serializers import UserRegistrationSerializer, UserSerializer, TwoFactorTokenObtainPairSerializer
+from .serializers import UserRegistrationSerializer, UserSerializer, TwoFactorTokenObtainPairSerializer, AdminCreateUserSerializer, AdminUpdateUserSerializer
 
 User = get_user_model()
 
@@ -82,10 +82,37 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 
-class UserListView(generics.ListAPIView):
+class UserListView(generics.ListCreateAPIView):
     queryset = User.objects.all().order_by('-date_joined')
-    serializer_class = UserSerializer
     permission_classes = (permissions.IsAdminUser,)
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return AdminCreateUserSerializer
+        return UserSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = AdminCreateUserSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+
+class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = User.objects.all()
+    permission_classes = (permissions.IsAdminUser,)
+
+    def get_serializer_class(self):
+        if self.request.method in ('PUT', 'PATCH'):
+            return AdminUpdateUserSerializer
+        return UserSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        if user == request.user:
+            return Response({'detail': 'Нельзя удалить собственный аккаунт.'}, status=status.HTTP_400_BAD_REQUEST)
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class LogoutView(APIView):

@@ -8,8 +8,10 @@ import type { Analytics, AuditLog, CreateHallData, CreatePromoCodeData, Hall, Or
 import {
   createHall,
   createPromoCode,
+  createUser,
   deactivatePromoCode,
   deleteHall,
+  deleteUser,
   getActionLogs,
   getAnalytics,
   getHalls,
@@ -18,7 +20,9 @@ import {
   getUsers,
   updateHall,
   updateOrderStatus,
+  updateUser,
 } from '../services/api';
+import type { CreateUserData, UpdateUserData } from '../services/api';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -72,6 +76,13 @@ export function AdminPage() {
 
   const [userSearch, setUserSearch] = useState('');
   const [userRole, setUserRole] = useState<'all' | 'staff' | 'client'>('all');
+  const [userCreateDialog, setUserCreateDialog] = useState(false);
+  const [userEditDialog, setUserEditDialog] = useState<{ open: boolean; user: User | null }>({ open: false, user: null });
+  const [userDeleteDialog, setUserDeleteDialog] = useState<{ open: boolean; user: User | null }>({ open: false, user: null });
+  const [userCreateForm, setUserCreateForm] = useState<CreateUserData>({ username: '', password: '', email: '', first_name: '', last_name: '', is_staff: false, is_manager: false });
+  const [userEditForm, setUserEditForm] = useState<UpdateUserData>({});
+  const [submittingUser, setSubmittingUser] = useState(false);
+  const [deletingUser, setDeletingUser] = useState(false);
 
   const [logSearch, setLogSearch] = useState('');
   const [logAction, setLogAction] = useState('all');
@@ -676,11 +687,19 @@ export function AdminPage() {
         <TabsContent value="users" className="space-y-6">
           <Card className="mono-panel border border-[#111111]/8">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-              <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
-                <Users className="h-5 w-5" />
-                Пользователи
-              </CardTitle>
-              <CardDescription className="text-[#5c5c5c]">Список зарегистрированных пользователей с фильтром по роли.</CardDescription>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
+                    <Users className="h-5 w-5" />
+                    Пользователи
+                  </CardTitle>
+                  <CardDescription className="text-[#5c5c5c]">Управление пользователями: создание, редактирование, удаление.</CardDescription>
+                </div>
+                <Button className="h-11 rounded-full bg-[#111111] text-white hover:bg-[#333333] sm:h-12" onClick={() => { setUserCreateForm({ username: '', password: '', email: '', first_name: '', last_name: '', is_staff: false, is_manager: false }); setUserCreateDialog(true); }}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Создать
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6 md:grid-cols-[minmax(0,1fr)_220px_160px]">
               <div className="space-y-2">
@@ -728,7 +747,9 @@ export function AdminPage() {
                       <TableHead>Пользователь</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Роль</TableHead>
+                      <TableHead>Статус</TableHead>
                       <TableHead>Дата регистрации</TableHead>
+                      <TableHead className="text-right">Действия</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -742,13 +763,43 @@ export function AdminPage() {
                         <TableCell>
                           {user.is_staff ? (
                             <Badge className="rounded-full bg-[#111111] text-white">Admin</Badge>
+                          ) : (user as any).is_manager ? (
+                            <Badge className="rounded-full bg-blue-600 text-white">Manager</Badge>
                           ) : (
-                            <Badge variant="secondary" className="rounded-full bg-white text-[#111111]">
-                              Client
-                            </Badge>
+                            <Badge variant="secondary" className="rounded-full bg-white text-[#111111]">Client</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {user.is_active !== false ? (
+                            <Badge variant="secondary" className="rounded-full bg-green-50 text-green-700">Активен</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="rounded-full bg-red-50 text-red-700">Заблокирован</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-[#5c5c5c]">{user.date_joined ? format(new Date(user.date_joined), 'dd.MM.yyyy', { locale: ru }) : '—'}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 rounded-full border-[#111111]/12 px-3 text-xs"
+                              onClick={() => {
+                                setUserEditForm({ first_name: user.first_name ?? '', last_name: user.last_name ?? '', email: user.email, phone: user.phone ?? '', is_staff: user.is_staff, is_manager: (user as any).is_manager ?? false, is_active: user.is_active !== false });
+                                setUserEditDialog({ open: true, user });
+                              }}
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 rounded-full border-red-200 px-3 text-xs text-red-600 hover:bg-red-50"
+                              onClick={() => setUserDeleteDialog({ open: true, user })}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -762,6 +813,189 @@ export function AdminPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Create User Dialog */}
+          <Dialog open={userCreateDialog} onOpenChange={setUserCreateDialog}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Создать пользователя</DialogTitle>
+                <DialogDescription>Заполните данные нового пользователя.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Имя</Label>
+                    <Input placeholder="Имя" value={userCreateForm.first_name ?? ''} onChange={(e) => setUserCreateForm((f) => ({ ...f, first_name: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Фамилия</Label>
+                    <Input placeholder="Фамилия" value={userCreateForm.last_name ?? ''} onChange={(e) => setUserCreateForm((f) => ({ ...f, last_name: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Логин *</Label>
+                  <Input placeholder="username" value={userCreateForm.username} onChange={(e) => setUserCreateForm((f) => ({ ...f, username: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Email *</Label>
+                  <Input type="email" placeholder="email@example.com" value={userCreateForm.email} onChange={(e) => setUserCreateForm((f) => ({ ...f, email: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Пароль *</Label>
+                  <Input type="password" placeholder="Минимум 8 символов" value={userCreateForm.password} onChange={(e) => setUserCreateForm((f) => ({ ...f, password: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Роль</Label>
+                  <Select
+                    value={userCreateForm.is_staff ? 'admin' : userCreateForm.is_manager ? 'manager' : 'client'}
+                    onValueChange={(v) => setUserCreateForm((f) => ({ ...f, is_staff: v === 'admin', is_manager: v === 'manager' }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="client">Клиент</SelectItem>
+                      <SelectItem value="manager">Менеджер</SelectItem>
+                      <SelectItem value="admin">Администратор</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setUserCreateDialog(false)}>Отмена</Button>
+                <Button
+                  disabled={submittingUser}
+                  onClick={async () => {
+                    if (!userCreateForm.username || !userCreateForm.email || !userCreateForm.password) {
+                      toast.error('Заполните все обязательные поля');
+                      return;
+                    }
+                    setSubmittingUser(true);
+                    try {
+                      await createUser(userCreateForm);
+                      toast.success('Пользователь создан');
+                      setUserCreateDialog(false);
+                      await reloadUsers();
+                    } catch (e: any) {
+                      toast.error(e.message || 'Ошибка создания пользователя');
+                    } finally {
+                      setSubmittingUser(false);
+                    }
+                  }}
+                >
+                  {submittingUser ? 'Создание...' : 'Создать'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit User Dialog */}
+          <Dialog open={userEditDialog.open} onOpenChange={(open) => setUserEditDialog((d) => ({ ...d, open }))}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Редактировать пользователя</DialogTitle>
+                <DialogDescription>@{userEditDialog.user?.username}</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Имя</Label>
+                    <Input value={userEditForm.first_name ?? ''} onChange={(e) => setUserEditForm((f) => ({ ...f, first_name: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Фамилия</Label>
+                    <Input value={userEditForm.last_name ?? ''} onChange={(e) => setUserEditForm((f) => ({ ...f, last_name: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Email</Label>
+                  <Input type="email" value={userEditForm.email ?? ''} onChange={(e) => setUserEditForm((f) => ({ ...f, email: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Роль</Label>
+                  <Select
+                    value={userEditForm.is_staff ? 'admin' : userEditForm.is_manager ? 'manager' : 'client'}
+                    onValueChange={(v) => setUserEditForm((f) => ({ ...f, is_staff: v === 'admin', is_manager: v === 'manager' }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="client">Клиент</SelectItem>
+                      <SelectItem value="manager">Менеджер</SelectItem>
+                      <SelectItem value="admin">Администратор</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Статус</Label>
+                  <Select
+                    value={userEditForm.is_active !== false ? 'active' : 'blocked'}
+                    onValueChange={(v) => setUserEditForm((f) => ({ ...f, is_active: v === 'active' }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Активен</SelectItem>
+                      <SelectItem value="blocked">Заблокирован</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setUserEditDialog({ open: false, user: null })}>Отмена</Button>
+                <Button
+                  disabled={submittingUser}
+                  onClick={async () => {
+                    if (!userEditDialog.user) return;
+                    setSubmittingUser(true);
+                    try {
+                      await updateUser(userEditDialog.user.id, userEditForm);
+                      toast.success('Пользователь обновлён');
+                      setUserEditDialog({ open: false, user: null });
+                      await reloadUsers();
+                    } catch (e: any) {
+                      toast.error(e.message || 'Ошибка обновления пользователя');
+                    } finally {
+                      setSubmittingUser(false);
+                    }
+                  }}
+                >
+                  {submittingUser ? 'Сохранение...' : 'Сохранить'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete User Dialog */}
+          <AlertDialog open={userDeleteDialog.open} onOpenChange={(open) => setUserDeleteDialog((d) => ({ ...d, open }))}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Удалить пользователя?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Аккаунт @{userDeleteDialog.user?.username} будет удалён безвозвратно.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Отмена</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-red-600 hover:bg-red-700"
+                  disabled={deletingUser}
+                  onClick={async () => {
+                    if (!userDeleteDialog.user) return;
+                    setDeletingUser(true);
+                    try {
+                      await deleteUser(userDeleteDialog.user.id);
+                      toast.success('Пользователь удалён');
+                      setUserDeleteDialog({ open: false, user: null });
+                      await reloadUsers();
+                    } catch (e: any) {
+                      toast.error(e.message || 'Ошибка удаления пользователя');
+                    } finally {
+                      setDeletingUser(false);
+                    }
+                  }}
+                >
+                  {deletingUser ? 'Удаление...' : 'Удалить'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </TabsContent>
 
         <TabsContent value="logs" className="space-y-6">
