@@ -65,7 +65,9 @@ class AIService:
             explanation = "Высокий спрос в связи с праздничным сезоном"
 
         return {
+            "date": date_str,
             "predicted_orders": int(max(0, round(predicted_value))),
+            "confidence": confidence,
             "explanation": explanation
         }
 

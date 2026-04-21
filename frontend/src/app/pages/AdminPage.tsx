@@ -4,8 +4,20 @@ import { ru } from 'date-fns/locale';
 import { Activity, BarChart3, Building2, Calendar, DollarSign, Edit2, Plus, Search, ShieldCheck, TicketPercent, Trash2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
-import type { Analytics, AuditLog, CreateHallData, CreatePromoCodeData, Hall, Order, PromoCode, User } from '../types';
+import type {
+  Analytics,
+  AuditLog,
+  CreateHallData,
+  CreatePromoCodeData,
+  CreateStudioServiceData,
+  Hall,
+  Order,
+  PromoCode,
+  StudioService,
+  User,
+} from '../types';
 import {
+  activatePromoCode,
   createHall,
   createPromoCode,
   createUser,
@@ -27,6 +39,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { DatePickerInput } from '../components/ui/date-picker-input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -48,6 +61,14 @@ const emptyPromoForm: CreatePromoCodeData = {
   discount_percent: 10,
   valid_from: '',
   valid_to: '',
+};
+
+const emptyServiceForm: CreateStudioServiceData = {
+  name: '',
+  description: '',
+  price: 0,
+  pricing_mode: 'fixed',
+  is_active: true,
 };
 
 const orderStatuses: Array<Order['status']> = ['PENDING', 'COMPLETED', 'CANCELLED'];
@@ -93,7 +114,17 @@ export function AdminPage() {
   const [promoSearch, setPromoSearch] = useState('');
   const [promoForm, setPromoForm] = useState<CreatePromoCodeData>(emptyPromoForm);
   const [creatingPromo, setCreatingPromo] = useState(false);
-  const [deactivatingPromoId, setDeactivatingPromoId] = useState<number | null>(null);
+  const [updatingPromoId, setUpdatingPromoId] = useState<number | null>(null);
+
+  const [services, setServices] = useState<StudioService[]>([]);
+  const [serviceSearch, setServiceSearch] = useState('');
+  const [serviceDialog, setServiceDialog] = useState<{ open: boolean; service: StudioService | null }>({
+    open: false,
+    service: null,
+  });
+  const [serviceForm, setServiceForm] = useState<CreateStudioServiceData>(emptyServiceForm);
+  const [submittingService, setSubmittingService] = useState(false);
+  const [deletingServiceId, setDeletingServiceId] = useState<number | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -113,6 +144,7 @@ export function AdminPage() {
         setUsers(usersData);
         setAuditLogs(logsData);
         setPromos(promosData);
+        setServices(getStudioServices());
       } catch (error: any) {
         toast.error(error.message || 'Не удалось загрузить данные админ-панели');
       } finally {
@@ -141,6 +173,10 @@ export function AdminPage() {
 
   const reloadPromos = async () => {
     setPromos(await getPromoCodes());
+  };
+
+  const reloadServices = () => {
+    setServices(getStudioServices());
   };
 
   const reloadLogs = async (params: { search?: string; action?: string; date_from?: string; date_to?: string } = {}) => {
@@ -260,6 +296,10 @@ export function AdminPage() {
       toast.error('Скидка должна быть в диапазоне от 1 до 100%.');
       return;
     }
+    if (promoForm.valid_from && promoForm.valid_to && promoForm.valid_to <= promoForm.valid_from) {
+      toast.error('Дата окончания действия должна быть позже даты начала.');
+      return;
+    }
 
     setCreatingPromo(true);
     try {
@@ -280,7 +320,7 @@ export function AdminPage() {
   };
 
   const handleDeactivatePromo = async (promoId: number) => {
-    setDeactivatingPromoId(promoId);
+    setUpdatingPromoId(promoId);
     try {
       const nextPromo = await deactivatePromoCode(promoId);
       setPromos((current) => current.map((item) => (item.id === promoId ? nextPromo : item)));
@@ -288,7 +328,91 @@ export function AdminPage() {
     } catch (error: any) {
       toast.error(error.message || 'Не удалось деактивировать промокод');
     } finally {
-      setDeactivatingPromoId(null);
+      setUpdatingPromoId(null);
+    }
+  };
+
+  const handleActivatePromo = async (promoId: number) => {
+    setUpdatingPromoId(promoId);
+    try {
+      const nextPromo = await activatePromoCode(promoId);
+      setPromos((current) => current.map((item) => (item.id === promoId ? nextPromo : item)));
+      toast.success('Промокод снова активен');
+    } catch (error: any) {
+      toast.error(error.message || 'Не удалось активировать промокод');
+    } finally {
+      setUpdatingPromoId(null);
+    }
+  };
+
+  const openServiceDialog = (service: StudioService | null = null) => {
+    if (service) {
+      setServiceForm({
+        name: service.name,
+        description: service.description || '',
+        price: service.price,
+        pricing_mode: service.pricing_mode,
+        is_active: service.is_active,
+      });
+    } else {
+      setServiceForm(emptyServiceForm);
+    }
+    setServiceDialog({ open: true, service });
+  };
+
+  const handleServiceSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!serviceForm.name.trim()) {
+      toast.error('Укажите название услуги.');
+      return;
+    }
+    if (!Number.isFinite(serviceForm.price) || serviceForm.price < 0) {
+      toast.error('Введите корректную стоимость услуги.');
+      return;
+    }
+
+    setSubmittingService(true);
+    try {
+      if (serviceDialog.service) {
+        updateStudioService(serviceDialog.service.id, {
+          name: serviceForm.name,
+          description: serviceForm.description,
+          price: Number(serviceForm.price),
+          pricing_mode: serviceForm.pricing_mode,
+          is_active: serviceForm.is_active,
+        });
+        toast.success('Услуга обновлена');
+      } else {
+        createStudioService({
+          name: serviceForm.name,
+          description: serviceForm.description,
+          price: Number(serviceForm.price),
+          pricing_mode: serviceForm.pricing_mode,
+          is_active: serviceForm.is_active,
+        });
+        toast.success('Услуга добавлена');
+      }
+      reloadServices();
+      setServiceDialog({ open: false, service: null });
+      setServiceForm(emptyServiceForm);
+    } catch (error: any) {
+      toast.error(error.message || 'Не удалось сохранить услугу.');
+    } finally {
+      setSubmittingService(false);
+    }
+  };
+
+  const handleServiceDelete = async (serviceId: number) => {
+    setDeletingServiceId(serviceId);
+    try {
+      deleteStudioService(serviceId);
+      reloadServices();
+      toast.success('Услуга удалена');
+    } catch (error: any) {
+      toast.error(error.message || 'Не удалось удалить услугу.');
+    } finally {
+      setDeletingServiceId(null);
     }
   };
 
@@ -298,7 +422,7 @@ export function AdminPage() {
         .filter(
           (hall) =>
             hall.name.toLowerCase().includes(hallQuery.toLowerCase()) ||
-            hall.description.toLowerCase().includes(hallQuery.toLowerCase()),
+            (hall.description || '').toLowerCase().includes(hallQuery.toLowerCase()),
         )
         .sort((left, right) => {
           if (hallSort === 'price-desc') return right.price_per_hour - left.price_per_hour;
@@ -353,6 +477,16 @@ export function AdminPage() {
         )
         .sort((left, right) => Number(right.is_active) - Number(left.is_active)),
     [promos, promoSearch],
+  );
+
+  const filteredServices = useMemo(
+    () =>
+      services.filter(
+        (service) =>
+          service.name.toLowerCase().includes(serviceSearch.toLowerCase()) ||
+          (service.description || '').toLowerCase().includes(serviceSearch.toLowerCase()),
+      ),
+    [serviceSearch, services],
   );
 
   const recentActivity = useMemo(() => auditLogs.slice(0, 5), [auditLogs]);
@@ -419,6 +553,7 @@ export function AdminPage() {
           <TabsTrigger value="orders">Заказы</TabsTrigger>
           <TabsTrigger value="users">Пользователи</TabsTrigger>
           <TabsTrigger value="logs">Логи аудита</TabsTrigger>
+          <TabsTrigger value="services">Услуги</TabsTrigger>
           <TabsTrigger value="promos">Акции</TabsTrigger>
         </TabsList>
 
@@ -1040,11 +1175,11 @@ export function AdminPage() {
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-2">
                   <Label htmlFor="log-from" className="text-xs uppercase tracking-[0.32em] text-[#737373]">От</Label>
-                  <Input id="log-from" type="date" className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base" value={logDateFrom} onChange={(event) => setLogDateFrom(event.target.value)} />
+                  <DatePickerInput id="log-from" value={logDateFrom} onChange={setLogDateFrom} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="log-to" className="text-xs uppercase tracking-[0.32em] text-[#737373]">До</Label>
-                  <Input id="log-to" type="date" className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base" value={logDateTo} onChange={(event) => setLogDateTo(event.target.value)} />
+                  <DatePickerInput id="log-to" value={logDateTo} onChange={setLogDateTo} />
                 </div>
               </div>
 
@@ -1096,6 +1231,95 @@ export function AdminPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="services" className="space-y-6">
+          <Card className="mono-panel border border-[#111111]/8">
+            <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
+              <CardTitle className="text-2xl text-[#111111]">Дополнительные услуги</CardTitle>
+              <CardDescription className="text-[#5c5c5c]">
+                Локальный CRUD для услуг фронтенда. Эти услуги используются в форме бронирования на странице зала.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6 md:grid-cols-[minmax(0,1fr)_220px]">
+              <div className="space-y-2">
+                <Label htmlFor="service-search" className="text-xs uppercase tracking-[0.32em] text-[#737373]">
+                  Поиск
+                </Label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#777777]" />
+                  <Input
+                    id="service-search"
+                    className="h-11 rounded-full border-[#111111]/12 bg-white pl-9 text-sm sm:h-12 sm:text-base"
+                    placeholder="Название или описание услуги"
+                    value={serviceSearch}
+                    onChange={(event) => setServiceSearch(event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-end">
+                <Button
+                  onClick={() => openServiceDialog()}
+                  className="h-11 w-full gap-2 rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a] sm:h-12"
+                >
+                  <Plus className="h-4 w-4" />
+                  Добавить услугу
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-3">
+            {filteredServices.map((service) => (
+              <Card key={service.id} className="mono-panel border border-[#111111]/8">
+                <CardContent className="flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-6">
+                  <div>
+                    <p className="text-lg font-semibold text-[#111111]">{service.name}</p>
+                    <p className="text-sm text-[#5c5c5c]">{service.description || 'Без описания'}</p>
+                    <p className="text-xs uppercase tracking-[0.2em] text-[#777777]">
+                      {service.pricing_mode === 'hourly'
+                        ? `${service.price.toLocaleString('ru-RU')} ₽ / час`
+                        : `${service.price.toLocaleString('ru-RU')} ₽ / фикс`}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {service.is_active ? (
+                      <Badge className="rounded-full bg-[#111111] text-white">Активна</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="rounded-full bg-white text-[#111111]">
+                        Выключена
+                      </Badge>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                      onClick={() => openServiceDialog(service)}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                      disabled={deletingServiceId === service.id}
+                      onClick={() => void handleServiceDelete(service.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+
+            {filteredServices.length === 0 && (
+              <div className="rounded-[1.2rem] border border-dashed border-[#111111]/12 bg-white/70 px-6 py-10 text-center text-[#5c5c5c]">
+                Услуги по текущему фильтру не найдены.
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
         <TabsContent value="promos" className="space-y-6">
           <Card className="mono-panel border border-[#111111]/8">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
@@ -1103,7 +1327,7 @@ export function AdminPage() {
                 <TicketPercent className="h-5 w-5" />
                 Управление акциями
               </CardTitle>
-              <CardDescription className="text-[#5c5c5c]">Создание и деактивация промокодов через PATCH.</CardDescription>
+              <CardDescription className="text-[#5c5c5c]">Создание, активация и деактивация промокодов через PATCH.</CardDescription>
             </CardHeader>
             <CardContent className="px-5 pb-5 sm:px-6 sm:pb-6">
               <form onSubmit={handleCreatePromo} className="grid gap-4 md:grid-cols-2">
@@ -1200,6 +1424,10 @@ export function AdminPage() {
                       <p className="text-xs uppercase tracking-[0.2em] text-[#777777]">
                         {promo.valid_to ? `До ${format(new Date(promo.valid_to), 'dd.MM.yyyy HH:mm', { locale: ru })}` : 'Без срока'}
                       </p>
+                      <p className="text-xs text-[#777777]">
+                        Использований: {promo.uses_count ?? 0}
+                        {promo.max_uses ? ` / ${promo.max_uses}` : ''}
+                      </p>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -1213,10 +1441,10 @@ export function AdminPage() {
                       <Button
                         variant="outline"
                         className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
-                        disabled={!promo.is_active || deactivatingPromoId === promo.id}
-                        onClick={() => void handleDeactivatePromo(promo.id)}
+                        disabled={updatingPromoId === promo.id}
+                        onClick={() => void (promo.is_active ? handleDeactivatePromo(promo.id) : handleActivatePromo(promo.id))}
                       >
-                        {deactivatingPromoId === promo.id ? '...' : 'Деактивировать'}
+                        {updatingPromoId === promo.id ? '...' : promo.is_active ? 'Деактивировать' : 'Активировать'}
                       </Button>
                     </div>
                   </div>
@@ -1232,6 +1460,113 @@ export function AdminPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog
+        open={serviceDialog.open}
+        onOpenChange={(open) => setServiceDialog((current) => ({ open, service: open ? current.service : null }))}
+      >
+        <DialogContent className="max-w-xl border border-[#111111]/10 bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#111111]">
+              {serviceDialog.service ? 'Редактировать услугу' : 'Добавить услугу'}
+            </DialogTitle>
+            <DialogDescription className="text-[#5c5c5c]">
+              Настройки применяются к форме бронирования на карточке зала.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleServiceSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="service-name">Название услуги</Label>
+              <Input
+                id="service-name"
+                value={serviceForm.name}
+                onChange={(event) => setServiceForm((current) => ({ ...current, name: event.target.value }))}
+                placeholder="Визажист"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="service-description">Описание</Label>
+              <Input
+                id="service-description"
+                value={serviceForm.description || ''}
+                onChange={(event) => setServiceForm((current) => ({ ...current, description: event.target.value }))}
+                placeholder="Короткое описание услуги"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="service-price">Стоимость</Label>
+                <Input
+                  id="service-price"
+                  type="number"
+                  min="0"
+                  value={serviceForm.price}
+                  onChange={(event) => setServiceForm((current) => ({ ...current, price: Number(event.target.value) }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="service-pricing-mode">Тип цены</Label>
+                <Select
+                  value={serviceForm.pricing_mode}
+                  onValueChange={(value) =>
+                    setServiceForm((current) => ({ ...current, pricing_mode: value as 'fixed' | 'hourly' }))
+                  }
+                >
+                  <SelectTrigger id="service-pricing-mode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Фиксированная</SelectItem>
+                    <SelectItem value="hourly">Почасовая</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="service-active" className="text-xs uppercase tracking-[0.22em] text-[#737373]">
+                Статус
+              </Label>
+              <Select
+                value={serviceForm.is_active ? 'active' : 'inactive'}
+                onValueChange={(value) =>
+                  setServiceForm((current) => ({ ...current, is_active: value === 'active' }))
+                }
+              >
+                <SelectTrigger id="service-active">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Активна</SelectItem>
+                  <SelectItem value="inactive">Выключена</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                onClick={() => setServiceDialog({ open: false, service: null })}
+              >
+                Отмена
+              </Button>
+              <Button
+                type="submit"
+                className="rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a]"
+                disabled={submittingService}
+              >
+                {submittingService ? 'Сохранение...' : 'Сохранить'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={hallDialog.open} onOpenChange={(open) => setHallDialog((current) => ({ open, hall: open ? current.hall : null }))}>
         <DialogContent className="max-w-2xl border border-[#111111]/10 bg-white">

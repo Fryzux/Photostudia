@@ -29,6 +29,8 @@ export const hallShowcase = [
   {
     key: 'cyclorama',
     title: 'Циклорама',
+    price_per_hour: 3500,
+    equipment: ['3 импульсных моноблока', 'Рефлектор и софтбокс', 'Фоновые стойки'],
     image:
       'https://unsplash.com/photos/WPD64XgO5zk/download?force=true&w=1400',
     description: 'Светлый зал с чистым фоном для каталогов, портретов, кампейнов и съёмок на ровном белом фоне.',
@@ -36,6 +38,8 @@ export const hallShowcase = [
   {
     key: 'interior-hall',
     title: 'Интерьерный зал',
+    price_per_hour: 4500,
+    equipment: ['Постоянный свет LED', 'Отражатели', 'Стойки C-Stand'],
     image:
       'https://unsplash.com/photos/MRx-rSdOKtk/download?force=true&w=1400',
     description: 'Спокойный интерьер для lifestyle, семейных съёмок, брендов и кадров с живой фактурой пространства.',
@@ -43,6 +47,8 @@ export const hallShowcase = [
   {
     key: 'loft-hall',
     title: 'Лофт',
+    price_per_hour: 5500,
+    equipment: ['Большие окна', '2 генератора света', 'Подвесы для фонов'],
     image:
       'https://unsplash.com/photos/XriehBZJ7Zk/download?force=true&w=1400',
     description: 'Просторный зал с большими окнами и индустриальным характером для lookbook, видео и командных съёмок.',
@@ -94,5 +100,6 @@ export function getHallPresentation(name: string, id: number) {
     title,
     description: `${source.description} Зал «${title}» вписан в спокойную эстетику фотостудии «Экспозиция» и подходит для аккуратной студийной работы.`,
     image: source.image,
+    equipment: source.equipment,
   };
 }

@@ -2,7 +2,9 @@ import type { CreateBookingData, CreateHallData, RegisterData } from '../types';
 
 export type FieldErrors<T extends string> = Partial<Record<T, string>>;
 
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[A-Za-zА-Яа-я]{2,}$/;
+const phoneAllowedPattern = /^[+\d()\s-]{10,20}$/;
+const phoneDigitPattern = /\d/g;
 
 export function validateLoginForm(data: { username: string; password: string }) {
   const errors: FieldErrors<'username' | 'password'> = {};
@@ -45,12 +47,17 @@ export function validateRegisterForm(data: RegisterData) {
     errors.password = 'Укажите пароль.';
   } else if (data.password.length < 8) {
     errors.password = 'Пароль должен содержать минимум 8 символов.';
-  } else if (!/[A-Za-zА-Яа-я]/.test(data.password) || !/\d/.test(data.password)) {
-    errors.password = 'Пароль должен содержать буквы и цифры.';
+  } else if (!/[A-Za-zА-Яа-я]/.test(data.password) || !/\d/.test(data.password) || !/[^A-Za-zА-Яа-я\d]/.test(data.password)) {
+    errors.password = 'Пароль должен содержать буквы, цифры и спецсимвол.';
   }
 
-  if (data.phone && !/^[+\d()\s-]{10,20}$/.test(data.phone.trim())) {
-    errors.phone = 'Введите телефон в международном или локальном формате.';
+  if (data.phone) {
+    const normalizedPhone = data.phone.trim();
+    const digitsCount = (normalizedPhone.match(phoneDigitPattern) || []).length;
+
+    if (!phoneAllowedPattern.test(normalizedPhone) || digitsCount < 10) {
+      errors.phone = 'Введите телефон в международном или локальном формате (минимум 10 цифр).';
+    }
   }
 
   return errors;
@@ -86,6 +93,17 @@ export function validateBookingForm(data: CreateBookingData) {
 
     if (!errors.start_time && !errors.end_time && start >= end) {
       errors.end_time = 'Время окончания должно быть позже времени начала.';
+    }
+
+    if (!errors.start_time && !errors.end_time) {
+      const diffMs = end.getTime() - start.getTime();
+      const minDurationMs = 60 * 60 * 1000;
+
+      if (diffMs < minDurationMs) {
+        errors.end_time = 'Минимальная длительность бронирования — 1 час.';
+      } else if (diffMs % minDurationMs !== 0) {
+        errors.end_time = 'Бронирование доступно только с шагом в 1 час.';
+      }
     }
   }
 

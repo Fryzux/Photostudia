@@ -36,7 +36,7 @@ class BookingService:
         
         # Calculate amount
         duration_hours = Decimal((end_time - start_time).total_seconds()) / Decimal(3600)
-        total_amount = hall.price_per_hour * duration_hours
+        total_amount = (hall.price_per_hour * duration_hours) + extra_services_total
         
         # Apply promo code discount if provided
         applied_promo = None

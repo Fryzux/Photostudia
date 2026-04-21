@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Hall, Booking, Order, Payment
+from decimal import Decimal
 
 class HallSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
@@ -30,10 +31,13 @@ class BookingSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     booking = BookingSerializer(read_only=True)
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+    user_email = serializers.EmailField(source='user.email', read_only=True)
     
     class Meta:
         model = Order
-        fields = ['id', 'booking', 'total_amount', 'status', 'created_at']
+        fields = ['id', 'booking', 'user_id', 'username', 'user_email', 'total_amount', 'status', 'created_at']
         read_only_fields = ['id', 'user', 'total_amount', 'created_at']
         ref_name = 'StudioOrderSerializer'
 
