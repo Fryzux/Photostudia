@@ -55,7 +55,7 @@ export function HallsPage() {
       const matchesQuery =
         !query ||
         hall.name.toLowerCase().includes(query.toLowerCase()) ||
-        hall.description.toLowerCase().includes(query.toLowerCase());
+        (hall.description || '').toLowerCase().includes(query.toLowerCase());
       const matchesCapacity = !minCapacity || hall.capacity >= Number(minCapacity);
       const matchesPrice = !maxPrice || hall.price_per_hour <= Number(maxPrice);
 
@@ -204,12 +204,22 @@ export function HallsPage() {
             </CardHeader>
 
             <CardContent className="px-5 sm:px-6">
-              <div className="flex items-center justify-center gap-4 text-sm text-[#5c5c5c]">
+              <div className="mb-3 flex items-center justify-center gap-4 text-sm text-[#5c5c5c]">
                 <div className="flex items-center gap-1">
                   <Users className="h-4 w-4" />
                   <span>До {hall.capacity} чел.</span>
                 </div>
               </div>
+
+              {hall.equipment?.length ? (
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {hall.equipment.slice(0, 3).map((item) => (
+                    <Badge key={`${hall.id}-${item}`} variant="secondary" className="rounded-full bg-white px-3 py-1 text-xs text-[#4f4f4f]">
+                      {item}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
             </CardContent>
 
             <CardFooter className="px-5 pb-5 sm:px-6 sm:pb-6">

@@ -1,22 +1,42 @@
 from celery import shared_task
-import time
 import logging
+from django.conf import settings
+from django.core.mail import send_mail
 
 logger = logging.getLogger(__name__)
 
 @shared_task
 def send_booking_confirmation_email(booking_id: int, user_email: str):
     """
-    Simulates sending an email in the background without blocking the API request.
-    In a real app, this would use django.core.mail.send_mail.
+    Sends a booking confirmation email in the background.
+    Falls back to logging when SMTP credentials are not configured.
     """
-    logger.info(f"Starting email dispatch for booking {booking_id} to {user_email}...")
-    
-    # Simulate a slow network process (e.g., SMTP server connection)
-    time.sleep(3)
-    
-    logger.info(f"Email successfully sent to {user_email} for booking {booking_id}!")
-    return f"Success: {booking_id} -> {user_email}"
+    subject = f"Booking confirmation #{booking_id}"
+    message = (
+        "Your booking was created successfully.\n\n"
+        f"Booking number: {booking_id}"
+    )
+
+    try:
+        if settings.EMAIL_HOST_USER:
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [user_email],
+                fail_silently=False,
+            )
+            logger.info("Email sent successfully for booking %s to %s", booking_id, user_email)
+        else:
+            logger.warning(
+                "Skipping real email for booking %s to %s because SMTP credentials are missing",
+                booking_id,
+                user_email,
+            )
+    except Exception as exc:
+        logger.error("Failed to send email for booking %s: %s", booking_id, exc)
+
+    return f"Email task executed for {user_email}"
 
 @shared_task
 def cancel_unpaid_orders():

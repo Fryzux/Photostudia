@@ -3,6 +3,7 @@ from django.urls import path, include
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+from ai.views import ForecastAPIView
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -15,6 +16,7 @@ schema_view = get_schema_view(
     ),
     public=True,
     permission_classes=(permissions.AllowAny,),
+    authentication_classes=(),
 )
 
 urlpatterns = [
@@ -22,8 +24,9 @@ urlpatterns = [
     path('api/auth/', include('users.urls')),
     path('api/', include('studio.urls')),
     path('api/ai/', include('ai.urls')),
-
-    # Swagger Documentation
+    path('api/forecast/', ForecastAPIView.as_view(), name='forecast'),
+    path('api/audit/', include('audit.urls')),
+    path('api/promos/', include('promo.urls')),
     path('api/docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('api/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 ]

@@ -5,7 +5,7 @@ from django.utils import timezone
 from datetime import timedelta
 from studio.models import Hall, Booking, Order
 from audit.models import ActionLog
-import os
+from promo.models import PromoCode
 
 User = get_user_model()
 
@@ -23,6 +23,7 @@ class PhotostudiaTests(APITestCase):
         self.login_url = '/api/auth/login/'
         self.booking_url = '/api/bookings/'
         self.ai_url = '/api/ai/predict/'
+        self.forecast_url = '/api/forecast/'
         
     def get_token(self, username, password):
         # Test 2: Authorization
@@ -63,6 +64,23 @@ class PhotostudiaTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Booking.objects.count(), 1)
         self.assertEqual(Order.objects.count(), 1)
+
+    def test_4_1_booking_creation_with_extra_services_total(self):
+        token = self.get_token('testuser', 'Testpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+
+        now = timezone.now()
+        data = {
+            'hall_id': self.hall.id,
+            'start_time': (now + timedelta(days=1)).isoformat(),
+            'end_time': (now + timedelta(days=1, hours=2)).isoformat(),
+            'extra_services_total': '500.00',
+        }
+        res = self.client.post(self.booking_url, data)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+        order = Order.objects.get(booking_id=res.data['id'])
+        self.assertEqual(float(order.total_amount), 3500.0)
 
     def test_5_time_conflict(self):
         token = self.get_token('testuser', 'Testpassword123')
@@ -138,23 +156,51 @@ class PhotostudiaTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
     def test_10_ai_prediction(self):
-        # Provide mock model file for tests to pass without fully training
-        import joblib
         from sklearn.ensemble import RandomForestRegressor
         import pandas as pd
+        from ai.services import AIService
+
         model = RandomForestRegressor(n_estimators=10, random_state=42)
-        model.fit(pd.DataFrame([{'day_of_week':0, 'month':1, 'season': 1, 'prev_orders': 5}]), [10])
-        os.makedirs('ai', exist_ok=True)
-        joblib.dump(model, 'ai/ai_model.pkl')
+        model.fit(
+            pd.DataFrame([
+                {'day_of_week': 0, 'month': 1, 'season': 1, 'prev_orders': 1},
+                {'day_of_week': 2, 'month': 4, 'season': 2, 'prev_orders': 3},
+                {'day_of_week': 5, 'month': 4, 'season': 2, 'prev_orders': 8},
+                {'day_of_week': 6, 'month': 12, 'season': 4, 'prev_orders': 10},
+            ]),
+            [4, 6, 11, 15],
+        )
+
+        original_model = AIService._model
+        AIService._model = model
         
         token = self.get_token('testuser', 'Testpassword123')
         self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
         
-        data = {'date': '2026-04-10'}
-        res = self.client.post(self.ai_url, data)
+        try:
+            data = {'date': '2026-04-10'}
+            res = self.client.post(self.ai_url, data)
+            self.assertEqual(res.status_code, status.HTTP_200_OK)
+            self.assertIn('predicted_orders', res.data)
+            self.assertIn('explanation', res.data)
+        finally:
+            AIService._model = original_model
+
+    def test_10_1_ai_forecast_heatmap(self):
+        token = self.get_token('testuser', 'Testpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+
+        payload = {
+            'hall_id': self.hall.id,
+            'date_from': '2026-04-21',
+            'date_to': '2026-04-23',
+        }
+        res = self.client.post(self.forecast_url, payload)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertIn('predicted_orders', res.data)
-        self.assertIn('explanation', res.data)
+        self.assertIn('heatmap', res.data)
+        self.assertIn('recommendations', res.data)
+        self.assertIn('summary', res.data)
+        self.assertTrue(len(res.data['heatmap']) > 0)
 
     def test_11_payment_success(self):
         """Create a booking+order and then pay for it successfully."""
@@ -262,3 +308,50 @@ class PhotostudiaTests(APITestCase):
         res = self.client.delete(f'/api/halls/{new_hall.id}/')
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(HallModel.objects.filter(id=new_hall.id).exists())
+
+    def test_19_admin_can_view_action_logs(self):
+        ActionLog.objects.create(user=self.user, action='Booking Created', details='Booking id: 7')
+        ActionLog.objects.create(user=self.admin, action='User Logged In', details='Admin session')
+
+        token = self.get_token('admin', 'Adminpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+
+        res = self.client.get('/api/audit/logs/?search=Booking')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['count'], 1)
+        self.assertEqual(res.data['results'][0]['action'], 'Booking Created')
+
+    def test_20_user_cannot_view_action_logs(self):
+        token = self.get_token('testuser', 'Testpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+
+        res = self.client.get('/api/audit/logs/')
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_21_admin_can_list_users(self):
+        token = self.get_token('admin', 'Adminpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+
+        res = self.client.get('/api/auth/users/')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(res.data['count'], 2)
+        usernames = [item['username'] for item in res.data['results']]
+        self.assertIn('testuser', usernames)
+        self.assertIn('admin', usernames)
+
+    def test_22_user_cannot_list_users(self):
+        token = self.get_token('testuser', 'Testpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+
+        res = self.client.get('/api/auth/users/')
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_23_admin_can_deactivate_promo_code(self):
+        promo = PromoCode.objects.create(code='SPRING26', discount_percent=20, is_active=True)
+        token = self.get_token('admin', 'Adminpassword123')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+
+        res = self.client.patch(f'/api/promos/promocodes/{promo.id}/deactivate/', {})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        promo.refresh_from_db()
+        self.assertFalse(promo.is_active)

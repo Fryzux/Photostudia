@@ -12,6 +12,7 @@ ALLOWED_HOSTS = ['*']
 CORS_ALLOW_ALL_ORIGINS = True # Allow all origins for development. In production, use CORS_ALLOWED_ORIGINS.
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -21,16 +22,19 @@ INSTALLED_APPS = [
 
     # 3rd party
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     'rest_framework_simplejwt',
     'drf_yasg',
     'django_filters',
     'corsheaders',
+    'channels',
 
     # Local apps
     'users',
     'studio',
     'audit',
     'ai',
+    'promo',
 ]
 
 MIDDLEWARE = [
@@ -64,17 +68,45 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'core.wsgi.application'
+ASGI_APPLICATION = 'core.asgi.application'
 
-DATABASES = {
+channel_layer_backend = os.environ.get(
+    'CHANNEL_LAYER_BACKEND',
+    'channels.layers.InMemoryChannelLayer',
+)
+CHANNEL_LAYERS = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB', 'photostudia_db'),
-        'USER': os.environ.get('POSTGRES_USER', 'photostudia'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'photostudia123'),
-        'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
-        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        'BACKEND': channel_layer_backend,
     }
 }
+
+if channel_layer_backend == 'channels_redis.core.RedisChannelLayer':
+    CHANNEL_LAYERS['default']['CONFIG'] = {
+        'hosts': [os.environ.get('CHANNEL_REDIS_URL', os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0'))],
+    }
+
+database_engine = os.environ.get('DATABASE_ENGINE')
+if not database_engine:
+    database_engine = 'postgres' if os.environ.get('POSTGRES_HOST') else 'sqlite'
+
+if database_engine == 'sqlite':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.environ.get('SQLITE_NAME', BASE_DIR / 'db.sqlite3'),
+        }
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('POSTGRES_DB', 'photostudia_db'),
+            'USER': os.environ.get('POSTGRES_USER', 'photostudia'),
+            'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'photostudia123'),
+            'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
+            'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -113,9 +145,43 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 # Celery Configuration
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
+is_local_dev = database_engine == 'sqlite'
+
+CELERY_BROKER_URL = os.environ.get(
+    'CELERY_BROKER_URL',
+    'memory://' if is_local_dev else 'redis://redis:6379/0',
+)
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+CELERY_TASK_ALWAYS_EAGER = os.environ.get(
+    'CELERY_TASK_ALWAYS_EAGER',
+    'True' if is_local_dev else 'False',
+) == 'True'
+CELERY_TASK_EAGER_PROPAGATES = os.environ.get(
+    'CELERY_TASK_EAGER_PROPAGATES',
+    'True' if is_local_dev else 'False',
+) == 'True'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+
+SWAGGER_SETTINGS = {
+    'USE_SESSION_AUTH': False,
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': 'Use: Bearer <your_access_token>',
+        }
+    },
+}
