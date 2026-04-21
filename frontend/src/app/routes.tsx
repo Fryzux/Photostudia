@@ -31,6 +31,10 @@ function PageLoader() {
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
 
+  if (loading && isAuthenticated) {
+    return <>{children}</>;
+  }
+
   if (loading) {
     return <div className="py-12 text-center text-sm text-slate-500">Проверяем доступ...</div>;
   }
@@ -44,6 +48,10 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
 function AdminRoute({ children }: { children: ReactNode }) {
   const { isAdmin, loading } = useAuth();
+
+  if (loading && isAdmin) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return <div className="py-12 text-center text-sm text-slate-500">Проверяем права доступа...</div>;
@@ -72,6 +80,10 @@ function ManagerRoute({ children }: { children: ReactNode }) {
 
 function PublicOnlyRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
+
+  if (loading && isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
 
   if (loading) {
     return <div className="py-12 text-center text-sm text-slate-500">Загружаем сессию...</div>;
@@ -186,6 +198,22 @@ export const router = createBrowserRouter([
         element: (
           <AdminRoute>
             <AuditLogPage />
+          </AdminRoute>
+        ),
+      },
+      {
+        path: 'manager/schedule',
+        element: (
+          <AdminRoute>
+            <ManagerSchedulePage />
+          </AdminRoute>
+        ),
+      },
+      {
+        path: 'manager-schedule',
+        element: (
+          <AdminRoute>
+            <ManagerSchedulePage />
           </AdminRoute>
         ),
       },

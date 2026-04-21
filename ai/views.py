@@ -7,6 +7,7 @@ from drf_yasg import openapi
 from .serializers import AIPredictRequestSerializer
 from .services import AIService
 
+
 class PredictAPIView(views.APIView):
     permission_classes = [IsAuthenticated]
 

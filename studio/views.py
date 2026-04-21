@@ -1,9 +1,15 @@
 from rest_framework import viewsets, views, generics, permissions
+from rest_framework.decorators import action
+from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+from datetime import datetime, time, timedelta
 from django.db.models import Sum
 from django.core.exceptions import ValidationError
+from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter
+from django.utils import timezone
+import os
 from .models import Booking, Order, Payment, Hall
 from .serializers import BookingSerializer, OrderSerializer, PaymentSerializer, PaymentCreateSerializer, HallSerializer, OrderStatusUpdateSerializer
 from .services import BookingService, PaymentService, BookingConflictError
@@ -145,7 +151,11 @@ class BookingViewSet(viewsets.ModelViewSet):
         
         # Trigger background task
         from .tasks import send_booking_confirmation_email
-        send_booking_confirmation_email.delay(booking.id, request.user.email)
+        try:
+            send_booking_confirmation_email.delay(booking.id, request.user.email)
+        except Exception as exc:
+            logger.warning("Celery broker is unavailable, sending booking email synchronously: %s", exc)
+            send_booking_confirmation_email(booking.id, request.user.email)
         
         result_serializer = self.get_serializer(booking)
         data = result_serializer.data
@@ -220,15 +230,15 @@ class OrderListView(generics.ListAPIView):
 
     def get_queryset(self):
         if self.request.user.is_staff:
-            return Order.objects.select_related('booking__hall').all().order_by('-created_at')
-        return Order.objects.select_related('booking__hall').filter(user=self.request.user).order_by('-created_at')
+            return Order.objects.select_related('booking__hall', 'user').all().order_by('-created_at')
+        return Order.objects.select_related('booking__hall', 'user').filter(user=self.request.user).order_by('-created_at')
 
 
 class OrderStatusUpdateView(generics.UpdateAPIView):
     """
     PATCH /api/orders/{id}/status/ — update order status (admin only).
     """
-    queryset = Order.objects.all()
+    queryset = Order.objects.select_related('booking__hall', 'user').all()
     serializer_class = OrderStatusUpdateSerializer
     permission_classes = [permissions.IsAdminUser]
 
@@ -315,4 +325,3 @@ class PaymentCreateView(views.APIView):
             PaymentSerializer(payment).data,
             status=status.HTTP_201_CREATED
         )
-

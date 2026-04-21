@@ -94,16 +94,43 @@ else:
         },
     }
 
-DATABASES = {
+channel_layer_backend = os.environ.get(
+    'CHANNEL_LAYER_BACKEND',
+    'channels.layers.InMemoryChannelLayer',
+)
+CHANNEL_LAYERS = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB', 'photostudia_db'),
-        'USER': os.environ.get('POSTGRES_USER', 'photostudia'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'photostudia123'),
-        'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
-        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        'BACKEND': channel_layer_backend,
     }
 }
+
+if channel_layer_backend == 'channels_redis.core.RedisChannelLayer':
+    CHANNEL_LAYERS['default']['CONFIG'] = {
+        'hosts': [os.environ.get('CHANNEL_REDIS_URL', os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0'))],
+    }
+
+database_engine = os.environ.get('DATABASE_ENGINE')
+if not database_engine:
+    database_engine = 'postgres' if os.environ.get('POSTGRES_HOST') else 'sqlite'
+
+if database_engine == 'sqlite':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.environ.get('SQLITE_NAME', BASE_DIR / 'db.sqlite3'),
+        }
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('POSTGRES_DB', 'photostudia_db'),
+            'USER': os.environ.get('POSTGRES_USER', 'photostudia'),
+            'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'photostudia123'),
+            'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
+            'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -161,7 +188,12 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 
 # Celery Configuration
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
+is_local_dev = database_engine == 'sqlite'
+
+CELERY_BROKER_URL = os.environ.get(
+    'CELERY_BROKER_URL',
+    'memory://' if is_local_dev else 'redis://redis:6379/0',
+)
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 if IS_TESTING:

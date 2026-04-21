@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Navigate } from 'react-router';
 import { CalendarClock, Mail, Radio, Shield, User } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -15,6 +16,7 @@ export function ProfilePage() {
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [wsState, setWsState] = useState<'idle' | 'connecting' | 'connected' | 'unsupported'>('idle');
   const [lastRealtimeMessage, setLastRealtimeMessage] = useState<string>('Выберите заказ, чтобы открыть realtime-канал статуса.');
+  const [wsRetryTick, setWsRetryTick] = useState(0);
 
   useEffect(() => {
     const loadOrders = async () => {
@@ -35,12 +37,13 @@ export function ProfilePage() {
   useEffect(() => {
     if (!selectedOrderId) return;
 
-    const apiBase = (import.meta.env.VITE_API_URL || window.location.origin).replace(/\/$/, '');
+    const apiBase = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
     const apiUrl = new URL(apiBase);
     const protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
     const socketUrl = `${protocol}//${apiUrl.host}/ws/orders/${selectedOrderId}/`;
 
     let socket: WebSocket | null = null;
+    let closedByCleanup = false;
 
     try {
       setWsState('connecting');
@@ -78,20 +81,25 @@ export function ProfilePage() {
     };
 
     socket.onclose = () => {
-      setWsState((current) => (current === 'connected' ? 'idle' : 'unsupported'));
+      if (closedByCleanup) return;
+      setWsState('unsupported');
+      setLastRealtimeMessage('Соединение прервано. Можно переподключиться кнопкой ниже.');
     };
 
     return () => {
+      closedByCleanup = true;
       socket?.close();
     };
-  }, [selectedOrderId]);
+  }, [selectedOrderId, wsRetryTick]);
 
   const selectedOrder = useMemo(
     () => orders.find((order) => order.id === selectedOrderId) ?? null,
     [orders, selectedOrderId],
   );
 
-  if (!user) return null;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -175,6 +183,16 @@ export function ProfilePage() {
             </div>
 
             <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4 text-sm leading-7 text-[#4e4e4e]">{lastRealtimeMessage}</div>
+
+            {wsState === 'unsupported' && (
+              <Button
+                variant="outline"
+                className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                onClick={() => setWsRetryTick((value) => value + 1)}
+              >
+                Повторить подключение
+              </Button>
+            )}
 
             {selectedOrder && (
               <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, startTransition } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode, startTransition } from 'react';
 
 import { User } from '../types';
 import {
@@ -28,6 +28,42 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const userRequestRef = useRef<Promise<void> | null>(null);
+  const mountedRef = useRef(true);
+
+  const loadUser = async () => {
+    if (userRequestRef.current) {
+      await userRequestRef.current;
+      return;
+    }
+
+    const task = (async () => {
+      setLoading(true);
+      try {
+        const userData = await getProfile();
+        if (!mountedRef.current) return;
+        startTransition(() => {
+          setUser(userData);
+        });
+      } catch (error) {
+        console.error('Ошибка загрузки профиля:', error);
+        tokenStorage.clearTokens();
+        if (!mountedRef.current) return;
+        startTransition(() => {
+          setUser(null);
+        });
+      } finally {
+        if (mountedRef.current) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    userRequestRef.current = task;
+    await task.finally(() => {
+      userRequestRef.current = null;
+    });
+  };
 
   useEffect(() => {
     const syncAuthState = () => {
@@ -48,27 +84,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener(AUTH_STATE_EVENT, syncAuthState);
 
     return () => {
+      mountedRef.current = false;
       window.removeEventListener(AUTH_STATE_EVENT, syncAuthState);
     };
   }, []);
-
-  const loadUser = async () => {
-    setLoading(true);
-    try {
-      const userData = await getProfile();
-      startTransition(() => {
-        setUser(userData);
-      });
-    } catch (error) {
-      console.error('Ошибка загрузки профиля:', error);
-      tokenStorage.clearTokens();
-      startTransition(() => {
-        setUser(null);
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const login = async (credentials: LoginCredentials) => {
     await apiLogin(credentials);
@@ -81,10 +100,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await apiLogout();
-    startTransition(() => {
-      setUser(null);
-    });
+    try {
+      await apiLogout();
+    } finally {
+      startTransition(() => {
+        setUser(null);
+      });
+      setLoading(false);
+    }
   };
 
   const value = {

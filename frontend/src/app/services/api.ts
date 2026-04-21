@@ -10,6 +10,7 @@ import {
   CreatePaymentData,
   CreatePromoCodeData,
   DemandPrediction,
+  ForecastResult,
   Hall,
   LoginCredentials,
   Order,
@@ -34,6 +35,7 @@ type PaginatedResponse<T> = {
 type BackendHall = {
   id: number;
   name: string;
+  description?: string | null;
   capacity: number;
   price_per_hour: number | string;
   image?: string | null;
@@ -53,7 +55,7 @@ type BackendOrder = {
   username?: string;
   user_email?: string;
   total_amount: number | string;
-  status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
+  status: 'NEW' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
   created_at: string;
 };
 
@@ -87,6 +89,7 @@ type BackendAuditLog = {
 type BackendAvailabilityPayload =
   | {
       slots?: Array<{ start?: string; end?: string; available?: boolean }>;
+      booked_slots?: Array<{ start_time?: string; end_time?: string }>;
       busy_slots?: Array<{ start?: string; end?: string } | string>;
       occupied_slots?: Array<{ start?: string; end?: string } | string>;
     }
@@ -98,6 +101,11 @@ type BackendPromoCode = {
   description?: string | null;
   discount_percent: number | string;
   is_active: boolean;
+  hall?: number | null;
+  hour_from?: string | null;
+  hour_to?: string | null;
+  uses_count?: number | string | null;
+  max_uses?: number | string | null;
   valid_from?: string | null;
   valid_to?: string | null;
   created_at: string;
@@ -140,6 +148,61 @@ function unwrapList<T>(payload: T[] | PaginatedResponse<T>) {
   return Array.isArray(payload) ? payload : payload.results;
 }
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function parseNumber(value: unknown, fieldName: string) {
+  const nextValue = Number(value);
+  if (!Number.isFinite(nextValue)) {
+    throw new Error(`Некорректное поле ${fieldName} в ответе сервера.`);
+  }
+  return nextValue;
+}
+
+function parseOptionalNumber(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  const nextValue = Number(value);
+  if (!Number.isFinite(nextValue)) return undefined;
+  return nextValue;
+}
+
+function normalizeUser(raw: unknown): User {
+  if (!isObject(raw)) {
+    throw new Error('Некорректный формат пользователя в ответе сервера.');
+  }
+
+  return {
+    id: parseNumber(raw.id, 'id'),
+    email: typeof raw.email === 'string' ? raw.email : '',
+    username: typeof raw.username === 'string' ? raw.username : '',
+    first_name: typeof raw.first_name === 'string' ? raw.first_name : '',
+    last_name: typeof raw.last_name === 'string' ? raw.last_name : '',
+    phone: typeof raw.phone === 'string' ? raw.phone : null,
+    is_staff: Boolean(raw.is_staff),
+    is_superuser: Boolean(raw.is_superuser),
+    is_active: Boolean(raw.is_active),
+    date_joined: typeof raw.date_joined === 'string' ? raw.date_joined : undefined,
+    last_login: typeof raw.last_login === 'string' ? raw.last_login : null,
+  };
+}
+
+function assertAuthTokens(payload: unknown, fallbackRefresh?: string): AuthTokens {
+  if (!isObject(payload) || typeof payload.access !== 'string') {
+    throw new Error('Некорректный ответ авторизации от сервера.');
+  }
+
+  const refreshToken = typeof payload.refresh === 'string' ? payload.refresh : fallbackRefresh;
+  if (!refreshToken) {
+    throw new Error('В ответе авторизации отсутствует refresh token.');
+  }
+
+  return {
+    access: payload.access,
+    refresh: refreshToken,
+  };
+}
+
 function normalizeMediaUrl(value?: string | null) {
   if (!value) return null;
   if (value.startsWith('http://') || value.startsWith('https://')) {
@@ -149,26 +212,32 @@ function normalizeMediaUrl(value?: string | null) {
 }
 
 function normalizeHall(raw: BackendHall): Hall {
+  const hallId = parseNumber(raw.id, 'hall.id');
   const presentation = getHallPresentation(raw.name, raw.id);
   const image = presentation.image || normalizeMediaUrl(raw.image);
 
   return {
-    id: raw.id,
+    id: hallId,
     name: presentation.title,
-    capacity: raw.capacity,
-    price_per_hour: Number(raw.price_per_hour),
+    capacity: parseNumber(raw.capacity, 'hall.capacity'),
+    price_per_hour: parseNumber(raw.price_per_hour, 'hall.price_per_hour'),
+    equipment: presentation.equipment,
     image,
     images: image ? [image] : [],
-    description: presentation.description,
+    description: (raw.description || presentation.description || '').trim(),
   };
 }
 
 function normalizeBooking(raw: BackendBooking): Booking {
+  if (!isObject(raw.hall)) {
+    throw new Error('Некорректный формат бронирования: не найден hall.');
+  }
+
   return {
-    id: raw.id,
+    id: parseNumber(raw.id, 'booking.id'),
     hall: normalizeHall(raw.hall),
-    start_time: raw.start_time,
-    end_time: raw.end_time,
+    start_time: typeof raw.start_time === 'string' ? raw.start_time : '',
+    end_time: typeof raw.end_time === 'string' ? raw.end_time : '',
   };
 }
 
@@ -184,25 +253,37 @@ function buildUrl(path: string, params?: Record<string, string | number | undefi
 }
 
 function normalizeOrder(raw: BackendOrder): Order {
+  if (!raw.booking) {
+    throw new Error('Некорректный формат заказа: отсутствует booking.');
+  }
+
   return {
-    id: raw.id,
+    id: parseNumber(raw.id, 'order.id'),
     booking: normalizeBooking(raw.booking),
-    user_id: raw.user_id,
-    username: raw.username,
-    user_email: raw.user_email,
-    total_amount: Number(raw.total_amount),
+    user_id: raw.user_id ? parseNumber(raw.user_id, 'order.user_id') : undefined,
+    username: typeof raw.username === 'string' ? raw.username : undefined,
+    user_email: typeof raw.user_email === 'string' ? raw.user_email : undefined,
+    total_amount: parseNumber(raw.total_amount, 'order.total_amount'),
     status: raw.status,
-    created_at: raw.created_at,
+    created_at: typeof raw.created_at === 'string' ? raw.created_at : '',
   };
 }
 
 function normalizePromoCode(raw: BackendPromoCode): PromoCode {
+  const usesCount = parseOptionalNumber(raw.uses_count);
+  const maxUses = parseOptionalNumber(raw.max_uses);
+
   return {
-    id: raw.id,
-    code: raw.code,
-    description: raw.description || '',
-    discount_percent: Number(raw.discount_percent),
+    id: parseNumber(raw.id, 'promo.id'),
+    code: typeof raw.code === 'string' ? raw.code : '',
+    description: typeof raw.description === 'string' ? raw.description : '',
+    discount_percent: parseNumber(raw.discount_percent, 'promo.discount_percent'),
     is_active: raw.is_active,
+    hall: parseOptionalNumber(raw.hall) ?? null,
+    hour_from: typeof raw.hour_from === 'string' ? raw.hour_from : null,
+    hour_to: typeof raw.hour_to === 'string' ? raw.hour_to : null,
+    uses_count: usesCount ?? 0,
+    max_uses: maxUses ?? null,
     valid_from: raw.valid_from || null,
     valid_to: raw.valid_to || null,
     created_at: raw.created_at,
@@ -267,9 +348,10 @@ async function request(url: string, options: RequestInit = {}, withAuth = false)
 
       if (retry.status === 204) return null;
       return retry.json();
-    } catch {
+    } catch (refreshError) {
       tokenStorage.clearTokens();
-      throw new Error('Сессия истекла. Войдите снова.');
+      const reason = refreshError instanceof Error ? refreshError.message : 'refresh token invalid';
+      throw new Error(`Сессия истекла (${reason}). Войдите снова.`);
     }
   }
 
@@ -302,35 +384,40 @@ export async function register(data: RegisterData): Promise<AuthTokens> {
 }
 
 export async function login(credentials: LoginCredentials): Promise<AuthTokens> {
-  const tokens = (await request(
+  const payload = await request(
     `${API_URL}/auth/login/`,
     {
       method: 'POST',
       body: JSON.stringify(credentials),
     },
     false,
-  )) as AuthTokens;
+  );
+
+  const tokens = assertAuthTokens(payload);
 
   tokenStorage.setTokens(tokens);
   return tokens;
 }
 
 export async function refreshAccessToken(refreshToken: string): Promise<AuthTokens> {
-  return (await request(
+  const payload = await request(
     `${API_URL}/auth/refresh/`,
     {
       method: 'POST',
       body: JSON.stringify({ refresh: refreshToken }),
     },
     false,
-  )) as AuthTokens;
+  );
+  return assertAuthTokens(payload, refreshToken);
 }
 
 export async function getProfile(): Promise<User> {
   try {
-    return (await request(`${API_URL}/auth/profile/`, {}, true)) as User;
+    const payload = await request(`${API_URL}/auth/profile/`, {}, true);
+    return normalizeUser(payload);
   } catch {
-    return (await request(`${API_URL}/auth/user/`, {}, true)) as User;
+    const payload = await request(`${API_URL}/auth/user/`, {}, true);
+    return normalizeUser(payload);
   }
 }
 
@@ -344,7 +431,7 @@ export async function getUsers(filters: { search?: string; role?: string } = {})
     true,
   )) as User[] | PaginatedResponse<User>;
 
-  return unwrapList(payload);
+  return unwrapList(payload).map(normalizeUser);
 }
 
 export interface CreateUserData {
@@ -431,6 +518,9 @@ export async function updateHall(id: number, data: Partial<CreateHallData>): Pro
     `${API_URL}/halls/${id}/`,
     {
       method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         name: data.name,
         capacity: data.capacity,
@@ -471,9 +561,26 @@ export async function updateOrderStatus(orderId: number, statusValue: Order['sta
       body: JSON.stringify({ status: statusValue }),
     },
     true,
-  )) as BackendOrder;
+  )) as BackendOrder | { status?: Order['status'] };
 
-  return normalizeOrder(payload);
+  if (isObject(payload) && isObject((payload as BackendOrder).booking)) {
+    return normalizeOrder(payload as BackendOrder);
+  }
+
+  // Fallback for old backend responses that return only {"status": "..."}
+  const orders = await getOrders();
+  const existingOrder = orders.find((order) => order.id === orderId);
+  if (!existingOrder) {
+    throw new Error('Не удалось получить обновлённый заказ после смены статуса.');
+  }
+
+  const fallbackStatus =
+    isObject(payload) && typeof payload.status === 'string' ? (payload.status as Order['status']) : statusValue;
+
+  return {
+    ...existingOrder,
+    status: fallbackStatus,
+  };
 }
 
 export async function createBooking(data: CreateBookingData): Promise<Booking> {
@@ -527,16 +634,37 @@ export async function predictDemand(hallId: number, date: string): Promise<Deman
       body: JSON.stringify({ date }),
     },
     true,
-  )) as { predicted_orders: number; explanation: string };
+  )) as { predicted_orders: number; confidence?: number; explanation: string };
+
+  const predictedOrders = Number(payload.predicted_orders);
+  const fallbackConfidence = Math.min(0.93, 0.58 + Math.max(0, predictedOrders) * 0.03);
+  const confidenceValue = Number.isFinite(Number(payload.confidence)) ? Number(payload.confidence) : fallbackConfidence;
 
   return {
     hall_id: hallId,
     date,
-    prediction: payload.predicted_orders >= 8 ? 'HIGH' : 'LOW',
-    predicted_orders: payload.predicted_orders,
-    confidence: 0.8,
+    prediction: predictedOrders >= 8 ? 'HIGH' : 'LOW',
+    predicted_orders: predictedOrders,
+    confidence: Math.max(0.5, Math.min(0.96, confidenceValue)),
     explanation: payload.explanation,
   };
+}
+
+export async function getForecast(params: {
+  hall_id?: number;
+  date_from: string;
+  date_to: string;
+}): Promise<ForecastResult> {
+  const payload = (await request(
+    `${API_URL}/forecast/`,
+    {
+      method: 'POST',
+      body: JSON.stringify(params),
+    },
+    true,
+  )) as ForecastResult;
+
+  return payload;
 }
 
 export async function getAnalytics(): Promise<Analytics> {
@@ -571,6 +699,54 @@ export async function getActionLogs(filters: AuditLogFilters = {}): Promise<Audi
     details: log.details,
     timestamp: log.timestamp,
   }));
+}
+
+export async function getActionLogsPage(
+  filters: AuditLogFilters & { page?: number } = {},
+): Promise<{ count: number; next: string | null; previous: string | null; results: AuditLog[] }> {
+  const payload = (await request(
+    buildUrl('/audit/logs/', {
+      search: filters.search,
+      action: filters.action,
+      date_from: filters.date_from,
+      date_to: filters.date_to,
+      page: filters.page,
+    }),
+    {},
+    true,
+  )) as BackendAuditLog[] | PaginatedResponse<BackendAuditLog>;
+
+  if (Array.isArray(payload)) {
+    return {
+      count: payload.length,
+      next: null,
+      previous: null,
+      results: payload.map((log) => ({
+        id: log.id,
+        user: log.user,
+        username: log.username,
+        user_email: log.user_email,
+        action: log.action,
+        details: log.details,
+        timestamp: log.timestamp,
+      })),
+    };
+  }
+
+  return {
+    count: payload.count,
+    next: payload.next,
+    previous: payload.previous,
+    results: payload.results.map((log) => ({
+      id: log.id,
+      user: log.user,
+      username: log.username,
+      user_email: log.user_email,
+      action: log.action,
+      details: log.details,
+      timestamp: log.timestamp,
+    })),
+  };
 }
 
 export async function getPromoCodes(filters: { search?: string; is_active?: boolean } = {}): Promise<PromoCode[]> {
@@ -618,54 +794,94 @@ export async function deactivatePromoCode(id: number): Promise<PromoCode> {
   return normalizePromoCode(payload);
 }
 
+export async function activatePromoCode(id: number): Promise<PromoCode> {
+  const payload = (await request(
+    `${API_URL}/promos/promocodes/${id}/activate/`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({}),
+    },
+    true,
+  )) as BackendPromoCode;
+
+  return normalizePromoCode(payload);
+}
+
 function normalizeTimeSlot(value: string) {
-  return value.length === 5 ? `${value}:00` : value;
+  if (value.length === 5) return `${value}:00`;
+  return value;
+}
+
+function isTimeValue(value: string) {
+  return /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(value);
+}
+
+function toSlot(start: string, end: string, available: boolean): AvailabilitySlot | null {
+  const normalizedStart = normalizeTimeSlot(start);
+  const normalizedEnd = normalizeTimeSlot(end);
+  if (!isTimeValue(normalizedStart) || !isTimeValue(normalizedEnd)) return null;
+  if (normalizedStart >= normalizedEnd) return null;
+
+  return {
+    start: normalizedStart,
+    end: normalizedEnd,
+    available,
+  };
 }
 
 function normalizeAvailability(payload: BackendAvailabilityPayload): AvailabilitySlot[] {
   if (Array.isArray(payload)) {
-    return payload.map((slot, index) => ({
-      start: slot.start || `${String(index + 9).padStart(2, '0')}:00:00`,
-      end: slot.end || `${String(index + 10).padStart(2, '0')}:00:00`,
-      available: slot.available ?? true,
-    }));
+    const normalized = payload
+      .map((slot) => {
+        if (!slot.start || !slot.end) return null;
+        return toSlot(slot.start, slot.end, slot.available ?? true);
+      })
+      .filter((slot): slot is AvailabilitySlot => slot !== null);
+
+    if (normalized.length) return normalized;
+    throw new Error('Не удалось распознать формат availability-слотов.');
   }
 
   if (payload.slots?.length) {
-    return payload.slots.map((slot, index) => ({
-      start: slot.start || `${String(index + 9).padStart(2, '0')}:00:00`,
-      end: slot.end || `${String(index + 10).padStart(2, '0')}:00:00`,
-      available: slot.available ?? true,
-    }));
+    const normalized = payload.slots
+      .map((slot) => {
+        if (!slot.start || !slot.end) return null;
+        return toSlot(slot.start, slot.end, slot.available ?? true);
+      })
+      .filter((slot): slot is AvailabilitySlot => slot !== null);
+
+    if (normalized.length) return normalized;
+    throw new Error('Пустые или некорректные слоты availability.');
   }
 
-  const blockedEntries = [...(payload.busy_slots ?? []), ...(payload.occupied_slots ?? [])].map((slot) => {
-    if (typeof slot === 'string') {
-      return {
-        start: normalizeTimeSlot(slot),
-        end: normalizeTimeSlot(slot),
-      };
-    }
+  if (payload.booked_slots?.length) {
+    const normalized = payload.booked_slots
+      .map((slot) => {
+        const startTime = typeof slot.start_time === 'string' ? slot.start_time : '';
+        const endTime = typeof slot.end_time === 'string' ? slot.end_time : '';
+        const start = startTime.split('T')[1]?.slice(0, 8) || '';
+        const end = endTime.split('T')[1]?.slice(0, 8) || '';
+        return toSlot(start, end, false);
+      })
+      .filter((slot): slot is AvailabilitySlot => slot !== null);
 
-    return {
-      start: normalizeTimeSlot(slot.start || ''),
-      end: normalizeTimeSlot(slot.end || slot.start || ''),
-    };
-  });
+    if (normalized.length) return normalized;
+  }
 
-  return Array.from({ length: 12 }, (_, index) => {
-    const startHour = String(index + 9).padStart(2, '0');
-    const endHour = String(index + 10).padStart(2, '0');
-    const start = `${startHour}:00:00`;
-    const end = `${endHour}:00:00`;
-    const available = !blockedEntries.some((blocked) => blocked.start === start || blocked.start.startsWith(`${startHour}:`));
+  const busyEntries = [...(payload.busy_slots ?? []), ...(payload.occupied_slots ?? [])];
+  if (busyEntries.length) {
+    const normalized = busyEntries
+      .map((slot) => {
+        if (typeof slot === 'string') return null;
+        if (typeof slot.start !== 'string' || typeof slot.end !== 'string') return null;
+        return toSlot(slot.start, slot.end, false);
+      })
+      .filter((slot): slot is AvailabilitySlot => slot !== null);
 
-    return {
-      start,
-      end,
-      available,
-    };
-  });
+    if (normalized.length) return normalized;
+  }
+
+  throw new Error('Сервер вернул неизвестный формат availability.');
 }
 
 export async function getHallAvailability(hallId: number, date: string): Promise<AvailabilitySlot[]> {
