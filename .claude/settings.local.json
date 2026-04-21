@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/nolik/Photostudia//**)",
+      "Read(//c/Users/nolik/Photostudia/frontend/**)",
+      "Bash(npx tsc *)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(node node_modules/vite/bin/vite.js build)",
+      "Bash(node -e ' *)",
+      "Bash(python manage.py check)",
+      "Bash(python3 /c/Users/nolik/Photostudia/manage.py check)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'feat: auto-create superuser on startup via ensure_superuser command *)",
+      "Bash(git push *)",
+      "Bash(git fetch *)",
+      "Bash(git rebase *)",
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(git commit -m 'fix: merge conflicting studio migrations 0004 *)",
+      "Bash(git -C /c/Users/nolik/Photostudia/.claude/worktrees/serene-lovelace-b5476e log --oneline origin/beck)",
+      "Bash(git -C /c/Users/nolik/Photostudia log --oneline)",
+      "Bash(git -C /c/Users/nolik/Photostudia ls-files promo/)",
+      "Bash(cp -r /c/Users/nolik/Photostudia/promo /c/Users/nolik/Photostudia/.claude/worktrees/serene-lovelace-b5476e/promo)",
+      "Bash(git -C /c/Users/nolik/Photostudia/.claude/worktrees/serene-lovelace-b5476e status)",
+      "Bash(git commit -m 'feat: add promo app *)",
+      "Bash(git -C /c/Users/nolik/Photostudia/.claude/worktrees/serene-lovelace-b5476e add -A)",
+      "Bash(git -C /c/Users/nolik/Photostudia/.claude/worktrees/serene-lovelace-b5476e commit -m 'fix: remove incorrect merge migration *)",
+      "Bash(git -C /c/Users/nolik/Photostudia/.claude/worktrees/serene-lovelace-b5476e push origin claude/serene-lovelace-b5476e:beck)"
+    ]
+  }
+}
