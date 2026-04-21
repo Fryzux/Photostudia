@@ -64,6 +64,43 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'phone', 'is_staff', 'is_superuser', 'is_manager', 'date_joined')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'phone', 'is_staff', 'is_superuser', 'is_manager', 'is_active', 'date_joined')
         read_only_fields = ('is_staff', 'is_superuser', 'is_manager', 'date_joined')
         ref_name = 'CoreUserSerializer'
+
+
+class AdminCreateUserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    is_staff = serializers.BooleanField(required=False, default=False)
+    is_manager = serializers.BooleanField(required=False, default=False)
+
+    class Meta:
+        model = User
+        fields = ('username', 'password', 'email', 'first_name', 'last_name', 'phone', 'is_staff', 'is_manager')
+        extra_kwargs = {
+            'email': {'required': True},
+            'first_name': {'required': False},
+        }
+
+    def create(self, validated_data):
+        is_staff = validated_data.pop('is_staff', False)
+        is_manager = validated_data.pop('is_manager', False)
+        password = validated_data.pop('password')
+        user = User(**validated_data)
+        user.set_password(password)
+        user.is_staff = is_staff
+        user.is_manager = is_manager
+        user.save()
+        return user
+
+
+class AdminUpdateUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('first_name', 'last_name', 'email', 'phone', 'is_staff', 'is_manager', 'is_active')
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance

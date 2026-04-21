@@ -347,6 +347,39 @@ export async function getUsers(filters: { search?: string; role?: string } = {})
   return unwrapList(payload);
 }
 
+export interface CreateUserData {
+  username: string;
+  password: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  is_staff?: boolean;
+  is_manager?: boolean;
+}
+
+export interface UpdateUserData {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  is_staff?: boolean;
+  is_manager?: boolean;
+  is_active?: boolean;
+}
+
+export async function createUser(data: CreateUserData): Promise<User> {
+  return request(`${API_URL}/auth/users/`, { method: 'POST', body: JSON.stringify(data) }, true) as Promise<User>;
+}
+
+export async function updateUser(id: number, data: UpdateUserData): Promise<User> {
+  return request(`${API_URL}/auth/users/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, true) as Promise<User>;
+}
+
+export async function deleteUser(id: number): Promise<void> {
+  await request(`${API_URL}/auth/users/${id}/`, { method: 'DELETE' }, true);
+}
+
 export async function logout(): Promise<void> {
   const refresh = tokenStorage.getRefreshToken();
 
