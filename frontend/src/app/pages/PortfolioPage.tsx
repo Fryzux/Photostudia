@@ -1,4 +1,5 @@
 import { portfolioItems } from '../data/studio';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '../components/ui/carousel';
 
 export function PortfolioPage() {
   return (
@@ -12,19 +13,27 @@ export function PortfolioPage() {
         </p>
       </section>
 
-      <section className="grid gap-5 sm:gap-6 lg:grid-cols-2">
-        {portfolioItems.map((item) => (
-          <article key={item.id} className="mono-panel lift-card overflow-hidden rounded-[1.9rem] border border-[#111111]/8 text-center">
-            <img src={item.image} alt={item.title} className="grayscale-photo h-72 w-full object-cover sm:h-96" />
-            <div className="space-y-4 p-5 sm:p-6">
-              <span className="inline-flex rounded-full border border-[#111111]/10 bg-white px-4 py-2 text-xs uppercase tracking-[0.3em] text-[#666666]">
-                {item.category}
-              </span>
-              <h2 className="text-3xl text-[#111111] sm:text-4xl">{item.title}</h2>
-              <p className="mx-auto max-w-xl text-base leading-7 text-[#5c5c5c] sm:text-lg sm:leading-8">{item.description}</p>
-            </div>
-          </article>
-        ))}
+      <section className="px-0.5 md:px-12">
+        <Carousel opts={{ align: 'start', loop: true }} autoplay autoplayInterval={4400}>
+          <CarouselContent>
+            {portfolioItems.map((item) => (
+              <CarouselItem key={item.id} className="lg:basis-1/2">
+                <article className="mono-panel lift-card overflow-hidden rounded-[1.9rem] border border-[#111111]/8 text-center">
+                  <img src={item.image} alt={item.title} className="grayscale-photo h-72 w-full object-cover sm:h-96" />
+                  <div className="space-y-4 p-5 sm:p-6">
+                    <span className="inline-flex rounded-full border border-[#111111]/10 bg-white px-4 py-2 text-xs uppercase tracking-[0.3em] text-[#666666]">
+                      {item.category}
+                    </span>
+                    <h2 className="text-3xl text-[#111111] sm:text-4xl">{item.title}</h2>
+                    <p className="mx-auto max-w-xl text-base leading-7 text-[#5c5c5c] sm:text-lg sm:leading-8">{item.description}</p>
+                  </div>
+                </article>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious className="hidden border-[#111111]/12 bg-white text-[#111111] md:flex" />
+          <CarouselNext className="hidden border-[#111111]/12 bg-white text-[#111111] md:flex" />
+        </Carousel>
       </section>
     </div>
   );

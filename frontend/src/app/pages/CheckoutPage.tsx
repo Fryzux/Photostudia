@@ -3,10 +3,11 @@ import { Link, useSearchParams } from 'react-router';
 import { CheckCircle2, CreditCard, Receipt, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { createPayment, getOrders } from '../services/api';
-import type { Order } from '../types';
+import { createPayment, getOrders, validatePromoCode } from '../services/api';
+import type { Order, PromoValidationResult } from '../types';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Skeleton } from '../components/ui/skeleton';
@@ -24,6 +25,10 @@ export function CheckoutPage() {
   const [paying, setPaying] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'online'>('card');
   const [justPaidOrderId, setJustPaidOrderId] = useState<number | null>(null);
+  const [promoCode, setPromoCode] = useState(() => (searchParams.get('promo') || '').trim().toUpperCase());
+  const [promoValidation, setPromoValidation] = useState<PromoValidationResult | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [validatingPromo, setValidatingPromo] = useState(false);
 
   const loadOrders = async () => {
     setLoadError(null);
@@ -51,12 +56,68 @@ export function CheckoutPage() {
     return orders.find((order) => order.status === 'PENDING') ?? null;
   }, [orders, orderId]);
 
+  useEffect(() => {
+    setPromoValidation(null);
+    setPromoError(null);
+  }, [pendingOrder?.id]);
+
+  const appliedPromoCode = promoValidation?.promo.code || (pendingOrder?.promo_code ?? null);
+  const discountAmount = promoValidation?.discount_amount ?? pendingOrder?.discount_amount ?? 0;
+  const payableTotal = promoValidation?.final_total ?? pendingOrder?.final_amount ?? pendingOrder?.total_amount ?? 0;
+
+  const applyPromo = async () => {
+    if (!pendingOrder) return null;
+
+    const normalizedCode = promoCode.trim().toUpperCase();
+    if (!normalizedCode) {
+      setPromoValidation(null);
+      setPromoError(null);
+      return null;
+    }
+
+    setValidatingPromo(true);
+    setPromoError(null);
+    try {
+      const result = await validatePromoCode(normalizedCode, pendingOrder.id);
+      setPromoValidation(result);
+      setPromoCode(normalizedCode);
+      toast.success(`Промокод ${result.promo.code} применён.`);
+      return result;
+    } catch (error: any) {
+      const message = error?.message || 'Не удалось применить промокод.';
+      setPromoValidation(null);
+      setPromoError(message);
+      toast.error(message);
+      return null;
+    } finally {
+      setValidatingPromo(false);
+    }
+  };
+
   const handlePayment = async () => {
     if (!pendingOrder) return;
 
     setPaying(true);
     try {
-      await createPayment({ order_id: pendingOrder.id, method: paymentMethod });
+      const normalizedCode = promoCode.trim().toUpperCase();
+      let promoCodeToSend: string | undefined;
+
+      if (normalizedCode) {
+        const alreadyValidated =
+          promoValidation?.order_id === pendingOrder.id && promoValidation?.promo.code === normalizedCode;
+
+        if (alreadyValidated) {
+          promoCodeToSend = normalizedCode;
+        } else {
+          const result = await applyPromo();
+          if (!result) {
+            return;
+          }
+          promoCodeToSend = result.promo.code;
+        }
+      }
+
+      await createPayment({ order_id: pendingOrder.id, method: paymentMethod, promo_code: promoCodeToSend });
       toast.success('Платёж прошёл успешно.');
       setJustPaidOrderId(pendingOrder.id);
       const data = await getOrders();
@@ -114,7 +175,7 @@ export function CheckoutPage() {
             <Link to="/halls">
               <Button className="w-full rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a]">Перейти к залам</Button>
             </Link>
-            <Link to="/my-bookings">
+            <Link to="/profile/bookings">
               <Button variant="outline" className="w-full rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]">
                 Мои бронирования
               </Button>
@@ -159,7 +220,22 @@ export function CheckoutPage() {
             </div>
             <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-5">
               <p className="text-sm text-[#5c5c5c]">Сумма к оплате</p>
-              <p className="mt-2 text-3xl font-semibold text-[#111111]">{pendingOrder.total_amount.toLocaleString('ru-RU')} ₽</p>
+              <div className="mt-2 space-y-1.5">
+                <div className="flex items-center justify-between text-sm text-[#5c5c5c]">
+                  <span>Базовая сумма</span>
+                  <span>{pendingOrder.total_amount.toLocaleString('ru-RU')} ₽</span>
+                </div>
+                {discountAmount > 0 ? (
+                  <div className="flex items-center justify-between text-sm text-emerald-700">
+                    <span>Скидка по промокоду {appliedPromoCode ? `(${appliedPromoCode})` : ''}</span>
+                    <span>-{discountAmount.toLocaleString('ru-RU')} ₽</span>
+                  </div>
+                ) : null}
+                <div className="flex items-center justify-between border-t border-[#111111]/10 pt-2">
+                  <span className="font-medium text-[#111111]">Итог</span>
+                  <span className="text-3xl font-semibold text-[#111111]">{payableTotal.toLocaleString('ru-RU')} ₽</span>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -184,6 +260,41 @@ export function CheckoutPage() {
                 </div>
               ))}
             </RadioGroup>
+
+            <div className="space-y-2 rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
+              <Label htmlFor="checkout-promo" className="text-xs uppercase tracking-[0.32em] text-[#737373]">
+                Промокод
+              </Label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  id="checkout-promo"
+                  value={promoCode}
+                  onChange={(event) => {
+                    setPromoCode(event.target.value.toUpperCase());
+                    setPromoValidation(null);
+                    setPromoError(null);
+                  }}
+                  placeholder="Введите код"
+                  maxLength={32}
+                  className="h-11 rounded-full border-[#111111]/12 bg-white sm:h-12"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee] sm:h-12"
+                  disabled={validatingPromo || !promoCode.trim()}
+                  onClick={() => void applyPromo()}
+                >
+                  {validatingPromo ? 'Проверяем...' : 'Применить'}
+                </Button>
+              </div>
+              {promoError ? <p className="text-sm text-rose-600">{promoError}</p> : null}
+              {promoValidation ? (
+                <p className="text-sm text-emerald-700">
+                  Код {promoValidation.promo.code} применён. Скидка: {promoValidation.discount_amount.toLocaleString('ru-RU')} ₽.
+                </p>
+              ) : null}
+            </div>
 
             <Button className="h-11 w-full gap-2 rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a] sm:h-12" disabled={paying} onClick={handlePayment}>
               <CreditCard className="h-4 w-4" />

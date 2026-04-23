@@ -51,3 +51,37 @@ def cancel_unpaid_orders():
         logger.info("No old unpaid orders found to cancel.")
     
     return f"Cancelled {count} orders"
+
+
+@shared_task
+def send_order_status_changed_email(order_id: int, user_email: str, status_value: str):
+    """
+    Sends order status updates by email (best effort).
+    """
+    subject = f"Order #{order_id} status updated"
+    message = (
+        "Your order status has been updated.\n\n"
+        f"Order number: {order_id}\n"
+        f"Current status: {status_value}"
+    )
+
+    try:
+        if settings.EMAIL_HOST_USER:
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [user_email],
+                fail_silently=False,
+            )
+            logger.info("Order status email sent for order %s to %s", order_id, user_email)
+        else:
+            logger.warning(
+                "Skipping real order status email for order %s to %s because SMTP credentials are missing",
+                order_id,
+                user_email,
+            )
+    except Exception as exc:
+        logger.error("Failed to send status email for order %s: %s", order_id, exc)
+
+    return f"Status email task executed for {user_email} ({status_value})"

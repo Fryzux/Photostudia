@@ -97,6 +97,13 @@ function PublicOnlyRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+function AdminLegacyRedirect({ tab }: { tab: 'logs' | 'schedule' }) {
+  const location = useLocation();
+  const current = new URLSearchParams(location.search);
+  current.set('tab', tab);
+  return <Navigate to={`/admin-panel?${current.toString()}`} replace />;
+}
+
 export const router = createBrowserRouter([
   {
     path: '/login',
@@ -147,12 +154,16 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'my-bookings',
+        path: 'profile/bookings',
         element: (
           <ProtectedRoute>
             <MyBookingsPage />
           </ProtectedRoute>
         ),
+      },
+      {
+        path: 'my-bookings',
+        element: <Navigate to="/profile/bookings" replace />,
       },
       {
         path: 'profile',
@@ -198,7 +209,7 @@ export const router = createBrowserRouter([
         path: 'admin/audit',
         element: (
           <AdminRoute>
-            <AuditLogPage />
+            <AdminLegacyRedirect tab="logs" />
           </AdminRoute>
         ),
       },
@@ -206,7 +217,7 @@ export const router = createBrowserRouter([
         path: 'manager/schedule',
         element: (
           <AdminRoute>
-            <ManagerSchedulePage />
+            <AdminLegacyRedirect tab="schedule" />
           </AdminRoute>
         ),
       },
@@ -214,7 +225,7 @@ export const router = createBrowserRouter([
         path: 'manager-schedule',
         element: (
           <AdminRoute>
-            <ManagerSchedulePage />
+            <AdminLegacyRedirect tab="schedule" />
           </AdminRoute>
         ),
       },

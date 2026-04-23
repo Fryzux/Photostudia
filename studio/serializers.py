@@ -1,6 +1,15 @@
 from rest_framework import serializers
-from .models import Hall, Booking, Order, Payment
+from .models import Hall, HallImage, Booking, Order, Payment
 from decimal import Decimal
+
+
+class HallImageSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(read_only=True)
+
+    class Meta:
+        model = HallImage
+        fields = ['id', 'image', 'created_at']
+
 
 class HallSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
@@ -34,10 +43,23 @@ class OrderSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source='user.id', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
     user_email = serializers.EmailField(source='user.email', read_only=True)
+    promo_code = serializers.CharField(source='applied_promo.code', read_only=True)
     
     class Meta:
         model = Order
-        fields = ['id', 'booking', 'user_id', 'username', 'user_email', 'total_amount', 'status', 'created_at']
+        fields = [
+            'id',
+            'booking',
+            'user_id',
+            'username',
+            'user_email',
+            'total_amount',
+            'discount_amount',
+            'final_amount',
+            'promo_code',
+            'status',
+            'created_at',
+        ]
         read_only_fields = ['id', 'user', 'total_amount', 'created_at']
         ref_name = 'StudioOrderSerializer'
 
@@ -58,6 +80,7 @@ class PaymentCreateSerializer(serializers.Serializer):
         choices=[('card', 'Card'), ('cash', 'Cash'), ('online', 'Online')],
         help_text="Payment method."
     )
+    promo_code = serializers.CharField(required=False, allow_blank=True, max_length=32)
 
 class PaymentSerializer(serializers.ModelSerializer):
     """Output serializer with full payment details."""

@@ -8,6 +8,7 @@ import { getHalls } from '../services/api';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
@@ -17,11 +18,13 @@ export function HallsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [halls, setHalls] = useState<Hall[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showUnavailableModal, setShowUnavailableModal] = useState(false);
 
   const query = searchParams.get('q') ?? '';
   const minCapacity = searchParams.get('capacity') ?? '';
   const maxPrice = searchParams.get('price') ?? '';
   const sort = searchParams.get('sort') ?? 'recommended';
+  const preselectedHallId = Number(searchParams.get('hall_id') || 0);
 
   useEffect(() => {
     const loadHalls = async () => {
@@ -37,6 +40,14 @@ export function HallsPage() {
 
     loadHalls();
   }, []);
+
+  useEffect(() => {
+    if (!preselectedHallId || !halls.length) return;
+    const exists = halls.some((hall) => hall.id === preselectedHallId);
+    if (!exists) {
+      setShowUnavailableModal(true);
+    }
+  }, [halls, preselectedHallId]);
 
   const updateParam = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -62,6 +73,8 @@ export function HallsPage() {
       return matchesQuery && matchesCapacity && matchesPrice;
     })
     .sort((left, right) => {
+      if (preselectedHallId && left.id === preselectedHallId) return -1;
+      if (preselectedHallId && right.id === preselectedHallId) return 1;
       if (sort === 'price-asc') return left.price_per_hour - right.price_per_hour;
       if (sort === 'price-desc') return right.price_per_hour - left.price_per_hour;
       if (sort === 'capacity-desc') return right.capacity - left.capacity;
@@ -190,7 +203,12 @@ export function HallsPage() {
 
       <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
         {filteredHalls.map((hall) => (
-          <Card key={hall.id} className="mono-panel lift-card overflow-hidden rounded-[1.8rem] border border-[#111111]/8 text-center">
+          <Card
+            key={hall.id}
+            className={`mono-panel lift-card overflow-hidden rounded-[1.8rem] border text-center ${
+              hall.id === preselectedHallId ? 'border-[#111111] shadow-[0_16px_40px_rgba(17,17,17,0.14)]' : 'border-[#111111]/8'
+            }`}
+          >
             <div className="relative h-48 bg-gray-200 sm:h-56">
               {hall.images[0] && <img src={hall.images[0]} alt={hall.name} className="grayscale-photo h-full w-full object-cover" />}
               <div className="absolute right-3 top-3">
@@ -240,6 +258,30 @@ export function HallsPage() {
           <p className="mt-2 text-base text-[#5c5c5c]">Попробуйте изменить цену, вместимость или текст запроса.</p>
         </div>
       )}
+
+      <Dialog open={showUnavailableModal} onOpenChange={setShowUnavailableModal}>
+        <DialogContent className="border border-[#111111]/10 bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#111111]">Выбранный зал недоступен</DialogTitle>
+            <DialogDescription className="text-[#5c5c5c]">
+              Этот зал не найден в каталоге. Можно выбрать другой доступный вариант ниже.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              className="rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a]"
+              onClick={() => {
+                const next = new URLSearchParams(searchParams);
+                next.delete('hall_id');
+                setSearchParams(next, { replace: true });
+                setShowUnavailableModal(false);
+              }}
+            >
+              Открыть каталог
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

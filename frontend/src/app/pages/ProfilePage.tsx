@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router';
+import { Link, Navigate } from 'react-router';
 import { CalendarClock, Mail, Radio, Shield, User } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -109,6 +109,11 @@ export function ProfilePage() {
         <p className="mx-auto mt-4 max-w-2xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">
           Здесь собраны ваши данные, история заказов и realtime-статус выбранного бронирования.
         </p>
+        <div className="mt-6">
+          <Link to="/profile/bookings">
+            <Button className="rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a]">Открыть мои бронирования</Button>
+          </Link>
+        </div>
       </section>
 
       <div className="grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
