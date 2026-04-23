@@ -91,3 +91,19 @@ class PromoCodeDeactivateView(views.APIView):
         promo.is_active = False
         promo.save()
         return Response(PromoCodeSerializer(promo).data)
+
+
+class PromoCodeActivateView(views.APIView):
+    """
+    PATCH /api/promo/{id}/activate/  — активировать промокод
+    """
+    permission_classes = [IsManagerOrAdmin]
+
+    def patch(self, request, pk):
+        try:
+            promo = PromoCode.objects.get(pk=pk)
+        except PromoCode.DoesNotExist:
+            return Response({'error': 'Промокод не найден.'}, status=status.HTTP_404_NOT_FOUND)
+        promo.is_active = True
+        promo.save()
+        return Response(PromoCodeSerializer(promo).data)

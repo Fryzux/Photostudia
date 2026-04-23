@@ -446,13 +446,8 @@ export async function refreshAccessToken(refreshToken: string): Promise<AuthToke
 }
 
 export async function getProfile(): Promise<User> {
-  try {
-    const payload = await request(`${API_URL}/auth/profile/`, {}, true);
-    return normalizeUser(payload);
-  } catch {
-    const payload = await request(`${API_URL}/auth/user/`, {}, true);
-    return normalizeUser(payload);
-  }
+  const payload = await request(`${API_URL}/auth/profile/`, {}, true);
+  return normalizeUser(payload);
 }
 
 export async function getUsers(filters: { search?: string; role?: string } = {}): Promise<User[]> {
@@ -751,7 +746,7 @@ export async function getForecast(params: {
   date_to: string;
 }): Promise<ForecastResult> {
   const payload = (await request(
-    `${API_URL}/forecast/`,
+    `${API_URL}/ai/forecast/`,
     {
       method: 'POST',
       body: JSON.stringify(params),
@@ -775,7 +770,7 @@ export async function getAnalytics(): Promise<Analytics> {
 
 export async function getActionLogs(filters: AuditLogFilters = {}): Promise<AuditLog[]> {
   const payload = (await request(
-    buildUrl('/audit/logs/', {
+    buildUrl('/audit/', {
       search: filters.search,
       action: filters.action,
       date_from: filters.date_from,
@@ -800,7 +795,7 @@ export async function getActionLogsPage(
   filters: AuditLogFilters & { page?: number } = {},
 ): Promise<{ count: number; next: string | null; previous: string | null; results: AuditLog[] }> {
   const payload = (await request(
-    buildUrl('/audit/logs/', {
+    buildUrl('/audit/', {
       search: filters.search,
       action: filters.action,
       date_from: filters.date_from,
@@ -846,7 +841,7 @@ export async function getActionLogsPage(
 
 export async function getPromoCodes(filters: { search?: string; is_active?: boolean } = {}): Promise<PromoCode[]> {
   const payload = (await request(
-    buildUrl('/promos/promocodes/', {
+    buildUrl('/promo/', {
       search: filters.search,
       is_active: typeof filters.is_active === 'boolean' ? String(filters.is_active) : undefined,
     }),
@@ -859,7 +854,7 @@ export async function getPromoCodes(filters: { search?: string; is_active?: bool
 
 export async function createPromoCode(data: CreatePromoCodeData): Promise<PromoCode> {
   const payload = (await request(
-    `${API_URL}/promos/promocodes/`,
+    `${API_URL}/promo/`,
     {
       method: 'POST',
       body: JSON.stringify({
@@ -882,7 +877,7 @@ export async function createPromoCode(data: CreatePromoCodeData): Promise<PromoC
 
 export async function deactivatePromoCode(id: number): Promise<PromoCode> {
   const payload = (await request(
-    `${API_URL}/promos/promocodes/${id}/deactivate/`,
+    `${API_URL}/promo/${id}/deactivate/`,
     {
       method: 'PATCH',
       body: JSON.stringify({}),
@@ -895,7 +890,7 @@ export async function deactivatePromoCode(id: number): Promise<PromoCode> {
 
 export async function activatePromoCode(id: number): Promise<PromoCode> {
   const payload = (await request(
-    `${API_URL}/promos/promocodes/${id}/activate/`,
+    `${API_URL}/promo/${id}/activate/`,
     {
       method: 'PATCH',
       body: JSON.stringify({}),
@@ -908,7 +903,7 @@ export async function activatePromoCode(id: number): Promise<PromoCode> {
 
 export async function validatePromoCode(code: string, orderId: number): Promise<PromoValidationResult> {
   const payload = (await request(
-    `${API_URL}/promos/promocodes/validate/`,
+    `${API_URL}/promo/validate/`,
     {
       method: 'POST',
       body: JSON.stringify({
@@ -1019,17 +1014,18 @@ export async function getHallAvailability(hallId: number, date: string): Promise
 // ── Studio Services ──────────────────────────────────────────────────────────
 
 export async function getStudioServices(): Promise<StudioService[]> {
-  return request('/services/', {}, false) as Promise<StudioService[]>;
+  const payload = (await request(buildUrl('/services/'), {}, false)) as StudioService[] | PaginatedResponse<StudioService>;
+  return unwrapList(payload) as StudioService[];
 }
 
 export async function createStudioService(data: CreateStudioServiceData): Promise<StudioService> {
-  return request('/services/', { method: 'POST', body: JSON.stringify(data) }) as Promise<StudioService>;
+  return request(buildUrl('/services/'), { method: 'POST', body: JSON.stringify(data) }, true) as Promise<StudioService>;
 }
 
 export async function updateStudioService(id: number, data: Partial<CreateStudioServiceData>): Promise<StudioService> {
-  return request(`/services/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }) as Promise<StudioService>;
+  return request(buildUrl(`/services/${id}/`), { method: 'PATCH', body: JSON.stringify(data) }, true) as Promise<StudioService>;
 }
 
 export async function deleteStudioService(id: number): Promise<void> {
-  await request(`/services/${id}/`, { method: 'DELETE' });
+  await request(buildUrl(`/services/${id}/`), { method: 'DELETE' }, true);
 }
