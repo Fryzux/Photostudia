@@ -13,8 +13,8 @@ from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Number
 from django.utils import timezone
 import os
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-from .models import Booking, HallImage, Order, Payment, Hall
-from .serializers import BookingSerializer, OrderSerializer, PaymentSerializer, PaymentCreateSerializer, HallSerializer, OrderStatusUpdateSerializer
+from .models import Booking, HallImage, Order, Payment, Hall, StudioService
+from .serializers import BookingSerializer, OrderSerializer, PaymentSerializer, PaymentCreateSerializer, HallSerializer, OrderStatusUpdateSerializer, StudioServiceSerializer
 from .services import BookingService, PaymentService, BookingConflictError
 
 
@@ -329,3 +329,22 @@ class PaymentCreateView(views.APIView):
             PaymentSerializer(payment).data,
             status=status.HTTP_201_CREATED
         )
+
+
+class StudioServiceViewSet(viewsets.ModelViewSet):
+    """
+    CRUD для услуг фотостудии.
+    GET — доступен всем. POST/PATCH/PUT/DELETE — только staff/admin.
+    """
+    queryset = StudioService.objects.all()
+    serializer_class = StudioServiceSerializer
+    permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [SearchFilter]
+    search_fields = ['name', 'description']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # Обычные пользователи видят только активные услуги
+        if not (self.request.user and self.request.user.is_staff):
+            qs = qs.filter(is_active=True)
+        return qs

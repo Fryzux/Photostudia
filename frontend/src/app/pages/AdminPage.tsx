@@ -35,6 +35,10 @@ import {
   updateHall,
   updateOrderStatus,
   updateUser,
+  getStudioServices,
+  createStudioService,
+  updateStudioService,
+  deleteStudioService,
 } from '../services/api';
 import type { CreateUserData, UpdateUserData } from '../services/api';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
@@ -167,13 +171,14 @@ export function AdminPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [analyticsData, hallsData, ordersData, usersData, logsData, promosData] = await Promise.all([
+        const [analyticsData, hallsData, ordersData, usersData, logsData, promosData, servicesData] = await Promise.all([
           getAnalytics(),
           getHalls(),
           getOrders(),
           getUsers(),
           getActionLogs(),
           getPromoCodes(),
+          getStudioServices(),
         ]);
 
         setAnalytics(analyticsData);
@@ -182,7 +187,7 @@ export function AdminPage() {
         setUsers(usersData);
         setAuditLogs(logsData);
         setPromos(promosData);
-        setServices(getStudioServices());
+        setServices(servicesData);
       } catch (error: any) {
         toast.error(error.message || 'Не удалось загрузить данные админ-панели');
       } finally {
@@ -213,8 +218,8 @@ export function AdminPage() {
     setPromos(await getPromoCodes());
   };
 
-  const reloadServices = () => {
-    setServices(getStudioServices());
+  const reloadServices = async () => {
+    setServices(await getStudioServices());
   };
 
   const reloadLogs = async (params: { search?: string; action?: string; date_from?: string; date_to?: string } = {}) => {
@@ -452,7 +457,7 @@ export function AdminPage() {
     setSubmittingService(true);
     try {
       if (serviceDialog.service) {
-        updateStudioService(serviceDialog.service.id, {
+        await updateStudioService(serviceDialog.service.id, {
           name: serviceForm.name,
           description: serviceForm.description,
           price: Number(serviceForm.price),
@@ -461,7 +466,7 @@ export function AdminPage() {
         });
         toast.success('Услуга обновлена');
       } else {
-        createStudioService({
+        await createStudioService({
           name: serviceForm.name,
           description: serviceForm.description,
           price: Number(serviceForm.price),
@@ -470,7 +475,7 @@ export function AdminPage() {
         });
         toast.success('Услуга добавлена');
       }
-      reloadServices();
+      await reloadServices();
       setServiceDialog({ open: false, service: null });
       setServiceForm(emptyServiceForm);
     } catch (error: any) {
@@ -483,8 +488,8 @@ export function AdminPage() {
   const handleServiceDelete = async (serviceId: number) => {
     setDeletingServiceId(serviceId);
     try {
-      deleteStudioService(serviceId);
-      reloadServices();
+      await deleteStudioService(serviceId);
+      await reloadServices();
       toast.success('Услуга удалена');
     } catch (error: any) {
       toast.error(error.message || 'Не удалось удалить услугу.');

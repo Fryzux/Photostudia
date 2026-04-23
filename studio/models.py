@@ -3,6 +3,26 @@ from django.conf import settings
 from django.db.models import F, Q
 
 
+class StudioService(models.Model):
+    PRICING_MODE_CHOICES = (
+        ('fixed', 'Fixed'),
+        ('hourly', 'Hourly'),
+    )
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default='')
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    pricing_mode = models.CharField(max_length=10, choices=PRICING_MODE_CHOICES, default='fixed')
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class Hall(models.Model):
     name = models.CharField(max_length=100, unique=True, null=False)
     description = models.TextField(null=True, blank=True)
