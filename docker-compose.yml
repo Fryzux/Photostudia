@@ -27,6 +27,7 @@ services:
              python manage.py migrate &&
              python manage.py ensure_superuser &&
              python manage.py init_halls &&
+             python manage.py init_services &&
              daphne -b 0.0.0.0 -p 8000 core.asgi:application"
     volumes:
       - .:/app
