@@ -4,8 +4,7 @@ import { AlertCircle, ArrowLeft, CalendarRange, Info, PackageCheck, Users } from
 import { toast } from 'sonner';
 
 import type { AvailabilitySlot, CreateBookingData, Hall, StudioService } from '../types';
-import { createBooking, getHall, getHallAvailability, getOrders } from '../services/api';
-import { getStudioServices } from '../services/studioServices';
+import { createBooking, getHall, getHallAvailability, getOrders, getStudioServices } from '../services/api';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -58,7 +57,13 @@ export function HallDetailPage() {
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
   const [promoCode, setPromoCode] = useState('');
   const [submittingBooking, setSubmittingBooking] = useState(false);
-  const [services] = useState<StudioService[]>(() => getStudioServices().filter((item) => item.is_active));
+  const [services, setServices] = useState<StudioService[]>([]);
+
+  useEffect(() => {
+    getStudioServices()
+      .then((list) => setServices(list.filter((item) => item.is_active)))
+      .catch(() => setServices([]));
+  }, []);
 
   useEffect(() => {
     if (!id) return;

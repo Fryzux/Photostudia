@@ -44,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!mountedRef.current) return;
         startTransition(() => {
           setUser(userData);
+          setLoading(false);
         });
       } catch (error) {
         console.error('Ошибка загрузки профиля:', error);
@@ -51,11 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!mountedRef.current) return;
         startTransition(() => {
           setUser(null);
-        });
-      } finally {
-        if (mountedRef.current) {
           setLoading(false);
-        }
+        });
       }
     })();
 
