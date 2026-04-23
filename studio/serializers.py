@@ -1,6 +1,14 @@
 from rest_framework import serializers
-from .models import Hall, HallImage, Booking, Order, Payment
+from .models import Hall, HallImage, Booking, Order, Payment, StudioService
 from decimal import Decimal
+
+
+class StudioServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StudioService
+        fields = ['id', 'name', 'description', 'price', 'pricing_mode', 'is_active', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+        ref_name = 'StudioServiceSerializer'
 
 
 class HallImageSerializer(serializers.ModelSerializer):

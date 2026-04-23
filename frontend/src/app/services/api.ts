@@ -9,6 +9,7 @@ import {
   CreateHallData,
   CreatePaymentData,
   CreatePromoCodeData,
+  CreateStudioServiceData,
   DemandPrediction,
   ForecastResult,
   Hall,
@@ -18,6 +19,7 @@ import {
   PromoCode,
   PromoValidationResult,
   RegisterData,
+  StudioService,
   User,
 } from '../types';
 import { getHallPresentation } from '../data/studio';
@@ -1012,4 +1014,22 @@ function normalizeAvailability(payload: BackendAvailabilityPayload): Availabilit
 export async function getHallAvailability(hallId: number, date: string): Promise<AvailabilitySlot[]> {
   const payload = (await request(buildUrl(`/halls/${hallId}/availability/`, { date }), {}, true)) as BackendAvailabilityPayload;
   return normalizeAvailability(payload);
+}
+
+// ── Studio Services ──────────────────────────────────────────────────────────
+
+export async function getStudioServices(): Promise<StudioService[]> {
+  return request('/services/', {}, false) as Promise<StudioService[]>;
+}
+
+export async function createStudioService(data: CreateStudioServiceData): Promise<StudioService> {
+  return request('/services/', { method: 'POST', body: JSON.stringify(data) }) as Promise<StudioService>;
+}
+
+export async function updateStudioService(id: number, data: Partial<CreateStudioServiceData>): Promise<StudioService> {
+  return request(`/services/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }) as Promise<StudioService>;
+}
+
+export async function deleteStudioService(id: number): Promise<void> {
+  await request(`/services/${id}/`, { method: 'DELETE' });
 }
