@@ -32,64 +32,42 @@ class ForecastAPIView(views.APIView):
     """
     POST /api/ai/forecast/
 
-    Принимает studio_id и период (date_from, date_to).
-    Возвращает почасовой прогноз загрузки: [{date, hour, load_pct}].
-
-    Тело запроса:
-      {
-        "studio_id": 1,
-        "date_from": "2026-04-20",
-        "date_to": "2026-04-22"
-      }
+    Принимает hall_id и период (date_from, date_to).
+    Возвращает структурированный ForecastResult с тепловой картой.
     """
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        operation_description="Почасовой прогноз загрузки студии за период.",
+        operation_description="Почасовой прогноз загрузки зала за период.",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=['studio_id', 'date_from', 'date_to'],
+            required=['hall_id', 'date_from', 'date_to'],
             properties={
-                'studio_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='ID студии (зала)'),
+                'hall_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='ID зала'),
                 'date_from': openapi.Schema(type=openapi.TYPE_STRING, format='date', description='Начало периода YYYY-MM-DD'),
                 'date_to': openapi.Schema(type=openapi.TYPE_STRING, format='date', description='Конец периода YYYY-MM-DD'),
             }
         ),
-        responses={
-            200: openapi.Response(
-                description='Прогноз загрузки',
-                schema=openapi.Schema(
-                    type=openapi.TYPE_ARRAY,
-                    items=openapi.Schema(
-                        type=openapi.TYPE_OBJECT,
-                        properties={
-                            'date': openapi.Schema(type=openapi.TYPE_STRING),
-                            'hour': openapi.Schema(type=openapi.TYPE_INTEGER),
-                            'load_pct': openapi.Schema(type=openapi.TYPE_NUMBER),
-                        }
-                    )
-                )
-            )
-        }
     )
     def post(self, request, *args, **kwargs):
-        studio_id = request.data.get('studio_id')
+        # принимаем hall_id (основной) или studio_id (обратная совместимость)
+        hall_id = request.data.get('hall_id') or request.data.get('studio_id')
         date_from_str = request.data.get('date_from')
         date_to_str = request.data.get('date_to')
 
-        if not all([studio_id, date_from_str, date_to_str]):
+        if not all([hall_id, date_from_str, date_to_str]):
             return Response(
-                {'error': 'Поля studio_id, date_from и date_to обязательны.'},
+                {'error': 'Поля hall_id, date_from и date_to обязательны.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
-            studio_id = int(studio_id)
+            hall_id = int(hall_id)
             date_from = datetime.strptime(date_from_str, '%Y-%m-%d')
             date_to = datetime.strptime(date_to_str, '%Y-%m-%d')
         except (ValueError, TypeError):
             return Response(
-                {'error': 'Неверный формат. studio_id — целое число, даты — YYYY-MM-DD.'},
+                {'error': 'Неверный формат. hall_id — целое число, даты — YYYY-MM-DD.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -107,13 +85,57 @@ class ForecastAPIView(views.APIView):
             )
 
         try:
-            result = []
+            # Собираем плоский список ячеек по всем дням
+            heatmap = []
             current = date_from
             while current <= date_to:
-                date_str = current.strftime('%Y-%m-%d')
-                day_forecast = AIService.forecast_hourly(studio_id, date_str)
-                result.extend(day_forecast)
+                day_forecast = AIService.forecast_hourly(hall_id, current.strftime('%Y-%m-%d'))
+                for cell in day_forecast:
+                    heatmap.append({
+                        'date': cell['date'],
+                        'hour': cell['hour'],
+                        'load_percent': round(cell['load_pct']),
+                        'confidence': 0.75,
+                    })
                 current += timedelta(days=1)
+
+            # Уникальные дни и часы
+            days = sorted({cell['date'] for cell in heatmap})
+            hours = sorted({cell['hour'] for cell in heatmap})
+
+            # Summary
+            loads = [c['load_percent'] for c in heatmap]
+            avg_load = round(sum(loads) / len(loads)) if loads else 0
+            peak_cell = max(heatmap, key=lambda c: c['load_percent']) if heatmap else None
+
+            # Рекомендации
+            recommendations = []
+            if avg_load >= 70:
+                recommendations.append('Высокая загрузка в период — рассмотрите повышение цен.')
+            elif avg_load >= 40:
+                recommendations.append('Умеренная загрузка — хорошее время для акций в слабые часы.')
+            else:
+                recommendations.append('Низкая загрузка — запустите скидки для привлечения клиентов.')
+            if peak_cell:
+                recommendations.append(
+                    f'Пик ожидается {peak_cell["date"]} в {peak_cell["hour"]:02d}:00 ({peak_cell["load_percent"]}%).'
+                )
+
+            result = {
+                'hall_id': hall_id,
+                'date_from': date_from_str,
+                'date_to': date_to_str,
+                'days': days,
+                'hours': hours,
+                'heatmap': heatmap,
+                'day_overview': [],
+                'summary': {
+                    'average_load_percent': avg_load,
+                    'average_confidence': 0.75,
+                    'peak': peak_cell,
+                },
+                'recommendations': recommendations,
+            }
             return Response(result, status=status.HTTP_200_OK)
         except Exception as e:
             return Response(
