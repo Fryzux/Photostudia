@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { ArrowRight } from 'lucide-react';
 
+import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '../components/ui/carousel';
@@ -9,6 +10,7 @@ import { contacts, hallShowcase, portfolioItems, valuePoints, workflowSteps } fr
 import bgImage from '../../assets/exposition.jpg';
 
 export function HomePage() {
+  const { isAuthenticated } = useAuth();
   return (
     <div className="space-y-10 pb-8 sm:space-y-14 sm:pb-10">
 
@@ -206,7 +208,7 @@ export function HomePage() {
                 </Button>
               </Link>
 
-              <Link to="/login">
+              <Link to={isAuthenticated ? '/profile' : '/login'}>
                 <Button
                   variant="outline"
                   className="h-11 w-full rounded-full border-[#111111]/12 bg-white px-8 text-[#111111] hover:bg-[#f1f1ee] sm:h-12 sm:min-w-56 sm:w-auto"
