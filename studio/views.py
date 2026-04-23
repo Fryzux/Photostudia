@@ -4,13 +4,16 @@ from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser
 from datetime import datetime, time, timedelta
 from django.db.models import Sum
 from django.core.exceptions import ValidationError
+from django.conf import settings
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter
 from django.utils import timezone
 import os
-from .models import Booking, Order, Payment, Hall
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from .models import Booking, HallImage, Order, Payment, Hall
 from .serializers import BookingSerializer, OrderSerializer, PaymentSerializer, PaymentCreateSerializer, HallSerializer, OrderStatusUpdateSerializer
 from .services import BookingService, PaymentService, BookingConflictError
 
@@ -299,7 +302,8 @@ class PaymentCreateView(views.APIView):
             payment = PaymentService.process_payment(
                 order=order,
                 amount=order.total_amount,
-                method=serializer.validated_data['method']
+                method=serializer.validated_data['method'],
+                promo_code=serializer.validated_data.get('promo_code'),
             )
         except ValidationError as e:
             return Response(

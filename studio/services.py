@@ -73,7 +73,7 @@ class BookingService:
 class PaymentService:
     @staticmethod
     @transaction.atomic
-    def process_payment(order, amount, method):
+    def process_payment(order, amount, method, promo_code=None):
         """
         Processes payment for an order.
         """
@@ -82,16 +82,43 @@ class PaymentService:
         
         if Decimal(amount) < order.total_amount:
             raise ValidationError("Insufficient payment amount.")
+
+        discount_amount = Decimal('0')
+        final_amount = Decimal(order.total_amount)
+        applied_promo = None
+
+        if promo_code:
+            from promo.models import PromoCode
+            from promo.services import calculate_promo_for_amount, validate_promo
+
+            normalized_code = str(promo_code).strip().upper()
+            if not normalized_code:
+                raise ValidationError("Promo code cannot be empty.")
+
+            promo = PromoCode.objects.select_for_update().filter(code=normalized_code).first()
+            if not promo:
+                raise ValidationError("Promo code is invalid.")
+
+            validate_promo(promo)
+            discount_amount, final_amount = calculate_promo_for_amount(promo, order.total_amount)
+            applied_promo = promo
             
         payment = Payment.objects.create(
             order=order,
-            amount=amount,
+            amount=final_amount,
             method=method,
             is_successful=True,
             transaction_id=f"tx_{order.id}_{uuid.uuid4().hex[:8]}"
         )
         
         order.status = 'COMPLETED'
+        order.discount_amount = discount_amount
+        order.final_amount = final_amount
+        order.applied_promo = applied_promo
         order.save()
+
+        if applied_promo:
+            applied_promo.usage_count = (applied_promo.usage_count or 0) + 1
+            applied_promo.save(update_fields=['usage_count', 'updated_at'])
         
         return payment

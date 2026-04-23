@@ -37,6 +37,7 @@ export interface Hall {
   id: number;
   name: string;
   description?: string;
+  is_active?: boolean;
   price_per_hour: number;
   capacity: number;
   equipment?: string[];
@@ -61,6 +62,9 @@ export interface Order {
   username?: string;
   user_email?: string;
   total_amount: number;
+  discount_amount?: number;
+  final_amount?: number | null;
+  promo_code?: string | null;
   status: OrderStatus;
   created_at: string;
 }
@@ -84,6 +88,7 @@ export interface CreateBookingData {
 export interface CreatePaymentData {
   order_id: number;
   method: 'card' | 'cash' | 'online';
+  promo_code?: string;
 }
 
 export interface DemandPrediction {
@@ -141,6 +146,7 @@ export interface CreateHallData {
   price_per_hour: number;
   capacity: number;
   description?: string;
+  is_active?: boolean;
 }
 
 export interface AuditLog {
@@ -171,6 +177,11 @@ export interface PromoCode {
   code: string;
   description?: string;
   discount_percent: number;
+  promo_type?: 'PERCENT' | 'FIXED';
+  value?: number;
+  expiry?: string | null;
+  usage_limit?: number | null;
+  usage_count?: number;
   is_active: boolean;
   hall?: number | null;
   hour_from?: string | null;
@@ -187,12 +198,24 @@ export interface CreatePromoCodeData {
   code: string;
   description?: string;
   discount_percent: number;
+  promo_type?: 'PERCENT' | 'FIXED';
+  value?: number;
+  expiry?: string;
+  usage_limit?: number;
   hall?: number;
   hour_from?: string;
   hour_to?: string;
   max_uses?: number;
   valid_from?: string;
   valid_to?: string;
+}
+
+export interface PromoValidationResult {
+  promo: PromoCode;
+  order_id: number;
+  base_total: number;
+  discount_amount: number;
+  final_total: number;
 }
 
 export interface StudioService {

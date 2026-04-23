@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Activity, BarChart3, Building2, Calendar, DollarSign, Edit2, Plus, Search, ShieldCheck, TicketPercent, Trash2, Users } from 'lucide-react';
+import { BarChart3, Building2, Calendar, DollarSign, Edit2, Plus, Search, ShieldCheck, TicketPercent, Trash2, UploadCloud, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 import type {
@@ -30,6 +31,7 @@ import {
   getOrders,
   getPromoCodes,
   getUsers,
+  uploadHallImages,
   updateHall,
   updateOrderStatus,
   updateUser,
@@ -46,13 +48,17 @@ import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Skeleton } from '../components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { Textarea } from '../components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { hasValidationErrors, validateHallForm } from '../utils/validation';
+import { ManagerSchedulePage } from './ManagerSchedulePage';
 
 const emptyHallForm: CreateHallData = {
   name: '',
   price_per_hour: 0,
   capacity: 1,
+  description: '',
+  is_active: true,
 };
 
 const emptyPromoForm: CreatePromoCodeData = {
@@ -71,9 +77,23 @@ const emptyServiceForm: CreateStudioServiceData = {
   is_active: true,
 };
 
-const orderStatuses: Array<Order['status']> = ['PENDING', 'COMPLETED', 'CANCELLED'];
+const orderStatuses: Array<Order['status']> = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
+
+const adminTabValues = ['analytics', 'halls', 'orders', 'users', 'logs', 'schedule', 'services', 'promos'] as const;
+type AdminTabValue = (typeof adminTabValues)[number];
+
+function toStartOfDayDateTime(value?: string) {
+  if (!value) return undefined;
+  return `${value}T00:00:00`;
+}
+
+function toEndOfDayDateTime(value?: string) {
+  if (!value) return undefined;
+  return `${value}T23:59:59`;
+}
 
 export function AdminPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [halls, setHalls] = useState<Hall[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -86,6 +106,8 @@ export function AdminPage() {
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; hallId: number | null }>({ open: false, hallId: null });
   const [hallFormData, setHallFormData] = useState<CreateHallData>(emptyHallForm);
   const [hallFormErrors, setHallFormErrors] = useState<Partial<Record<'name' | 'price_per_hour' | 'capacity', string>>>({});
+  const [hallImageFiles, setHallImageFiles] = useState<File[]>([]);
+  const [hallUploadProgress, setHallUploadProgress] = useState<Record<string, number>>({});
   const [hallQuery, setHallQuery] = useState('');
   const [hallSort, setHallSort] = useState('name');
   const [submittingHall, setSubmittingHall] = useState(false);
@@ -125,6 +147,22 @@ export function AdminPage() {
   const [serviceForm, setServiceForm] = useState<CreateStudioServiceData>(emptyServiceForm);
   const [submittingService, setSubmittingService] = useState(false);
   const [deletingServiceId, setDeletingServiceId] = useState<number | null>(null);
+
+  const tabFromQuery = searchParams.get('tab');
+  const activeTab: AdminTabValue = adminTabValues.includes(tabFromQuery as AdminTabValue)
+    ? (tabFromQuery as AdminTabValue)
+    : 'analytics';
+
+  const setActiveTab = (tab: string) => {
+    const nextTab = adminTabValues.includes(tab as AdminTabValue) ? (tab as AdminTabValue) : 'analytics';
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextTab === 'analytics') {
+      nextParams.delete('tab');
+    } else {
+      nextParams.set('tab', nextTab);
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -210,17 +248,43 @@ export function AdminPage() {
 
   const openHallDialog = (hall: Hall | null = null) => {
     setHallFormErrors({});
+    setHallImageFiles([]);
+    setHallUploadProgress({});
     if (hall) {
       setHallFormData({
         name: hall.name,
         price_per_hour: hall.price_per_hour,
         capacity: hall.capacity,
+        description: hall.description || '',
+        is_active: hall.is_active ?? true,
       });
     } else {
       setHallFormData(emptyHallForm);
     }
 
     setHallDialog({ open: true, hall });
+  };
+
+  const addHallImageFiles = (files: File[]) => {
+    const supported = files.filter((file) => /\.(jpe?g|png|webp)$/i.test(file.name));
+    if (!supported.length) {
+      toast.error('Выберите изображения формата jpg, jpeg, png или webp.');
+      return;
+    }
+    setHallImageFiles((current) => {
+      const byName = new Map(current.map((file) => [file.name, file]));
+      supported.forEach((file) => byName.set(file.name, file));
+      return Array.from(byName.values());
+    });
+  };
+
+  const removeHallImageFile = (name: string) => {
+    setHallImageFiles((current) => current.filter((file) => file.name !== name));
+    setHallUploadProgress((current) => {
+      const next = { ...current };
+      delete next[name];
+      return next;
+    });
   };
 
   const handleHallSubmit = async (event: React.FormEvent) => {
@@ -235,14 +299,25 @@ export function AdminPage() {
 
     setSubmittingHall(true);
     try {
+      let savedHall: Hall;
       if (hallDialog.hall) {
-        await updateHall(hallDialog.hall.id, hallFormData);
+        savedHall = await updateHall(hallDialog.hall.id, hallFormData);
         toast.success('Зал обновлён');
       } else {
-        await createHall(hallFormData);
+        savedHall = await createHall(hallFormData);
         toast.success('Зал создан');
       }
+
+      if (hallImageFiles.length) {
+        await uploadHallImages(savedHall.id, hallImageFiles, (filename, progress) => {
+          setHallUploadProgress((current) => ({ ...current, [filename]: progress }));
+        });
+        toast.success(`Загружено изображений: ${hallImageFiles.length}`);
+      }
+
       setHallDialog({ open: false, hall: null });
+      setHallImageFiles([]);
+      setHallUploadProgress({});
       await reloadHalls();
       await reloadAnalytics();
     } catch (error: any) {
@@ -288,6 +363,8 @@ export function AdminPage() {
     event.preventDefault();
 
     const normalizedCode = promoForm.code.trim().toUpperCase();
+    const validFrom = promoForm.valid_from || '';
+    const validTo = promoForm.valid_to || '';
     if (!normalizedCode) {
       toast.error('Введите код промокода.');
       return;
@@ -296,7 +373,7 @@ export function AdminPage() {
       toast.error('Скидка должна быть в диапазоне от 1 до 100%.');
       return;
     }
-    if (promoForm.valid_from && promoForm.valid_to && promoForm.valid_to <= promoForm.valid_from) {
+    if (validFrom && validTo && validTo < validFrom) {
       toast.error('Дата окончания действия должна быть позже даты начала.');
       return;
     }
@@ -306,8 +383,8 @@ export function AdminPage() {
       await createPromoCode({
         ...promoForm,
         code: normalizedCode,
-        valid_from: promoForm.valid_from || undefined,
-        valid_to: promoForm.valid_to || undefined,
+        valid_from: toStartOfDayDateTime(validFrom),
+        valid_to: toEndOfDayDateTime(validTo),
       });
       toast.success('Промокод создан');
       setPromoForm(emptyPromoForm);
@@ -489,8 +566,6 @@ export function AdminPage() {
     [serviceSearch, services],
   );
 
-  const recentActivity = useMemo(() => auditLogs.slice(0, 5), [auditLogs]);
-
   const revenueTrend = useMemo(() => {
     const byDay = new Map<string, number>();
     const today = new Date();
@@ -546,13 +621,14 @@ export function AdminPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="analytics" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="h-auto w-full flex-wrap rounded-[1.5rem] bg-[#efefec] p-1">
           <TabsTrigger value="analytics">Аналитика</TabsTrigger>
           <TabsTrigger value="halls">Залы</TabsTrigger>
           <TabsTrigger value="orders">Заказы</TabsTrigger>
           <TabsTrigger value="users">Пользователи</TabsTrigger>
           <TabsTrigger value="logs">Логи аудита</TabsTrigger>
+          <TabsTrigger value="schedule">Расписание</TabsTrigger>
           <TabsTrigger value="services">Услуги</TabsTrigger>
           <TabsTrigger value="promos">Акции</TabsTrigger>
         </TabsList>
@@ -602,7 +678,7 @@ export function AdminPage() {
             </div>
           )}
 
-          <div className="grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.9fr)]">
+          <div className="grid gap-5 sm:gap-6">
             <Card className="mono-panel border border-[#111111]/8">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
@@ -626,26 +702,6 @@ export function AdminPage() {
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="mono-panel border border-[#111111]/8">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
-                  <Activity className="h-5 w-5" />
-                  Последняя активность
-                </CardTitle>
-                <CardDescription className="text-[#5c5c5c]">5 свежих событий из журнала аудита.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {recentActivity.map((item) => (
-                  <div key={item.id} className="rounded-[1.2rem] border border-[#111111]/8 bg-white/70 p-3">
-                    <p className="text-sm font-medium text-[#111111]">{item.action}</p>
-                    <p className="text-xs uppercase tracking-[0.2em] text-[#777777]">{item.username || 'Unknown'} · {format(new Date(item.timestamp), 'dd.MM.yyyy HH:mm', { locale: ru })}</p>
-                    {item.details ? <p className="mt-1 text-sm text-[#5c5c5c]">{item.details}</p> : null}
-                  </div>
-                ))}
-                {recentActivity.length === 0 && <p className="text-sm text-[#5c5c5c]">Событий пока нет.</p>}
               </CardContent>
             </Card>
           </div>
@@ -703,6 +759,15 @@ export function AdminPage() {
                     <div>
                       <CardTitle>{hall.name}</CardTitle>
                       <CardDescription className="mt-1 line-clamp-2">{hall.description}</CardDescription>
+                      <div className="mt-2">
+                        {hall.is_active ? (
+                          <Badge className="rounded-full bg-[#111111] text-white">Активен</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="rounded-full bg-white text-[#111111]">
+                            Скрыт
+                          </Badge>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex gap-2">
@@ -766,6 +831,7 @@ export function AdminPage() {
                   <SelectContent>
                     <SelectItem value="all">Все статусы</SelectItem>
                     <SelectItem value="PENDING">PENDING</SelectItem>
+                    <SelectItem value="CONFIRMED">CONFIRMED</SelectItem>
                     <SelectItem value="COMPLETED">COMPLETED</SelectItem>
                     <SelectItem value="CANCELLED">CANCELLED</SelectItem>
                   </SelectContent>
@@ -1231,6 +1297,10 @@ export function AdminPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="schedule" className="space-y-6">
+          <ManagerSchedulePage />
+        </TabsContent>
+
         <TabsContent value="services" className="space-y-6">
           <Card className="mono-panel border border-[#111111]/8">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
@@ -1368,23 +1438,22 @@ export function AdminPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="promo-from" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Действует с</Label>
-                  <Input
+                  <DatePickerInput
                     id="promo-from"
-                    type="datetime-local"
-                    className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base"
                     value={promoForm.valid_from || ''}
-                    onChange={(event) => setPromoForm((current) => ({ ...current, valid_from: event.target.value }))}
+                    onChange={(value) => setPromoForm((current) => ({ ...current, valid_from: value }))}
+                    className="h-11 rounded-full text-sm sm:h-12 sm:text-base"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="promo-to" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Действует до</Label>
-                  <Input
+                  <DatePickerInput
                     id="promo-to"
-                    type="datetime-local"
-                    className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base"
                     value={promoForm.valid_to || ''}
-                    onChange={(event) => setPromoForm((current) => ({ ...current, valid_to: event.target.value }))}
+                    onChange={(value) => setPromoForm((current) => ({ ...current, valid_to: value }))}
+                    min={promoForm.valid_from || undefined}
+                    className="h-11 rounded-full text-sm sm:h-12 sm:text-base"
                   />
                 </div>
 
@@ -1568,7 +1637,16 @@ export function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={hallDialog.open} onOpenChange={(open) => setHallDialog((current) => ({ open, hall: open ? current.hall : null }))}>
+      <Dialog
+        open={hallDialog.open}
+        onOpenChange={(open) => {
+          setHallDialog((current) => ({ open, hall: open ? current.hall : null }));
+          if (!open) {
+            setHallImageFiles([]);
+            setHallUploadProgress({});
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl border border-[#111111]/10 bg-white">
           <DialogHeader>
             <DialogTitle className="text-[#111111]">{hallDialog.hall ? 'Редактировать зал' : 'Добавить зал'}</DialogTitle>
@@ -1614,6 +1692,88 @@ export function AdminPage() {
                 />
                 {hallFormErrors.capacity && <p className="text-sm text-rose-600">{hallFormErrors.capacity}</p>}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="hall-description">Описание</Label>
+              <Textarea
+                id="hall-description"
+                value={hallFormData.description || ''}
+                onChange={(event) => setHallFormData({ ...hallFormData, description: event.target.value })}
+                placeholder="Краткое описание зала, атмосферы и назначения."
+                className="min-h-[110px] rounded-2xl border-[#111111]/12 bg-white"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="hall-status">Статус</Label>
+              <Select
+                value={hallFormData.is_active ? 'active' : 'inactive'}
+                onValueChange={(value) => setHallFormData({ ...hallFormData, is_active: value === 'active' })}
+              >
+                <SelectTrigger id="hall-status" className="rounded-full border-[#111111]/12 bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Активный</SelectItem>
+                  <SelectItem value="inactive">Скрыт из каталога</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Фотографии зала</Label>
+              <div
+                className="rounded-2xl border border-dashed border-[#111111]/20 bg-[#fafaf8] p-4"
+                onDragOver={(event) => {
+                  event.preventDefault();
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  addHallImageFiles(Array.from(event.dataTransfer.files));
+                }}
+              >
+                <div className="flex flex-col items-center justify-center gap-2 text-center">
+                  <UploadCloud className="h-6 w-6 text-[#6b6b6b]" />
+                  <p className="text-sm text-[#5c5c5c]">Перетащите фото сюда или выберите вручную</p>
+                  <label className="inline-flex cursor-pointer items-center rounded-full border border-[#111111]/12 bg-white px-4 py-2 text-sm text-[#111111] hover:bg-[#f1f1ee]">
+                    Выбрать файлы
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".jpg,.jpeg,.png,.webp"
+                      multiple
+                      onChange={(event) => addHallImageFiles(Array.from(event.target.files || []))}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {hallImageFiles.length > 0 && (
+                <div className="space-y-2">
+                  {hallImageFiles.map((file) => {
+                    const progress = hallUploadProgress[file.name] || 0;
+                    return (
+                      <div key={file.name} className="rounded-xl border border-[#111111]/8 bg-white p-3">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <p className="truncate text-sm font-medium text-[#111111]">{file.name}</p>
+                          <button
+                            type="button"
+                            className="text-xs text-[#6b6b6b] hover:text-[#111111]"
+                            onClick={() => removeHallImageFile(file.name)}
+                          >
+                            Убрать
+                          </button>
+                        </div>
+                        <div className="h-2 rounded-full bg-[#efefec]">
+                          <div className="h-2 rounded-full bg-[#111111] transition-all" style={{ width: `${progress}%` }} />
+                        </div>
+                        <p className="mt-1 text-xs text-[#6b6b6b]">{progress > 0 ? `${progress}%` : 'Ожидает загрузки'}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <DialogFooter>
