@@ -19,6 +19,7 @@ const CheckoutPage = lazy(() => import('./pages/CheckoutPage').then(m => ({ defa
 const ForbiddenPage = lazy(() => import('./pages/ForbiddenPage').then(m => ({ default: m.ForbiddenPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 const ManagerPage = lazy(() => import('./pages/ManagerPage').then(m => ({ default: m.ManagerPage })));
+const ManagerSchedulePage = lazy(() => import('./pages/ManagerSchedulePage').then(m => ({ default: m.ManagerSchedulePage })));
 
 function PageLoader() {
   return (
