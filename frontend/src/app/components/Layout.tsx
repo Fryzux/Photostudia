@@ -103,7 +103,6 @@ export function Layout() {
   const pageItems = [
     { label: 'Каталог', to: '/halls', active: isActive('/halls') || isActive('/booking') },
     ...(isAuthenticated ? [{ label: 'AI', to: '/ai-insights', active: isActive('/ai-insights') }] : []),
-    ...(isManager ? [{ label: 'Менеджер', to: '/manager', active: isActive('/manager') }] : []),
     ...(isAdmin ? [{ label: 'Админ', to: '/admin-panel', active: isActive('/admin') || isActive('/admin-panel') }] : []),
   ];
 
