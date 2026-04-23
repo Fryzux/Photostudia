@@ -8,15 +8,10 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('promo', '0002_promocode_expiry_promocode_promo_type_and_more'),
-        ('studio', '0004_seed_default_halls'),
+        ('studio', '0004_merge_hall_description'),
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='hall',
-            name='description',
-            field=models.TextField(blank=True, default=''),
-        ),
         migrations.AddField(
             model_name='hall',
             name='is_active',
