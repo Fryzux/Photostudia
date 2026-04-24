@@ -161,6 +161,38 @@ function unwrapList<T>(payload: T[] | PaginatedResponse<T>) {
   return Array.isArray(payload) ? payload : payload.results;
 }
 
+async function fetchAllPaginated<T>(url: string, withAuth = false): Promise<T[]> {
+  const collected: T[] = [];
+  const visited = new Set<string>();
+  let nextUrl: string | null = url;
+  let pageCount = 0;
+
+  while (nextUrl) {
+    if (visited.has(nextUrl)) break;
+    if (pageCount > 100) {
+      throw new Error('Слишком много страниц в ответе API.');
+    }
+
+    visited.add(nextUrl);
+
+    const payload = (await request(nextUrl, {}, withAuth)) as T[] | PaginatedResponse<T>;
+    if (Array.isArray(payload)) {
+      collected.push(...payload);
+      break;
+    }
+
+    if (!Array.isArray(payload.results)) {
+      throw new Error('Некорректный формат пагинированного списка.');
+    }
+
+    collected.push(...payload.results);
+    nextUrl = typeof payload.next === 'string' && payload.next ? new URL(payload.next, nextUrl).toString() : null;
+    pageCount += 1;
+  }
+
+  return collected;
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -578,13 +610,16 @@ export async function uploadHallImages(
 
   const token = tokenStorage.getAccessToken();
 
-  for (const file of files) {
-    await new Promise<void>((resolve, reject) => {
-      const formData = new FormData();
-      formData.append('image', file);
-
+  const uploadWithXhr = (
+    url: string,
+    method: 'POST' | 'PATCH',
+    formDataFactory: () => FormData,
+    fileName: string,
+  ) =>
+    new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API_URL}/halls/${hallId}/images/`);
+      xhr.open(method, url);
+      xhr.setRequestHeader('Accept', 'application/json');
 
       if (token) {
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -593,27 +628,67 @@ export async function uploadHallImages(
       xhr.upload.onprogress = (event) => {
         if (!onProgress || !event.lengthComputable) return;
         const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
-        onProgress(file.name, percent);
+        onProgress(fileName, percent);
       };
 
       xhr.onerror = () => reject(new Error('Ошибка сети при загрузке изображения.'));
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          onProgress?.(file.name, 100);
+          onProgress?.(fileName, 100);
           resolve();
           return;
         }
 
         try {
           const payload = JSON.parse(xhr.responseText) as { details?: string; error?: string };
-          reject(new Error(payload.details || payload.error || `Upload failed (${xhr.status})`));
+          const message = payload.details || payload.error || `Upload failed (${xhr.status})`;
+          reject(new Error(`${message} [status:${xhr.status}]`));
         } catch {
-          reject(new Error(`Upload failed (${xhr.status})`));
+          reject(new Error(`Upload failed (${xhr.status}) [status:${xhr.status}]`));
         }
       };
 
-      xhr.send(formData);
+      xhr.send(formDataFactory());
     });
+
+  for (const file of files) {
+    try {
+      await uploadWithXhr(
+        `${API_URL}/halls/${hallId}/images/`,
+        'POST',
+        () => {
+          const formData = new FormData();
+          // Main backend contract (upload action): request.FILES.getlist('images')
+          formData.append('images', file);
+          // Compatibility with older handlers that read single `image`.
+          formData.append('image', file);
+          return formData;
+        },
+        file.name,
+      );
+    } catch (error: any) {
+      const message = String(error?.message || '');
+      const statusMatch = message.match(/\[status:(\d+)\]$/);
+      const statusCode = statusMatch ? Number(statusMatch[1]) : NaN;
+      const isActionUnavailable = statusCode === 404 || statusCode === 405 || statusCode === 501;
+
+      if (!isActionUnavailable) {
+        throw new Error(message.replace(/\s*\[status:\d+\]$/, '') || 'Не удалось загрузить изображение.');
+      }
+
+      // Fallback for deployments without /halls/:id/images/ action:
+      // upload image directly into Hall.image via PATCH.
+      await uploadWithXhr(
+        `${API_URL}/halls/${hallId}/`,
+        'PATCH',
+        () => {
+          const formData = new FormData();
+          formData.append('image', file);
+          return formData;
+        },
+        file.name,
+      );
+    }
   }
 
   return getHall(hallId);
@@ -635,8 +710,8 @@ export async function getBookings(): Promise<Booking[]> {
 }
 
 export async function getOrders(): Promise<Order[]> {
-  const payload = (await request(`${API_URL}/orders/`, {}, true)) as BackendOrder[] | PaginatedResponse<BackendOrder>;
-  return unwrapList(payload).map(normalizeOrder);
+  const payload = await fetchAllPaginated<BackendOrder>(`${API_URL}/orders/`, true);
+  return payload.map(normalizeOrder);
 }
 
 export async function updateOrderStatus(orderId: number, statusValue: Order['status']): Promise<Order> {

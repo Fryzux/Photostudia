@@ -185,7 +185,7 @@ export function MyBookingsPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <section className="mono-panel rounded-[2rem] border border-[#111111]/8 px-5 py-8 text-center sm:px-8 sm:py-10">
+      <section data-reveal="section" className="reveal-section mono-panel rounded-[2rem] border border-[#111111]/8 px-5 py-8 text-center sm:px-8 sm:py-10">
         <p className="mb-3 text-xs uppercase tracking-[0.36em] text-[#737373]">Мои брони</p>
         <h1 className="text-4xl text-[#111111] sm:text-5xl">Управление бронированиями</h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">
@@ -193,7 +193,7 @@ export function MyBookingsPage() {
         </p>
       </section>
 
-      <Card className="mono-panel border border-[#111111]/8">
+      <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
         <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
           <CardTitle className="text-2xl text-[#111111]">Поиск и фильтрация</CardTitle>
           <CardDescription className="text-[#5c5c5c]">Можно быстро найти заказ по номеру, названию зала или статусу.</CardDescription>
@@ -249,15 +249,15 @@ export function MyBookingsPage() {
       </Card>
 
       {filteredOrders.length > 0 && (
-        <div className="grid gap-4">
-          {filteredOrders.map((order) => {
+        <div data-reveal="section" className="reveal-section grid gap-4">
+          {filteredOrders.map((order, index) => {
             const { booking } = order;
             const duration = calculateDuration(booking.start_time, booking.end_time);
             const isCancellingCurrent = cancellingBookingId === booking.id;
             const canCancel = cancellableStatuses.has(order.status);
 
             return (
-              <Card key={order.id} className="mono-panel border border-[#111111]/8">
+              <Card key={order.id} className="reveal-card mono-panel border border-[#111111]/8" style={{ transitionDelay: `${100 + index * 55}ms` }}>
                 <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
@@ -341,7 +341,7 @@ export function MyBookingsPage() {
       )}
 
       {filteredOrders.length === 0 && (
-        <div className="mono-panel rounded-[2rem] border border-dashed border-[#111111]/12 px-5 py-12 text-center sm:px-6">
+        <div data-reveal="section" className="reveal-section mono-panel rounded-[2rem] border border-dashed border-[#111111]/12 px-5 py-12 text-center sm:px-6">
           <Calendar className="mx-auto mb-4 h-14 w-14 text-[#c2c2bc]" />
           <h3 className="mb-2 text-xl text-[#111111]">Подходящих бронирований не найдено</h3>
           <p className="mb-6 text-[#5c5c5c]">Попробуйте изменить фильтры или создайте новое бронирование.</p>

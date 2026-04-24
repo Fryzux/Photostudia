@@ -25,7 +25,18 @@
       "Bash(git commit -m 'feat: add promo app *)",
       "Bash(git -C /c/Users/nolik/Photostudia/.claude/worktrees/serene-lovelace-b5476e add -A)",
       "Bash(git -C /c/Users/nolik/Photostudia/.claude/worktrees/serene-lovelace-b5476e commit -m 'fix: remove incorrect merge migration *)",
-      "Bash(git -C /c/Users/nolik/Photostudia/.claude/worktrees/serene-lovelace-b5476e push origin claude/serene-lovelace-b5476e:beck)"
+      "Bash(git -C /c/Users/nolik/Photostudia/.claude/worktrees/serene-lovelace-b5476e push origin claude/serene-lovelace-b5476e:beck)",
+      "Bash(mkdir \"C:\\\\Users\\\\nolik\\\\Desktop\\\\FRONT\\\\pr19\")",
+      "Bash(mkdir \"C:\\\\Users\\\\nolik\\\\Desktop\\\\FRONT\\\\pr19\\\\server\")",
+      "Bash(mkdir \"C:\\\\Users\\\\nolik\\\\Desktop\\\\FRONT\\\\pr20\")",
+      "Bash(mkdir \"C:\\\\Users\\\\nolik\\\\Desktop\\\\FRONT\\\\pr20\\\\server\")",
+      "Bash(mkdir \"C:\\\\Users\\\\nolik\\\\Desktop\\\\FRONT\\\\pr21\")",
+      "Bash(mkdir \"C:\\\\Users\\\\nolik\\\\Desktop\\\\FRONT\\\\pr21\\\\server\")",
+      "Bash(mkdir \"C:\\\\Users\\\\nolik\\\\Desktop\\\\FRONT\\\\pr22\")",
+      "Bash(mkdir \"C:\\\\Users\\\\nolik\\\\Desktop\\\\FRONT\\\\pr22\\\\server1\")",
+      "Bash(mkdir \"C:\\\\Users\\\\nolik\\\\Desktop\\\\FRONT\\\\pr22\\\\server2\")",
+      "Bash(mkdir \"C:\\\\Users\\\\nolik\\\\Desktop\\\\FRONT\\\\pr22\\\\server3\")",
+      "Bash(mkdir \"C:\\\\Users\\\\nolik\\\\Desktop\\\\FRONT\\\\pr22\\\\nginx\")"
     ]
   }
 }

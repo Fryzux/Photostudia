@@ -2,33 +2,39 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Django Dev Server",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["manage.py", "runserver", "0.0.0.0:8000"],
+      "name": "Frontend (Vite dev)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "Backend (Daphne via Docker)",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "backend"],
       "port": 8000
     },
     {
-      "name": "Celery Worker",
-      "runtimeExecutable": "celery",
-      "runtimeArgs": ["-A", "core", "worker", "-l", "INFO"],
+      "name": "Celery Worker (Docker)",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "celery"],
       "port": null
     },
     {
-      "name": "Celery Beat",
-      "runtimeExecutable": "celery",
-      "runtimeArgs": ["-A", "core", "beat", "-l", "INFO"],
+      "name": "Celery Beat (Docker)",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "celery-beat"],
       "port": null
     },
     {
-      "name": "Docker Compose (all services)",
-      "runtimeExecutable": "docker-compose",
-      "runtimeArgs": ["up", "--build"],
-      "port": 8000
+      "name": "Redis (Docker)",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "redis"],
+      "port": 6379
     },
     {
-      "name": "Docker Compose (infra only: db + redis)",
-      "runtimeExecutable": "docker-compose",
-      "runtimeArgs": ["up", "db", "redis"],
+      "name": "PostgreSQL (Docker)",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "db"],
       "port": 5432
     }
   ]

@@ -141,7 +141,7 @@ export function CheckoutPage() {
   if (loadError) {
     return (
       <div className="mx-auto max-w-3xl space-y-6">
-        <Card className="mono-panel border border-[#111111]/8">
+        <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
           <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
             <CardTitle className="text-[#111111]">Не удалось загрузить заказы</CardTitle>
             <CardDescription className="text-[#5c5c5c]">{loadError}</CardDescription>
@@ -159,7 +159,7 @@ export function CheckoutPage() {
   if (!pendingOrder) {
     return (
       <div className="mx-auto max-w-3xl space-y-6">
-        <Card className="mono-panel border border-[#111111]/8">
+        <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
           <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
             <CardTitle className="flex items-center gap-2 text-[#111111]">
               <CheckCircle2 className="h-5 w-5 text-[#111111]" />
@@ -188,14 +188,14 @@ export function CheckoutPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <section className="mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8 p-5 sm:p-8">
+      <section data-reveal="section" className="reveal-section mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8 p-5 sm:p-8">
         <p className="mb-3 text-xs uppercase tracking-[0.36em] text-[#737373]">Checkout</p>
         <h1 className="mb-3 text-4xl text-[#111111] sm:text-5xl">Оформление и оплата бронирования</h1>
         <p className="max-w-3xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">Заказ уже создан на сервере со статусом `PENDING`. Осталось выбрать способ оплаты и подтвердить бронирование.</p>
       </section>
 
       <div className="grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
-        <Card className="mono-panel border border-[#111111]/8">
+        <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
           <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
             <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
               <Receipt className="h-5 w-5 text-[#111111]" />
@@ -240,7 +240,7 @@ export function CheckoutPage() {
           </CardContent>
         </Card>
 
-        <Card className="mono-panel border border-[#111111]/8">
+        <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
           <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
             <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
               <Wallet className="h-5 w-5 text-[#111111]" />

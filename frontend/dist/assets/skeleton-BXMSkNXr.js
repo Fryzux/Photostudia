@@ -1,0 +1,1 @@
+import{j as t,b as n}from"./index-DhF7pMA8.js";function a({className:e,...s}){return t.jsxDEV("div",{"data-slot":"skeleton",className:n("bg-accent animate-pulse rounded-md",e),...s},void 0,!1,{fileName:"C:/Users/nolik/Photostudia/frontend/src/app/components/ui/skeleton.tsx",lineNumber:5,columnNumber:5},this)}export{a as S};
