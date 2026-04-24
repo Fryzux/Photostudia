@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import type { ReactNode } from 'react';
-import { createBrowserRouter, Navigate, Outlet } from 'react-router';
+import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router';
 import { Layout } from './components/Layout';
 import { useAuth } from './context/AuthContext';
 
