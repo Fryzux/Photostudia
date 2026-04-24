@@ -47,8 +47,8 @@ class HallImage(models.Model):
 
 
 class Booking(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bookings')
-    hall = models.ForeignKey(Hall, on_delete=models.CASCADE, related_name='bookings')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='bookings')
+    hall = models.ForeignKey(Hall, on_delete=models.PROTECT, related_name='bookings')
     start_time = models.DateTimeField(db_index=True)
     end_time = models.DateTimeField(db_index=True)
 
@@ -70,7 +70,7 @@ class Order(models.Model):
         ('COMPLETED', 'Completed'),
         ('CANCELLED', 'Cancelled'),
     )
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='orders')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='orders')
     booking = models.OneToOneField(Booking, on_delete=models.CASCADE, null=True, blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, null=False)
     applied_promo = models.ForeignKey('promo.PromoCode', on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
