@@ -1,6 +1,6 @@
 import type { MouseEvent } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { LogOut, Menu, User } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
@@ -23,6 +23,7 @@ export function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('about');
+  const mainRef = useRef<HTMLElement | null>(null);
 
   const handleLogout = async () => {
     await logout();
@@ -95,6 +96,68 @@ export function Layout() {
       if (rafId) window.cancelAnimationFrame(rafId);
     };
   }, [location.pathname]);
+
+  useEffect(() => {
+    const mainElement = mainRef.current;
+    if (!mainElement) return;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const canObserve = 'IntersectionObserver' in window && !prefersReducedMotion;
+    const observedTargets = new Set<HTMLElement>();
+
+    const revealTarget = (target: HTMLElement) => {
+      if (!target.classList.contains('reveal-section')) {
+        target.classList.add('reveal-section');
+      }
+      target.classList.add('is-revealed');
+    };
+
+    const observer = canObserve
+      ? new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (!entry.isIntersecting) return;
+              const target = entry.target as HTMLElement;
+              revealTarget(target);
+              observer.unobserve(target);
+            });
+          },
+          {
+            threshold: 0.08,
+            rootMargin: '0px 0px -8% 0px',
+          },
+        )
+      : null;
+
+    const observeTargets = () => {
+      const targets = Array.from(mainElement.querySelectorAll<HTMLElement>('[data-reveal="section"]'));
+      targets.forEach((target) => {
+        if (!target.classList.contains('reveal-section')) {
+          target.classList.add('reveal-section');
+        }
+        if (observedTargets.has(target)) return;
+
+        observedTargets.add(target);
+        if (!observer) {
+          revealTarget(target);
+          return;
+        }
+
+        observer.observe(target);
+      });
+    };
+
+    observeTargets();
+    const rafId = window.requestAnimationFrame(observeTargets);
+    const mutationObserver = new MutationObserver(observeTargets);
+    mutationObserver.observe(mainElement, { childList: true, subtree: true });
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      mutationObserver.disconnect();
+      observer?.disconnect();
+    };
+  }, [location.pathname, location.search]);
 
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname === path || location.pathname.startsWith(`${path}/`);
@@ -276,7 +339,7 @@ export function Layout() {
         </div>
       </header>
 
-      <main className="mx-auto w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+      <main ref={mainRef} className="mx-auto w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
         <Outlet />
       </main>
 

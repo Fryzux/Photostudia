@@ -105,7 +105,7 @@ export function HallsPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div className="mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8 px-5 py-9 text-center sm:rounded-[2.2rem] sm:px-8 sm:py-12">
+      <div data-reveal="section" className="reveal-section mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8 px-5 py-9 text-center sm:rounded-[2.2rem] sm:px-8 sm:py-12">
         <p className="mb-3 text-xs uppercase tracking-[0.36em] text-[#737373]">Каталог залов</p>
         <h1 className="mb-3 text-4xl text-[#111111] sm:text-6xl">Выберите пространство под свой кадр</h1>
         <p className="mx-auto max-w-2xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">
@@ -114,7 +114,7 @@ export function HallsPage() {
         </p>
       </div>
 
-      <Card className="mono-panel border border-[#111111]/8">
+      <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
         <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
           <CardTitle className="text-center text-2xl text-[#111111] sm:text-3xl">Поиск и фильтрация</CardTitle>
           <CardDescription className="text-center text-base text-[#5c5c5c]">
@@ -197,17 +197,18 @@ export function HallsPage() {
         </CardContent>
       </Card>
 
-      <div className="text-center">
+      <div data-reveal="section" className="reveal-section text-center">
         <p className="text-sm uppercase tracking-[0.28em] text-[#737373]">Найдено залов: {filteredHalls.length}</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredHalls.map((hall) => (
+      <div data-reveal="section" className="reveal-section grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {filteredHalls.map((hall, index) => (
           <Card
             key={hall.id}
-            className={`mono-panel lift-card overflow-hidden rounded-[1.8rem] border text-center ${
+            className={`reveal-card mono-panel lift-card overflow-hidden rounded-[1.8rem] border text-center ${
               hall.id === preselectedHallId ? 'border-[#111111] shadow-[0_16px_40px_rgba(17,17,17,0.14)]' : 'border-[#111111]/8'
             }`}
+            style={{ transitionDelay: `${100 + index * 55}ms` }}
           >
             <div className="relative h-48 bg-gray-200 sm:h-56">
               {hall.images[0] && <img src={hall.images[0]} alt={hall.name} className="grayscale-photo h-full w-full object-cover" />}
@@ -253,7 +254,7 @@ export function HallsPage() {
       </div>
 
       {filteredHalls.length === 0 && (
-        <div className="mono-panel rounded-[2rem] border border-dashed border-[#111111]/12 px-5 py-12 text-center sm:px-6 sm:py-14">
+        <div data-reveal="section" className="reveal-section mono-panel rounded-[2rem] border border-dashed border-[#111111]/12 px-5 py-12 text-center sm:px-6 sm:py-14">
           <p className="text-xl text-[#111111]">По выбранным фильтрам залы не найдены.</p>
           <p className="mt-2 text-base text-[#5c5c5c]">Попробуйте изменить цену, вместимость или текст запроса.</p>
         </div>

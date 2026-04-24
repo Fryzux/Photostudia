@@ -1,6 +1,7 @@
 import editorialPortraitImage from '../../assets/portfolio-editorial-portrait.jpg';
 import familySessionImage from '../../assets/portfolio-family-session.jpg';
 import weddingSessionImage from '../../assets/portfolio-wedding-session.jpg';
+import interiorHallCustomImage from '../../assets/hall-interior-custom.jpg';
 
 export const portfolioItems = [
   {
@@ -49,8 +50,7 @@ export const hallShowcase = [
     title: 'Интерьерный зал',
     price_per_hour: 4500,
     equipment: ['Постоянный свет LED', 'Отражатели', 'Стойки C-Stand'],
-    image:
-      'https://unsplash.com/photos/MRx-rSdOKtk/download?force=true&w=1400',
+    image: interiorHallCustomImage,
     description: 'Спокойный интерьер для lifestyle, семейных съёмок, брендов и кадров с живой фактурой пространства.',
   },
   {
@@ -81,7 +81,7 @@ export const workflowSteps = [
 export const contacts = {
   phone: '+7 (495) 120-18-30',
   email: 'hello@exposition.studio',
-  address: 'Москва, Бауманская, 11с8',
+  address: 'Москва, проспект Вернадского, 86А (ТЦ Авеню, м. Юго-Западная)',
   hours: 'Ежедневно с 08:00 до 23:00',
 };
 

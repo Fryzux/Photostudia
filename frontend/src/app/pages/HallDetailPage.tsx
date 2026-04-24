@@ -210,21 +210,21 @@ export function HallDetailPage() {
 
   return (
     <div>
-      <div className="mb-5 flex justify-center sm:mb-6">
+      <div data-reveal="section" className="reveal-section mb-5 flex justify-center sm:mb-6">
         <Button variant="ghost" onClick={() => navigate('/halls')} className="h-10 gap-2 rounded-full border border-[#111111]/10 px-5 hover:bg-white sm:h-11">
           <ArrowLeft className="h-4 w-4" />
           Назад к залам
         </Button>
       </div>
 
-      <div className="mb-8 text-center sm:mb-10">
+      <div data-reveal="section" className="reveal-section mb-8 text-center sm:mb-10">
         <p className="text-xs uppercase tracking-[0.36em] text-[#737373]">Карточка зала</p>
         <h1 className="mt-3 text-4xl text-[#111111] sm:text-6xl">{hall.name}</h1>
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-2">
         <div className="space-y-6">
-          <div className="mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8">
+          <div data-reveal="section" className="reveal-section mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8">
             <div className="relative h-72 bg-gray-200 sm:h-96">
               {hall.images[0] && <img src={hall.images[0]} alt={hall.name} className="grayscale-photo h-full w-full object-cover" />}
             </div>
@@ -265,7 +265,7 @@ export function HallDetailPage() {
         </div>
 
         <div className="space-y-6">
-          <Card className="mono-panel border border-[#111111]/8">
+          <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
             <CardHeader className="px-5 pt-5 text-center sm:px-6 sm:pt-6">
               <CardTitle className="flex items-center justify-center gap-2 text-2xl text-[#111111] sm:text-3xl">
                 <CalendarRange className="h-5 w-5" />

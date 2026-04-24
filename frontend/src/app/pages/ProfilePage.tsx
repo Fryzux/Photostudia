@@ -103,7 +103,7 @@ export function ProfilePage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <section className="mono-panel rounded-[2rem] border border-[#111111]/8 px-5 py-8 text-center sm:px-8 sm:py-10">
+      <section data-reveal="section" className="reveal-section mono-panel rounded-[2rem] border border-[#111111]/8 px-5 py-8 text-center sm:px-8 sm:py-10">
         <p className="mb-3 text-xs uppercase tracking-[0.36em] text-[#737373]">Профиль</p>
         <h1 className="text-4xl text-[#111111] sm:text-5xl">Личный кабинет</h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">
@@ -117,7 +117,7 @@ export function ProfilePage() {
       </section>
 
       <div className="grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <Card className="mono-panel border border-[#111111]/8">
+        <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
           <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[#111111]/10 bg-white sm:h-16 sm:w-16">
@@ -164,7 +164,7 @@ export function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card className="mono-panel border border-[#111111]/8">
+        <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
           <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
             <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
               <Radio className="h-5 w-5 text-[#111111]" />
@@ -208,7 +208,7 @@ export function ProfilePage() {
         </Card>
       </div>
 
-      <Card className="mono-panel border border-[#111111]/8">
+      <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
         <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
           <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
             <CalendarClock className="h-5 w-5 text-[#111111]" />

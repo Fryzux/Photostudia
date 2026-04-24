@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { format } from 'date-fns';
+import { addDays, addWeeks, endOfWeek, format, startOfWeek } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { BarChart3, Building2, Calendar, DollarSign, Edit2, Plus, Search, ShieldCheck, TicketPercent, Trash2, UploadCloud, Users } from 'lucide-react';
+import { BarChart3, Building2, Calendar, ChevronLeft, ChevronRight, DollarSign, Edit2, Plus, Search, ShieldCheck, TicketPercent, Trash2, UploadCloud, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 import type {
@@ -98,6 +98,7 @@ export function AdminPage() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [promos, setPromos] = useState<PromoCode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [revenueWeekOffset, setRevenueWeekOffset] = useState(0);
 
   const [hallDialog, setHallDialog] = useState<{ open: boolean; hall: Hall | null }>({ open: false, hall: null });
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; hallId: number | null }>({ open: false, hallId: null });
@@ -559,34 +560,45 @@ export function AdminPage() {
   const revenueTrend = useMemo(() => {
     const byDay = new Map<string, number>();
     const today = new Date();
+    const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const weekStart = addWeeks(currentWeekStart, revenueWeekOffset);
+    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
 
-    for (let index = 6; index >= 0; index -= 1) {
-      const date = new Date(today);
+    for (let index = 0; index < 7; index += 1) {
+      const date = addDays(weekStart, index);
       date.setHours(0, 0, 0, 0);
-      date.setDate(date.getDate() - index);
       const dayKey = format(date, 'yyyy-MM-dd');
       byDay.set(dayKey, 0);
     }
 
     orders.forEach((order) => {
       if (order.status !== 'COMPLETED') return;
-      const dayKey = format(new Date(order.created_at), 'yyyy-MM-dd');
+      const orderDate = new Date(order.created_at);
+      if (Number.isNaN(orderDate.getTime())) return;
+      const dayKey = format(orderDate, 'yyyy-MM-dd');
       if (!byDay.has(dayKey)) return;
-      byDay.set(dayKey, (byDay.get(dayKey) || 0) + order.total_amount);
+      const orderAmount = order.final_amount ?? order.total_amount;
+      byDay.set(dayKey, (byDay.get(dayKey) || 0) + orderAmount);
     });
 
     const points = Array.from(byDay.entries()).map(([dayKey, revenue]) => ({
       dayKey,
       label: format(new Date(`${dayKey}T12:00:00`), 'dd.MM', { locale: ru }),
+      weekdayLabel: format(new Date(`${dayKey}T12:00:00`), 'EEE', { locale: ru }).replace('.', ''),
       revenue,
     }));
 
     const maxRevenue = Math.max(...points.map((point) => point.revenue), 1);
-    return points.map((point) => ({
-      ...point,
-      heightPercent: point.revenue > 0 ? Math.max(10, Math.round((point.revenue / maxRevenue) * 100)) : 0,
-    }));
-  }, [orders]);
+    return {
+      points: points.map((point) => ({
+        ...point,
+        heightPercent: point.revenue > 0 ? Math.max(10, Math.round((point.revenue / maxRevenue) * 100)) : 0,
+      })),
+      weekStart,
+      weekEnd,
+      canGoForward: weekStart.getTime() < currentWeekStart.getTime(),
+    };
+  }, [orders, revenueWeekOffset]);
 
   if (loading) {
     return (
@@ -603,7 +615,7 @@ export function AdminPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div className="mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8 p-5 sm:p-8">
+      <div data-reveal="section" className="reveal-section mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8 p-5 sm:p-8">
         <p className="mb-3 text-xs uppercase tracking-[0.36em] text-[#737373]">Администрирование</p>
         <h1 className="mb-3 text-4xl text-[#111111] sm:text-5xl">Единая панель управления студией</h1>
         <p className="max-w-3xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">
@@ -623,7 +635,7 @@ export function AdminPage() {
           <TabsTrigger value="promos">Акции</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="analytics" className="space-y-6">
+        <TabsContent value="analytics" data-reveal="section" className="reveal-section space-y-6">
           {analytics && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card className="mono-panel border border-[#111111]/8">
@@ -673,13 +685,39 @@ export function AdminPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
                   <BarChart3 className="h-5 w-5" />
-                  Тренд выручки за 7 дней
+                  Тренд выручки по неделям
                 </CardTitle>
-                <CardDescription className="text-[#5c5c5c]">График построен по оплаченным заказам (`COMPLETED`).</CardDescription>
+                <CardDescription className="text-[#5c5c5c]">График построен по неделям (понедельник–воскресенье) для оплаченных заказов (`COMPLETED`).</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-7 items-end gap-2">
-                  {revenueTrend.map((point) => (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-[#4f4f4f]">
+                    Неделя: {format(revenueTrend.weekStart, 'dd.MM.yyyy', { locale: ru })} — {format(revenueTrend.weekEnd, 'dd.MM.yyyy', { locale: ru })}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRevenueWeekOffset((prev) => prev - 1)}
+                      className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                    >
+                      <ChevronLeft className="mr-1 h-4 w-4" />
+                      Прошлая
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!revenueTrend.canGoForward}
+                      onClick={() => setRevenueWeekOffset((prev) => Math.min(0, prev + 1))}
+                      className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                    >
+                      Следующая
+                      <ChevronRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 items-end gap-2 sm:grid-cols-4 lg:grid-cols-7">
+                  {revenueTrend.points.map((point) => (
                     <div key={point.dayKey} className="flex flex-col items-center gap-2">
                       <div className="relative h-28 w-full overflow-hidden rounded-xl border border-[#111111]/8 bg-[#efefec]">
                         <div
@@ -687,6 +725,7 @@ export function AdminPage() {
                           style={{ height: `${point.heightPercent}%` }}
                         />
                       </div>
+                      <p className="text-[0.66rem] uppercase tracking-[0.15em] text-[#666666]">{point.weekdayLabel}</p>
                       <p className="text-[0.66rem] uppercase tracking-[0.2em] text-[#666666]">{point.label}</p>
                       <p className="text-[0.66rem] text-[#555555]">{point.revenue > 0 ? `${Math.round(point.revenue).toLocaleString('ru-RU')} ₽` : '—'}</p>
                     </div>
@@ -697,7 +736,7 @@ export function AdminPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="halls" className="space-y-6">
+        <TabsContent value="halls" data-reveal="section" className="reveal-section space-y-6">
           <Card className="mono-panel border border-[#111111]/8">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
               <CardTitle>Управление залами</CardTitle>
@@ -791,7 +830,7 @@ export function AdminPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="orders" className="space-y-6">
+        <TabsContent value="orders" data-reveal="section" className="reveal-section space-y-6">
           <Card className="mono-panel border border-[#111111]/8">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
               <CardTitle className="text-2xl text-[#111111]">Заказы</CardTitle>
@@ -875,7 +914,7 @@ export function AdminPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="users" className="space-y-6">
+        <TabsContent value="users" data-reveal="section" className="reveal-section space-y-6">
           <Card className="mono-panel border border-[#111111]/8">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
               <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
@@ -966,7 +1005,7 @@ export function AdminPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="logs" className="space-y-6">
+        <TabsContent value="logs" data-reveal="section" className="reveal-section space-y-6">
           <Card className="mono-panel border border-[#111111]/8">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
               <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
@@ -1064,11 +1103,11 @@ export function AdminPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="schedule" className="space-y-6">
+        <TabsContent value="schedule" data-reveal="section" className="reveal-section space-y-6">
           <ManagerSchedulePage />
         </TabsContent>
 
-        <TabsContent value="services" className="space-y-6">
+        <TabsContent value="services" data-reveal="section" className="reveal-section space-y-6">
           <Card className="mono-panel border border-[#111111]/8">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
               <CardTitle className="text-2xl text-[#111111]">Дополнительные услуги</CardTitle>
@@ -1157,7 +1196,7 @@ export function AdminPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="promos" className="space-y-6">
+        <TabsContent value="promos" data-reveal="section" className="reveal-section space-y-6">
           <Card className="mono-panel border border-[#111111]/8">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
               <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
