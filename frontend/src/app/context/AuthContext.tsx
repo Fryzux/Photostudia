@@ -4,6 +4,7 @@ import { User } from '../types';
 import {
   AUTH_STATE_EVENT,
   getProfile,
+  refreshToken as apiRefreshToken,
   tokenStorage,
   login as apiLogin,
   logout as apiLogout,
@@ -64,12 +65,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const syncAuthState = () => {
-      const token = tokenStorage.getAccessToken();
-
-      if (token) {
+    const syncAuthState = async () => {
+      // Сначала проверяем access token в памяти
+      if (tokenStorage.getAccessToken()) {
         void loadUser();
         return;
+      }
+
+      // Access token пустой (например, после перезагрузки страницы).
+      // Пробуем восстановить сессию через refresh token из sessionStorage.
+      const rt = tokenStorage.getRefreshToken();
+      if (rt) {
+        try {
+          await apiRefreshToken();   // обновит _accessToken в памяти
+          void loadUser();
+          return;
+        } catch {
+          tokenStorage.clearTokens();
+        }
       }
 
       startTransition(() => {
@@ -78,8 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     };
 
-    syncAuthState();
-    window.addEventListener(AUTH_STATE_EVENT, syncAuthState);
+    void syncAuthState();
+    window.addEventListener(AUTH_STATE_EVENT, () => void syncAuthState());
 
     return () => {
       mountedRef.current = false;

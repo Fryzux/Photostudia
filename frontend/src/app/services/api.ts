@@ -126,17 +126,31 @@ type BackendPromoCode = {
   updated_at: string;
 };
 
+// Access token хранится только в памяти (не персистируется — XSS не получит его из storage).
+// Refresh token — в sessionStorage (очищается при закрытии вкладки/браузера).
+let _accessToken: string | null = null;
+const REFRESH_KEY = 'rt';
+
 export const tokenStorage = {
-  getAccessToken: () => localStorage.getItem('access_token'),
-  getRefreshToken: () => localStorage.getItem('refresh_token'),
+  getAccessToken: () => _accessToken,
+  getRefreshToken: () => (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(REFRESH_KEY) : null),
   setTokens: (tokens: AuthTokens) => {
-    localStorage.setItem('access_token', tokens.access);
-    localStorage.setItem('refresh_token', tokens.refresh);
+    _accessToken = tokens.access;
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(REFRESH_KEY, tokens.refresh);
+    }
+    // Очищаем старые localStorage-токены если остались
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+    }
     window.dispatchEvent(new Event(AUTH_STATE_EVENT));
   },
   clearTokens: () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    _accessToken = null;
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem(REFRESH_KEY);
+    }
     window.dispatchEvent(new Event(AUTH_STATE_EVENT));
   },
 };
@@ -476,6 +490,14 @@ export async function refreshAccessToken(refreshToken: string): Promise<AuthToke
     false,
   );
   return assertAuthTokens(payload, refreshToken);
+}
+
+/** Обновляет access token используя refresh token из хранилища. */
+export async function refreshToken(): Promise<void> {
+  const rt = tokenStorage.getRefreshToken();
+  if (!rt) throw new Error('No refresh token');
+  const tokens = await refreshAccessToken(rt);
+  tokenStorage.setTokens(tokens);
 }
 
 export async function getProfile(): Promise<User> {
