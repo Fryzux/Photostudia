@@ -1,6 +1,6 @@
 import type { MouseEvent } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Instagram, LogOut, Mail, MapPin, Menu, Phone, User } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -24,6 +24,7 @@ export function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('about');
+  const mainRef = useRef<HTMLElement | null>(null);
 
   const handleLogout = async () => {
     await logout();
@@ -96,6 +97,68 @@ export function Layout() {
       if (rafId) window.cancelAnimationFrame(rafId);
     };
   }, [location.pathname]);
+
+  useEffect(() => {
+    const mainElement = mainRef.current;
+    if (!mainElement) return;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const canObserve = 'IntersectionObserver' in window && !prefersReducedMotion;
+    const observedTargets = new Set<HTMLElement>();
+
+    const revealTarget = (target: HTMLElement) => {
+      if (!target.classList.contains('reveal-section')) {
+        target.classList.add('reveal-section');
+      }
+      target.classList.add('is-revealed');
+    };
+
+    const observer = canObserve
+      ? new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (!entry.isIntersecting) return;
+              const target = entry.target as HTMLElement;
+              revealTarget(target);
+              observer.unobserve(target);
+            });
+          },
+          {
+            threshold: 0.08,
+            rootMargin: '0px 0px -8% 0px',
+          },
+        )
+      : null;
+
+    const observeTargets = () => {
+      const targets = Array.from(mainElement.querySelectorAll<HTMLElement>('[data-reveal="section"]'));
+      targets.forEach((target) => {
+        if (!target.classList.contains('reveal-section')) {
+          target.classList.add('reveal-section');
+        }
+        if (observedTargets.has(target)) return;
+
+        observedTargets.add(target);
+        if (!observer) {
+          revealTarget(target);
+          return;
+        }
+
+        observer.observe(target);
+      });
+    };
+
+    observeTargets();
+    const rafId = window.requestAnimationFrame(observeTargets);
+    const mutationObserver = new MutationObserver(observeTargets);
+    mutationObserver.observe(mainElement, { childList: true, subtree: true });
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      mutationObserver.disconnect();
+      observer?.disconnect();
+    };
+  }, [location.pathname, location.search]);
 
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname === path || location.pathname.startsWith(`${path}/`);
@@ -277,6 +340,7 @@ export function Layout() {
         </div>
       </header>
 
+<<<<<<< HEAD
       <main className="mx-auto w-full flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
         <AnimatePresence mode="wait">
           <motion.div
@@ -289,6 +353,10 @@ export function Layout() {
             <Outlet />
           </motion.div>
         </AnimatePresence>
+=======
+      <main ref={mainRef} className="mx-auto w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+        <Outlet />
+>>>>>>> origin/frontend-osip
       </main>
 
       <footer className="border-t border-[#111111]/8 bg-[#efefec]/50 backdrop-blur-sm">

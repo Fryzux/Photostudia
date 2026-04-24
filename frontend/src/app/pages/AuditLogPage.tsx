@@ -115,7 +115,7 @@ export function AuditLogPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div className="mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8 p-5 sm:p-8">
+      <div data-reveal="section" className="reveal-section mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8 p-5 sm:p-8">
         <p className="mb-3 text-xs uppercase tracking-[0.36em] text-[#737373]">Аудит и безопасность</p>
         <h1 className="mb-3 text-4xl text-[#111111] sm:text-5xl">Журнал действий пользователей</h1>
         <p className="max-w-3xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">
@@ -124,7 +124,7 @@ export function AuditLogPage() {
         </p>
       </div>
 
-      <Card className="mono-panel border border-[#111111]/8">
+      <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
         <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
           <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
             <Filter className="h-5 w-5 text-[#111111]" />
@@ -181,7 +181,7 @@ export function AuditLogPage() {
         </CardContent>
       </Card>
 
-      <Card className="mono-panel border border-[#111111]/8">
+      <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
         <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
           <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
             <ClipboardList className="h-5 w-5 text-[#111111]" />
