@@ -1,10 +1,16 @@
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import get_user_model
 from .serializers import UserRegistrationSerializer, UserSerializer, TwoFactorTokenObtainPairSerializer, AdminCreateUserSerializer, AdminUpdateUserSerializer
+
+
+class AuthRateThrottle(AnonRateThrottle):
+    """10 запросов в минуту на login/register для защиты от брутфорса."""
+    rate = '10/min'
 
 User = get_user_model()
 
@@ -12,6 +18,7 @@ User = get_user_model()
 class TwoFactorTokenObtainPairView(TokenObtainPairView):
     """POST /api/auth/login/ — логин с поддержкой 2FA."""
     serializer_class = TwoFactorTokenObtainPairSerializer
+    throttle_classes = [AuthRateThrottle]
 
 
 class TwoFactorSetupView(APIView):
@@ -73,6 +80,7 @@ class RegisterView(generics.CreateAPIView):
     queryset = UserSerializer.Meta.model.objects.all()
     permission_classes = (permissions.AllowAny,)
     serializer_class = UserRegistrationSerializer
+    throttle_classes = [AuthRateThrottle]
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
