@@ -236,3 +236,17 @@ export interface CreateStudioServiceData {
   pricing_mode: 'fixed' | 'hourly';
   is_active?: boolean;
 }
+
+export interface HourlySlot {
+  hour: number;
+  label: string;
+  booking_probability: number;
+  demand_level: 'high' | 'medium' | 'low';
+}
+
+export interface DailyForecast {
+  date: string;
+  day_label: string;
+  slots: HourlySlot[];
+}
+

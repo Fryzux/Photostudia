@@ -10,6 +10,7 @@ import {
   CreatePaymentData,
   CreatePromoCodeData,
   CreateStudioServiceData,
+  DailyForecast,
   DemandPrediction,
   ForecastResult,
   Hall,
@@ -1103,4 +1104,9 @@ export async function updateStudioService(id: number, data: Partial<CreateStudio
 
 export async function deleteStudioService(id: number): Promise<void> {
   await request(buildUrl(`/services/${id}/`), { method: 'DELETE' }, true);
+}
+
+export async function getWeeklyForecast(hallId: number): Promise<DailyForecast[]> {
+  const url = `${API_URL}/ai/weekly-predict/?hall_id=${hallId}`;
+  return request(url, {}, true) as Promise<DailyForecast[]>;
 }

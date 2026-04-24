@@ -340,8 +340,7 @@ export function Layout() {
         </div>
       </header>
 
-<<<<<<< HEAD
-      <main className="mx-auto w-full flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+      <main ref={mainRef} className="mx-auto w-full flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
@@ -353,10 +352,6 @@ export function Layout() {
             <Outlet />
           </motion.div>
         </AnimatePresence>
-=======
-      <main ref={mainRef} className="mx-auto w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
-        <Outlet />
->>>>>>> origin/frontend-osip
       </main>
 
       <footer className="border-t border-[#111111]/8 bg-[#efefec]/50 backdrop-blur-sm">
