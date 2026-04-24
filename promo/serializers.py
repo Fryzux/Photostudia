@@ -18,9 +18,17 @@ class PromoCodeSerializer(serializers.ModelSerializer):
 
 
 class PromoCodeCreateSerializer(serializers.ModelSerializer):
+    code = serializers.CharField(max_length=32, required=False, allow_blank=True)
+
     class Meta:
         model = PromoCode
-        fields = ['hall', 'discount_percent', 'valid_from', 'valid_to', 'hour_from', 'hour_to']
+        fields = ['code', 'hall', 'discount_percent', 'valid_from', 'valid_to', 'hour_from', 'hour_to']
+
+    def validate_code(self, value):
+        value = value.strip().upper()
+        if value and PromoCode.objects.filter(code=value).exists():
+            raise serializers.ValidationError('Промокод с таким кодом уже существует.')
+        return value or None  # пустая строка → автогенерация
 
 
 class PromoValidateSerializer(serializers.Serializer):
