@@ -229,7 +229,6 @@ export function HomePage() {
               </div>
             </div>
 
-<<<<<<< HEAD
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link to="/halls">
                 <Button className="h-11 w-full rounded-full bg-[#111111] px-8 text-white hover:bg-[#2a2a2a] sm:h-12 sm:min-w-56 sm:w-auto">
@@ -245,7 +244,8 @@ export function HomePage() {
                   Открыть кабинет
                 </Button>
               </Link>
-=======
+            </div>
+
             <div className="overflow-hidden rounded-[1.7rem] border border-[#111111]/8 bg-white/80">
               <div className="border-b border-[#111111]/8 px-5 py-4 text-center sm:px-6 sm:py-5">
                 <p className="text-xs uppercase tracking-[0.32em] text-[#737373]">Карта</p>
@@ -260,7 +260,6 @@ export function HomePage() {
                 referrerPolicy="no-referrer-when-downgrade"
                 className="h-72 w-full sm:h-[420px]"
               />
->>>>>>> origin/frontend-osip
             </div>
 
           </div>
