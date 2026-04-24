@@ -107,7 +107,7 @@ export function AiInsightsPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <section className="mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8 p-5 sm:p-8">
+      <section data-reveal="section" className="reveal-section mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8 p-5 sm:p-8">
         <p className="mb-3 text-xs uppercase tracking-[0.36em] text-[#737373]">AI-модуль</p>
         <h1 className="mb-3 text-4xl text-[#111111] sm:text-5xl">Прогноз загрузки по периоду</h1>
         <p className="max-w-3xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">
@@ -117,7 +117,7 @@ export function AiInsightsPage() {
       </section>
 
       <div className="grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <Card className="mono-panel border border-[#111111]/8">
+        <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
           <CardContent className="px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
             {hallsError && (
               <div className="mb-4 rounded-[1.2rem] border border-dashed border-[#111111]/15 bg-white/70 p-4 text-sm text-[#5c5c5c]">
@@ -179,7 +179,7 @@ export function AiInsightsPage() {
           </CardContent>
         </Card>
 
-        <Card className="mono-panel border border-[#111111]/8">
+        <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
           <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
             <CardTitle className="text-2xl text-[#111111]">Легенда загрузки</CardTitle>
             <CardDescription className="text-[#5c5c5c]">Чем темнее ячейка, тем выше ожидаемая загрузка этого часа.</CardDescription>
@@ -202,7 +202,7 @@ export function AiInsightsPage() {
       </div>
 
       {forecast && selectedHall && (
-        <section className="space-y-6">
+        <section data-reveal="section" className="reveal-section space-y-6">
           <Card className="mono-panel border border-[#111111]/8">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
               <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
