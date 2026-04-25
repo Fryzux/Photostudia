@@ -40,9 +40,9 @@ function isOrderInHour(order: Order, day: string, hour: number) {
 }
 
 function statusTone(status: Order['status']) {
-  if (status === 'COMPLETED') return 'border-[#111111] bg-[#111111] text-white';
-  if (status === 'CANCELLED') return 'border-[#cfcfc9] bg-[#ececea] text-[#666666]';
-  return 'border-[#111111]/18 bg-white text-[#111111]';
+  if (status === 'COMPLETED') return 'border-[#111111] bg-foreground text-background';
+  if (status === 'CANCELLED') return 'border-[#cfcfc9] bg-[#ececea] text-muted-foreground';
+  return 'border-[#111111]/18 bg-card text-foreground';
 }
 
 export function ManagerSchedulePage() {
@@ -117,35 +117,35 @@ export function ManagerSchedulePage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <section data-reveal="section" className="reveal-section mono-panel rounded-[2rem] border border-[#111111]/8 p-5 sm:p-8">
-        <p className="mb-3 text-xs uppercase tracking-[0.36em] text-[#737373]">Менеджер</p>
-        <h1 className="mb-3 text-4xl text-[#111111] sm:text-5xl">Расписание бронирований</h1>
-        <p className="max-w-3xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">
+      <section data-reveal="section" className="reveal-section mono-panel rounded-[2rem] border border-border p-5 sm:p-8">
+        <p className="mb-3 text-xs uppercase tracking-[0.36em] text-muted-foreground">Менеджер</p>
+        <h1 className="mb-3 text-4xl text-foreground sm:text-5xl">Расписание бронирований</h1>
+        <p className="max-w-3xl text-lg leading-7 text-muted-foreground sm:text-xl sm:leading-8">
           Таймлайн по дням: занятые интервалы выделены, клик по брони открывает боковую панель со статусом и действиями.
         </p>
       </section>
 
-      <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
+      <Card data-reveal="section" className="reveal-section mono-panel border border-border">
         <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-          <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
+          <CardTitle className="flex items-center gap-2 text-2xl text-foreground">
             <CalendarClock className="h-5 w-5" />
             Период
           </CardTitle>
-          <CardDescription className="text-[#5c5c5c]">Выберите диапазон дат для отображения занятых слотов.</CardDescription>
+          <CardDescription className="text-muted-foreground">Выберите диапазон дат для отображения занятых слотов.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_200px]">
           <div className="space-y-2">
-            <Label htmlFor="manager-from" className="text-xs uppercase tracking-[0.32em] text-[#737373]">С</Label>
+            <Label htmlFor="manager-from" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">С</Label>
             <DatePickerInput id="manager-from" value={dateFrom} onChange={setDateFrom} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="manager-to" className="text-xs uppercase tracking-[0.32em] text-[#737373]">По</Label>
+            <Label htmlFor="manager-to" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">По</Label>
             <DatePickerInput id="manager-to" value={dateTo} min={dateFrom} onChange={setDateTo} />
           </div>
           <div className="flex items-end">
             <Button
               variant="outline"
-              className="h-12 w-full rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+              className="h-12 w-full rounded-full border-border bg-card text-foreground hover:bg-accent"
               onClick={() => void loadOrders()}
             >
               <RefreshCcw className="mr-2 h-4 w-4" />
@@ -155,34 +155,34 @@ export function ManagerSchedulePage() {
         </CardContent>
       </Card>
 
-      <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
+      <Card data-reveal="section" className="reveal-section mono-panel border border-border">
         <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-          <CardTitle className="text-2xl text-[#111111]">Timeline</CardTitle>
-          <CardDescription className="text-[#5c5c5c]">
+          <CardTitle className="text-2xl text-foreground">Timeline</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Нажмите на занятый слот, чтобы открыть карточку заказа и изменить его статус.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
           {loading ? (
-            <p className="text-sm text-[#5c5c5c]">Загружаем расписание...</p>
+            <p className="text-sm text-muted-foreground">Загружаем расписание...</p>
           ) : days.length === 0 ? (
-            <p className="text-sm text-[#5c5c5c]">Некорректный диапазон дат.</p>
+            <p className="text-sm text-muted-foreground">Некорректный диапазон дат.</p>
           ) : (
             <div className="overflow-x-auto">
               <div className="min-w-[980px] space-y-2">
                 <div className="grid gap-2" style={{ gridTemplateColumns: `100px repeat(${days.length}, minmax(130px, 1fr))` }}>
-                  <div className="text-xs uppercase tracking-[0.18em] text-[#777777]">Время</div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Время</div>
                   {days.map((day) => (
-                    <div key={day} className="rounded-xl border border-[#111111]/8 bg-white/70 px-3 py-2 text-center">
-                      <p className="text-xs uppercase tracking-[0.16em] text-[#777777]">{format(parseISO(day), 'EEE', { locale: ru })}</p>
-                      <p className="text-sm font-medium text-[#111111]">{format(parseISO(day), 'dd.MM')}</p>
+                    <div key={day} className="rounded-xl border border-border bg-card/70 px-3 py-2 text-center">
+                      <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{format(parseISO(day), 'EEE', { locale: ru })}</p>
+                      <p className="text-sm font-medium text-foreground">{format(parseISO(day), 'dd.MM')}</p>
                     </div>
                   ))}
                 </div>
 
                 {hours.map((hour) => (
                   <div key={hour} className="grid gap-2" style={{ gridTemplateColumns: `100px repeat(${days.length}, minmax(130px, 1fr))` }}>
-                    <div className="flex items-center justify-center rounded-xl border border-[#111111]/8 bg-white/70 py-2 text-sm text-[#4f4f4f]">
+                    <div className="flex items-center justify-center rounded-xl border border-border bg-card/70 py-2 text-sm text-muted-foreground">
                       {hour.toString().padStart(2, '0')}:00
                     </div>
 
@@ -191,7 +191,7 @@ export function ManagerSchedulePage() {
 
                       if (!order) {
                         return (
-                          <div key={`${day}-${hour}`} className="rounded-xl border border-dashed border-[#111111]/10 bg-[#fbfbf9] px-2 py-2 text-center text-xs text-[#9a9a95]">
+                          <div key={`${day}-${hour}`} className="rounded-xl border border-dashed border-border bg-[#fbfbf9] px-2 py-2 text-center text-xs text-[#9a9a95]">
                             Свободно
                           </div>
                         );
@@ -219,21 +219,21 @@ export function ManagerSchedulePage() {
       </Card>
 
       <Sheet open={!!selectedOrder} onOpenChange={(open) => !open && setSelectedOrder(null)}>
-        <SheetContent className="border-l border-[#111111]/10 bg-white sm:max-w-md">
+        <SheetContent className="border-l border-border bg-card sm:max-w-md">
           <SheetHeader className="px-5 pt-6">
-            <SheetTitle className="text-2xl text-[#111111]">
+            <SheetTitle className="text-2xl text-foreground">
               {selectedOrder ? `Заказ #${selectedOrder.id}` : 'Заказ'}
             </SheetTitle>
-            <SheetDescription className="text-[#5c5c5c]">
+            <SheetDescription className="text-muted-foreground">
               {selectedOrder ? `${selectedOrder.booking.hall.name} · ${new Date(selectedOrder.booking.start_time).toLocaleString('ru-RU')}` : ''}
             </SheetDescription>
           </SheetHeader>
 
           {selectedOrder && (
             <div className="space-y-4 px-5 pb-6">
-              <div className="rounded-[1.2rem] border border-[#111111]/8 bg-white/70 p-4">
-                <p className="text-sm text-[#5c5c5c]">Текущий статус</p>
-                <p className="mt-1 text-lg font-semibold text-[#111111]">{selectedOrder.status}</p>
+              <div className="rounded-[1.2rem] border border-border bg-card/70 p-4">
+                <p className="text-sm text-muted-foreground">Текущий статус</p>
+                <p className="mt-1 text-lg font-semibold text-foreground">{selectedOrder.status}</p>
               </div>
 
               <div className="grid gap-2">
@@ -241,7 +241,7 @@ export function ManagerSchedulePage() {
                   <Button
                     key={status}
                     variant={selectedOrder.status === status ? 'default' : 'outline'}
-                    className={selectedOrder.status === status ? 'rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a]' : 'rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]'}
+                    className={selectedOrder.status === status ? 'rounded-full bg-foreground text-background hover:bg-foreground/90' : 'rounded-full border-border bg-card text-foreground hover:bg-accent'}
                     disabled={updating || selectedOrder.status === status}
                     onClick={() => void updateStatus(status)}
                   >

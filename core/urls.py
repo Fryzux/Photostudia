@@ -3,8 +3,6 @@ from django.urls import path, include
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
-from ai.views import ForecastAPIView
-
 schema_view = get_schema_view(
     openapi.Info(
         title="Photostudia API",
@@ -24,7 +22,6 @@ urlpatterns = [
     path('api/auth/', include('users.urls')),
     path('api/', include('studio.urls')),
     path('api/ai/', include('ai.urls')),
-    path('api/booking/', include('booking.urls')),
     path('api/promo/', include('promo.urls')),
     path('api/audit/', include('audit.urls')),
 

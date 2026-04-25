@@ -32,13 +32,13 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-rose-600">
             <AlertCircle className="h-8 w-8" />
           </div>
-          <h2 className="mb-2 text-2xl font-semibold text-[#111111]">Что-то пошло не так</h2>
-          <p className="mb-8 max-w-md text-[#5c5c5c]">
+          <h2 className="mb-2 text-2xl font-semibold text-foreground">Что-то пошло не так</h2>
+          <p className="mb-8 max-w-md text-muted-foreground">
             При загрузке этого компонента произошла ошибка. Мы уже сообщили об этом технической поддержке.
           </p>
           <Button
             onClick={() => window.location.reload()}
-            className="rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a]"
+            className="rounded-full bg-foreground text-background hover:bg-foreground/90"
           >
             <RefreshCcw className="mr-2 h-4 w-4" />
             Обновить страницу

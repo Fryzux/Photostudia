@@ -28,9 +28,17 @@ class HallSerializer(serializers.ModelSerializer):
         ref_name = 'StudioHallSerializer'
 
     def get_images(self, obj):
+        request = self.context.get('request')
+        images = []
+        # Основное изображение зала
         if obj.image:
-            return [obj.image.url]
-        return []
+            url = obj.image.url
+            images.append(request.build_absolute_uri(url) if request else url)
+        # Галерея (HallImage)
+        for hi in obj.gallery_images.all():
+            url = hi.image.url
+            images.append(request.build_absolute_uri(url) if request else url)
+        return images
 
 class BookingSerializer(serializers.ModelSerializer):
     # For writing

@@ -17,6 +17,11 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
     build: .
@@ -37,8 +42,10 @@ services:
     env_file:
       - .env
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   celery:
     build: .
@@ -53,8 +60,10 @@ services:
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   celery-beat:
     build: .
@@ -63,13 +72,29 @@ services:
     command: celery -A core beat -l INFO
     volumes:
       - .:/app
+      - ./media:/app/media
     env_file:
       - .env
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8000
+    container_name: photostudia_frontend
+    restart: always
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
 
 volumes:
   db_data:

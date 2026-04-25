@@ -33,5 +33,4 @@ class PromoCodeCreateSerializer(serializers.ModelSerializer):
 
 class PromoValidateSerializer(serializers.Serializer):
     code = serializers.CharField()
-    hall_id = serializers.IntegerField()
-    start_time = serializers.DateTimeField()
+    order_id = serializers.IntegerField()

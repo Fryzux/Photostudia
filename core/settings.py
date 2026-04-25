@@ -44,7 +44,6 @@ INSTALLED_APPS = [
     'studio',
     'audit',
     'ai',
-    'booking',
     'promo',
 ]
 
@@ -86,19 +85,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 ASGI_APPLICATION = 'core.asgi.application'
-
-if IS_TESTING:
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels.layers.InMemoryChannelLayer',
-        },
-    }
-else:
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels.layers.InMemoryChannelLayer',
-        },
-    }
 
 channel_layer_backend = os.environ.get(
     'CHANNEL_LAYER_BACKEND',

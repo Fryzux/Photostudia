@@ -105,32 +105,32 @@ export function HallsPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div data-reveal="section" className="reveal-section mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8 px-5 py-9 text-center sm:rounded-[2.2rem] sm:px-8 sm:py-12">
-        <p className="mb-3 text-xs uppercase tracking-[0.36em] text-[#737373]">Каталог залов</p>
-        <h1 className="mb-3 text-4xl text-[#111111] sm:text-6xl">Выберите пространство под свой кадр</h1>
-        <p className="mx-auto max-w-2xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">
+      <div data-reveal="section" className="reveal-section mono-panel overflow-hidden rounded-[2rem] border border-border px-5 py-9 text-center sm:rounded-[2.2rem] sm:px-8 sm:py-12">
+        <p className="mb-3 text-xs uppercase tracking-[0.36em] text-muted-foreground">Каталог залов</p>
+        <h1 className="mb-3 text-4xl text-foreground sm:text-6xl">Выберите пространство под свой кадр</h1>
+        <p className="mx-auto max-w-2xl text-lg leading-7 text-muted-foreground sm:text-xl sm:leading-8">
           На этой странице собраны все доступные пространства студии. Используйте поиск и фильтры, чтобы быстро найти
           подходящее помещение по цене, вместимости и описанию.
         </p>
       </div>
 
-      <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
+      <Card data-reveal="section" className="reveal-section mono-panel border border-border">
         <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-          <CardTitle className="text-center text-2xl text-[#111111] sm:text-3xl">Поиск и фильтрация</CardTitle>
-          <CardDescription className="text-center text-base text-[#5c5c5c]">
+          <CardTitle className="text-center text-2xl text-foreground sm:text-3xl">Поиск и фильтрация</CardTitle>
+          <CardDescription className="text-center text-base text-muted-foreground">
             Подберите зал по названию, вместимости и стоимости. Все фильтры сохраняются в адресной строке.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6 lg:grid-cols-4">
           <div className="space-y-2 lg:col-span-2">
-            <Label htmlFor="hall-search" className="block text-center text-xs uppercase tracking-[0.32em] text-[#737373]">
+            <Label htmlFor="hall-search" className="block text-center text-xs uppercase tracking-[0.32em] text-muted-foreground">
               Поиск
             </Label>
             <div className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#777777]" />
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="hall-search"
-                className="h-11 rounded-full border-[#111111]/12 bg-white pl-10 text-center text-sm sm:h-12 sm:text-base"
+                className="h-11 rounded-full border-border bg-card pl-10 text-center text-sm sm:h-12 sm:text-base"
                 placeholder="Название или описание зала"
                 value={query}
                 onChange={(e) => updateParam('q', e.target.value)}
@@ -139,7 +139,7 @@ export function HallsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="hall-capacity" className="block text-center text-xs uppercase tracking-[0.32em] text-[#737373]">
+            <Label htmlFor="hall-capacity" className="block text-center text-xs uppercase tracking-[0.32em] text-muted-foreground">
               Вместимость
             </Label>
             <Input
@@ -149,12 +149,12 @@ export function HallsPage() {
               placeholder="Например, 4"
               value={minCapacity}
               onChange={(e) => updateParam('capacity', e.target.value)}
-              className="h-11 rounded-full border-[#111111]/12 bg-white text-center text-sm sm:h-12 sm:text-base"
+              className="h-11 rounded-full border-border bg-card text-center text-sm sm:h-12 sm:text-base"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="hall-price" className="block text-center text-xs uppercase tracking-[0.32em] text-[#737373]">
+            <Label htmlFor="hall-price" className="block text-center text-xs uppercase tracking-[0.32em] text-muted-foreground">
               Цена
             </Label>
             <Input
@@ -164,16 +164,16 @@ export function HallsPage() {
               placeholder="Например, 5000"
               value={maxPrice}
               onChange={(e) => updateParam('price', e.target.value)}
-              className="h-11 rounded-full border-[#111111]/12 bg-white text-center text-sm sm:h-12 sm:text-base"
+              className="h-11 rounded-full border-border bg-card text-center text-sm sm:h-12 sm:text-base"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="hall-sort" className="block text-center text-xs uppercase tracking-[0.32em] text-[#737373]">
+            <Label htmlFor="hall-sort" className="block text-center text-xs uppercase tracking-[0.32em] text-muted-foreground">
               Сортировка
             </Label>
             <Select value={sort} onValueChange={(value) => updateParam('sort', value)}>
-              <SelectTrigger id="hall-sort" className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base">
+              <SelectTrigger id="hall-sort" className="h-11 rounded-full border-border bg-card text-sm sm:h-12 sm:text-base">
                 <SelectValue placeholder="По умолчанию" />
               </SelectTrigger>
               <SelectContent>
@@ -188,7 +188,7 @@ export function HallsPage() {
           <div className="flex items-end">
             <Button
               variant="outline"
-              className="h-11 w-full rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee] sm:h-12"
+              className="h-11 w-full rounded-full border-border bg-card text-foreground hover:bg-accent sm:h-12"
               onClick={() => setSearchParams({}, { replace: true })}
             >
               Сбросить
@@ -198,7 +198,7 @@ export function HallsPage() {
       </Card>
 
       <div data-reveal="section" className="reveal-section text-center">
-        <p className="text-sm uppercase tracking-[0.28em] text-[#737373]">Найдено залов: {filteredHalls.length}</p>
+        <p className="text-sm uppercase tracking-[0.28em] text-muted-foreground">Найдено залов: {filteredHalls.length}</p>
       </div>
 
       <div data-reveal="section" className="reveal-section grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -206,24 +206,24 @@ export function HallsPage() {
           <Card
             key={hall.id}
             className={`reveal-card mono-panel lift-card overflow-hidden rounded-[1.8rem] border text-center ${
-              hall.id === preselectedHallId ? 'border-[#111111] shadow-[0_16px_40px_rgba(17,17,17,0.14)]' : 'border-[#111111]/8'
+              hall.id === preselectedHallId ? 'border-[#111111] shadow-[0_16px_40px_rgba(17,17,17,0.14)]' : 'border-border'
             }`}
             style={{ transitionDelay: `${100 + index * 55}ms` }}
           >
             <div className="relative h-48 bg-gray-200 sm:h-56">
               {hall.images[0] && <img src={hall.images[0]} alt={hall.name} className="grayscale-photo h-full w-full object-cover" />}
               <div className="absolute right-3 top-3">
-                <Badge className="rounded-full bg-white px-3 py-1 text-xs text-[#111111] shadow-sm sm:text-sm">{hall.price_per_hour} ₽/час</Badge>
+                <Badge className="rounded-full bg-card px-3 py-1 text-xs text-foreground shadow-sm sm:text-sm">{hall.price_per_hour} ₽/час</Badge>
               </div>
             </div>
 
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-              <CardTitle className="text-2xl text-[#111111] sm:text-3xl">{hall.name}</CardTitle>
-              <CardDescription className="line-clamp-3 text-sm leading-7 text-[#5c5c5c] sm:text-base">{hall.description}</CardDescription>
+              <CardTitle className="text-2xl text-foreground sm:text-3xl">{hall.name}</CardTitle>
+              <CardDescription className="line-clamp-3 text-sm leading-7 text-muted-foreground sm:text-base">{hall.description}</CardDescription>
             </CardHeader>
 
             <CardContent className="px-5 sm:px-6">
-              <div className="mb-3 flex items-center justify-center gap-4 text-sm text-[#5c5c5c]">
+              <div className="mb-3 flex items-center justify-center gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Users className="h-4 w-4" />
                   <span>До {hall.capacity} чел.</span>
@@ -233,7 +233,7 @@ export function HallsPage() {
               {hall.equipment?.length ? (
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   {hall.equipment.slice(0, 3).map((item) => (
-                    <Badge key={`${hall.id}-${item}`} variant="secondary" className="rounded-full bg-white px-3 py-1 text-xs text-[#4f4f4f]">
+                    <Badge key={`${hall.id}-${item}`} variant="secondary" className="rounded-full bg-card px-3 py-1 text-xs text-muted-foreground">
                       {item}
                     </Badge>
                   ))}
@@ -243,7 +243,7 @@ export function HallsPage() {
 
             <CardFooter className="px-5 pb-5 sm:px-6 sm:pb-6">
               <Link to={`/halls/${hall.id}`} className="w-full">
-                <Button className="h-11 w-full rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a] sm:h-12">
+                <Button className="h-11 w-full rounded-full bg-foreground text-background hover:bg-foreground/90 sm:h-12">
                   <CalendarCheck className="h-4 w-4" />
                   Забронировать
                 </Button>
@@ -254,23 +254,23 @@ export function HallsPage() {
       </div>
 
       {filteredHalls.length === 0 && (
-        <div data-reveal="section" className="reveal-section mono-panel rounded-[2rem] border border-dashed border-[#111111]/12 px-5 py-12 text-center sm:px-6 sm:py-14">
-          <p className="text-xl text-[#111111]">По выбранным фильтрам залы не найдены.</p>
-          <p className="mt-2 text-base text-[#5c5c5c]">Попробуйте изменить цену, вместимость или текст запроса.</p>
+        <div data-reveal="section" className="reveal-section mono-panel rounded-[2rem] border border-dashed border-border px-5 py-12 text-center sm:px-6 sm:py-14">
+          <p className="text-xl text-foreground">По выбранным фильтрам залы не найдены.</p>
+          <p className="mt-2 text-base text-muted-foreground">Попробуйте изменить цену, вместимость или текст запроса.</p>
         </div>
       )}
 
       <Dialog open={showUnavailableModal} onOpenChange={setShowUnavailableModal}>
-        <DialogContent className="border border-[#111111]/10 bg-white">
+        <DialogContent className="border border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="text-[#111111]">Выбранный зал недоступен</DialogTitle>
-            <DialogDescription className="text-[#5c5c5c]">
+            <DialogTitle className="text-foreground">Выбранный зал недоступен</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               Этот зал не найден в каталоге. Можно выбрать другой доступный вариант ниже.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
-              className="rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a]"
+              className="rounded-full bg-foreground text-background hover:bg-foreground/90"
               onClick={() => {
                 const next = new URLSearchParams(searchParams);
                 next.delete('hall_id');

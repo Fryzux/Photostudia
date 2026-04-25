@@ -111,6 +111,8 @@ export function AdminPage() {
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; hallId: number | null }>({ open: false, hallId: null });
   const [hallFormData, setHallFormData] = useState<CreateHallData>(emptyHallForm);
   const [hallFormErrors, setHallFormErrors] = useState<Partial<Record<'name' | 'price_per_hour' | 'capacity', string>>>({});
+  const [hallEquipment, setHallEquipment] = useState<string[]>([]);
+  const [hallEquipmentInput, setHallEquipmentInput] = useState('');
   const [hallImageFiles, setHallImageFiles] = useState<File[]>([]);
   const [hallUploadProgress, setHallUploadProgress] = useState<Record<string, number>>({});
   const [hallQuery, setHallQuery] = useState('');
@@ -256,6 +258,7 @@ export function AdminPage() {
     setHallFormErrors({});
     setHallImageFiles([]);
     setHallUploadProgress({});
+    setHallEquipmentInput('');
     if (hall) {
       setHallFormData({
         name: hall.name,
@@ -264,8 +267,10 @@ export function AdminPage() {
         description: hall.description || '',
         is_active: hall.is_active ?? true,
       });
+      setHallEquipment(hall.equipment ?? []);
     } else {
       setHallFormData(emptyHallForm);
+      setHallEquipment([]);
     }
 
     setHallDialog({ open: true, hall });
@@ -306,11 +311,12 @@ export function AdminPage() {
     setSubmittingHall(true);
     try {
       let savedHall: Hall;
+      const hallPayload = { ...hallFormData, equipment: hallEquipment };
       if (hallDialog.hall) {
-        savedHall = await updateHall(hallDialog.hall.id, hallFormData);
+        savedHall = await updateHall(hallDialog.hall.id, hallPayload);
         toast.success('Зал обновлён');
       } else {
-        savedHall = await createHall(hallFormData);
+        savedHall = await createHall(hallPayload);
         toast.success('Зал создан');
       }
 
@@ -630,16 +636,16 @@ export function AdminPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div data-reveal="section" className="reveal-section mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8 p-5 sm:p-8">
-        <p className="mb-3 text-xs uppercase tracking-[0.36em] text-[#737373]">Администрирование</p>
-        <h1 className="mb-3 text-4xl text-[#111111] sm:text-5xl">Единая панель управления студией</h1>
-        <p className="max-w-3xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">
+      <div data-reveal="section" className="reveal-section mono-panel overflow-hidden rounded-[2rem] border border-border p-5 sm:p-8">
+        <p className="mb-3 text-xs uppercase tracking-[0.36em] text-muted-foreground">Администрирование</p>
+        <h1 className="mb-3 text-4xl text-foreground sm:text-5xl">Единая панель управления студией</h1>
+        <p className="max-w-3xl text-lg leading-7 text-muted-foreground sm:text-xl sm:leading-8">
           Вкладки объединяют аналитику, пользователей, заказы, логи аудита, залы и акции в одном интерфейсе.
         </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="h-auto w-full flex-wrap rounded-[1.5rem] bg-[#efefec] p-1">
+        <TabsList className="h-auto w-full flex-wrap rounded-[1.5rem] bg-secondary p-1">
           <TabsTrigger value="analytics">Аналитика</TabsTrigger>
           <TabsTrigger value="halls">Залы</TabsTrigger>
           <TabsTrigger value="orders">Заказы</TabsTrigger>
@@ -653,60 +659,60 @@ export function AdminPage() {
         <TabsContent value="analytics" data-reveal="section" className="reveal-section space-y-6">
           {analytics && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card className="mono-panel border border-[#111111]/8">
+              <Card className="mono-panel border border-border">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Всего пользователей</CardTitle>
-                  <Users className="h-4 w-4 text-[#5c5c5c]" />
+                  <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-semibold text-[#111111]">{analytics.total_users}</div>
+                  <div className="text-2xl font-semibold text-foreground">{analytics.total_users}</div>
                 </CardContent>
               </Card>
 
-              <Card className="mono-panel border border-[#111111]/8">
+              <Card className="mono-panel border border-border">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Всего залов</CardTitle>
-                  <Building2 className="h-4 w-4 text-[#5c5c5c]" />
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-semibold text-[#111111]">{analytics.total_halls}</div>
+                  <div className="text-2xl font-semibold text-foreground">{analytics.total_halls}</div>
                 </CardContent>
               </Card>
 
-              <Card className="mono-panel border border-[#111111]/8">
+              <Card className="mono-panel border border-border">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Всего бронирований</CardTitle>
-                  <Calendar className="h-4 w-4 text-[#5c5c5c]" />
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-semibold text-[#111111]">{analytics.total_bookings}</div>
+                  <div className="text-2xl font-semibold text-foreground">{analytics.total_bookings}</div>
                 </CardContent>
               </Card>
 
-              <Card className="mono-panel border border-[#111111]/8">
+              <Card className="mono-panel border border-border">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Выручка</CardTitle>
-                  <DollarSign className="h-4 w-4 text-[#5c5c5c]" />
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-semibold text-[#111111]">{analytics.total_revenue.toLocaleString('ru-RU')} ₽</div>
+                  <div className="text-2xl font-semibold text-foreground">{analytics.total_revenue.toLocaleString('ru-RU')} ₽</div>
                 </CardContent>
               </Card>
             </div>
           )}
 
           <div className="grid gap-5 sm:gap-6">
-            <Card className="mono-panel border border-[#111111]/8">
+            <Card className="mono-panel border border-border">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
+                <CardTitle className="flex items-center gap-2 text-2xl text-foreground">
                   <BarChart3 className="h-5 w-5" />
                   Тренд выручки по неделям
                 </CardTitle>
-                <CardDescription className="text-[#5c5c5c]">График построен по неделям (понедельник–воскресенье) для оплаченных заказов (`COMPLETED`).</CardDescription>
+                <CardDescription className="text-muted-foreground">График построен по неделям (понедельник–воскресенье) для оплаченных заказов (`COMPLETED`).</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm text-[#4f4f4f]">
+                  <p className="text-sm text-muted-foreground">
                     Неделя: {format(revenueTrend.weekStart, 'dd.MM.yyyy', { locale: ru })} — {format(revenueTrend.weekEnd, 'dd.MM.yyyy', { locale: ru })}
                   </p>
                   <div className="flex items-center gap-2">
@@ -714,7 +720,7 @@ export function AdminPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => setRevenueWeekOffset((prev) => prev - 1)}
-                      className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                      className="rounded-full border-border bg-card text-foreground hover:bg-accent"
                     >
                       <ChevronLeft className="mr-1 h-4 w-4" />
                       Прошлая
@@ -724,7 +730,7 @@ export function AdminPage() {
                       size="sm"
                       disabled={!revenueTrend.canGoForward}
                       onClick={() => setRevenueWeekOffset((prev) => Math.min(0, prev + 1))}
-                      className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                      className="rounded-full border-border bg-card text-foreground hover:bg-accent"
                     >
                       Следующая
                       <ChevronRight className="ml-1 h-4 w-4" />
@@ -734,15 +740,15 @@ export function AdminPage() {
                 <div className="grid grid-cols-2 items-end gap-2 sm:grid-cols-4 lg:grid-cols-7">
                   {revenueTrend.points.map((point) => (
                     <div key={point.dayKey} className="flex flex-col items-center gap-2">
-                      <div className="relative h-28 w-full overflow-hidden rounded-xl border border-[#111111]/8 bg-[#efefec]">
+                      <div className="relative h-28 w-full overflow-hidden rounded-xl border border-border bg-secondary">
                         <div
                           className="absolute bottom-0 left-0 right-0 rounded-xl bg-[#111111] transition-all duration-500"
                           style={{ height: `${point.heightPercent}%` }}
                         />
                       </div>
-                      <p className="text-[0.66rem] uppercase tracking-[0.15em] text-[#666666]">{point.weekdayLabel}</p>
-                      <p className="text-[0.66rem] uppercase tracking-[0.2em] text-[#666666]">{point.label}</p>
-                      <p className="text-[0.66rem] text-[#555555]">{point.revenue > 0 ? `${Math.round(point.revenue).toLocaleString('ru-RU')} ₽` : '—'}</p>
+                      <p className="text-[0.66rem] uppercase tracking-[0.15em] text-muted-foreground">{point.weekdayLabel}</p>
+                      <p className="text-[0.66rem] uppercase tracking-[0.2em] text-muted-foreground">{point.label}</p>
+                      <p className="text-[0.66rem] text-muted-foreground">{point.revenue > 0 ? `${Math.round(point.revenue).toLocaleString('ru-RU')} ₽` : '—'}</p>
                     </div>
                   ))}
                 </div>
@@ -752,19 +758,19 @@ export function AdminPage() {
         </TabsContent>
 
         <TabsContent value="halls" data-reveal="section" className="reveal-section space-y-6">
-          <Card className="mono-panel border border-[#111111]/8">
+          <Card className="mono-panel border border-border">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
               <CardTitle>Управление залами</CardTitle>
               <CardDescription>Поиск, сортировка и CRUD-операции по залам.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6 md:grid-cols-[minmax(0,1fr)_220px_180px]">
               <div className="space-y-2">
-                <Label htmlFor="hall-query" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Поиск</Label>
+                <Label htmlFor="hall-query" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Поиск</Label>
                 <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#777777]" />
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="hall-query"
-                    className="h-11 rounded-full border-[#111111]/12 bg-white pl-9 text-sm sm:h-12 sm:text-base"
+                    className="h-11 rounded-full border-border bg-card pl-9 text-sm sm:h-12 sm:text-base"
                     placeholder="Название или описание"
                     value={hallQuery}
                     onChange={(event) => setHallQuery(event.target.value)}
@@ -773,9 +779,9 @@ export function AdminPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="hall-sort" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Сортировка</Label>
+                <Label htmlFor="hall-sort" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Сортировка</Label>
                 <Select value={hallSort} onValueChange={setHallSort}>
-                  <SelectTrigger id="hall-sort" className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base">
+                  <SelectTrigger id="hall-sort" className="h-11 rounded-full border-border bg-card text-sm sm:h-12 sm:text-base">
                     <SelectValue placeholder="По названию" />
                   </SelectTrigger>
                   <SelectContent>
@@ -787,7 +793,7 @@ export function AdminPage() {
               </div>
 
               <div className="flex items-end">
-                <Button onClick={() => openHallDialog()} className="h-11 w-full gap-2 rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a] sm:h-12">
+                <Button onClick={() => openHallDialog()} className="h-11 w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90 sm:h-12">
                   <Plus className="h-4 w-4" />
                   Добавить зал
                 </Button>
@@ -797,7 +803,7 @@ export function AdminPage() {
 
           <div className="grid gap-4">
             {filteredHalls.map((hall) => (
-              <Card key={hall.id} className="mono-panel border border-[#111111]/8">
+              <Card key={hall.id} className="mono-panel border border-border">
                 <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
@@ -805,9 +811,9 @@ export function AdminPage() {
                       <CardDescription className="mt-1 line-clamp-2">{hall.description}</CardDescription>
                       <div className="mt-2">
                         {hall.is_active ? (
-                          <Badge className="rounded-full bg-[#111111] text-white">Активен</Badge>
+                          <Badge className="rounded-full bg-foreground text-background">Активен</Badge>
                         ) : (
-                          <Badge variant="secondary" className="rounded-full bg-white text-[#111111]">
+                          <Badge variant="secondary" className="rounded-full bg-card text-foreground">
                             Скрыт
                           </Badge>
                         )}
@@ -815,10 +821,10 @@ export function AdminPage() {
                     </div>
 
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]" onClick={() => openHallDialog(hall)}>
+                      <Button variant="outline" size="sm" className="rounded-full border-border bg-card text-foreground hover:bg-accent" onClick={() => openHallDialog(hall)}>
                         <Edit2 className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]" onClick={() => setDeleteDialog({ open: true, hallId: hall.id })}>
+                      <Button variant="outline" size="sm" className="rounded-full border-border bg-card text-foreground hover:bg-accent" onClick={() => setDeleteDialog({ open: true, hallId: hall.id })}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -827,10 +833,10 @@ export function AdminPage() {
                 <CardContent>
                   <div className="flex flex-wrap gap-6 text-sm">
                     <div>
-                      <span className="text-[#5c5c5c]">Цена:</span> <span className="font-medium text-[#111111]">{hall.price_per_hour} ₽/час</span>
+                      <span className="text-muted-foreground">Цена:</span> <span className="font-medium text-foreground">{hall.price_per_hour} ₽/час</span>
                     </div>
                     <div>
-                      <span className="text-[#5c5c5c]">Вместимость:</span> <span className="font-medium text-[#111111]">{hall.capacity} чел.</span>
+                      <span className="text-muted-foreground">Вместимость:</span> <span className="font-medium text-foreground">{hall.capacity} чел.</span>
                     </div>
                   </div>
                 </CardContent>
@@ -838,7 +844,7 @@ export function AdminPage() {
             ))}
 
             {filteredHalls.length === 0 && (
-              <div className="rounded-[1.5rem] border border-dashed border-[#111111]/12 bg-white/70 px-6 py-12 text-center text-[#5c5c5c]">
+              <div className="rounded-[1.5rem] border border-dashed border-border bg-card/70 px-6 py-12 text-center text-muted-foreground">
                 По текущему запросу залы не найдены.
               </div>
             )}
@@ -846,19 +852,19 @@ export function AdminPage() {
         </TabsContent>
 
         <TabsContent value="orders" data-reveal="section" className="reveal-section space-y-6">
-          <Card className="mono-panel border border-[#111111]/8">
+          <Card className="mono-panel border border-border">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-              <CardTitle className="text-2xl text-[#111111]">Заказы</CardTitle>
-              <CardDescription className="text-[#5c5c5c]">Фильтрация и обновление статусов заказов.</CardDescription>
+              <CardTitle className="text-2xl text-foreground">Заказы</CardTitle>
+              <CardDescription className="text-muted-foreground">Фильтрация и обновление статусов заказов.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6 md:grid-cols-[minmax(0,1fr)_220px]">
               <div className="space-y-2">
-                <Label htmlFor="order-search" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Поиск</Label>
+                <Label htmlFor="order-search" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Поиск</Label>
                 <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#777777]" />
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="order-search"
-                    className="h-11 rounded-full border-[#111111]/12 bg-white pl-9 text-sm sm:h-12 sm:text-base"
+                    className="h-11 rounded-full border-border bg-card pl-9 text-sm sm:h-12 sm:text-base"
                     placeholder="ID, зал, username или email"
                     value={orderSearch}
                     onChange={(event) => setOrderSearch(event.target.value)}
@@ -867,9 +873,9 @@ export function AdminPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="order-status" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Статус</Label>
+                <Label htmlFor="order-status" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Статус</Label>
                 <Select value={orderStatusFilter} onValueChange={(value) => setOrderStatusFilter(value as 'all' | Order['status'])}>
-                  <SelectTrigger id="order-status" className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base">
+                  <SelectTrigger id="order-status" className="h-11 rounded-full border-border bg-card text-sm sm:h-12 sm:text-base">
                     <SelectValue placeholder="Все статусы" />
                   </SelectTrigger>
                   <SelectContent>
@@ -886,26 +892,26 @@ export function AdminPage() {
 
           <div className="grid gap-4">
             {filteredOrders.map((order) => (
-              <Card key={order.id} className="mono-panel border border-[#111111]/8">
+              <Card key={order.id} className="mono-panel border border-border">
                 <CardContent className="grid gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_220px] sm:p-6">
                   <div className="space-y-2">
-                    <p className="text-lg font-semibold text-[#111111]">Заказ #{order.id} · {order.booking.hall.name}</p>
-                    <p className="text-sm text-[#5c5c5c]">
+                    <p className="text-lg font-semibold text-foreground">Заказ #{order.id} · {order.booking.hall.name}</p>
+                    <p className="text-sm text-muted-foreground">
                       Клиент: {order.username || '—'} {order.user_email ? `(${order.user_email})` : ''}
                     </p>
-                    <p className="text-sm text-[#5c5c5c]">
+                    <p className="text-sm text-muted-foreground">
                       Сумма: {order.total_amount.toLocaleString('ru-RU')} ₽ · Создан: {format(new Date(order.created_at), 'dd.MM.yyyy HH:mm', { locale: ru })}
                     </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-[0.28em] text-[#737373]">Изменить статус</Label>
+                    <Label className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Изменить статус</Label>
                     <Select
                       value={order.status}
                       onValueChange={(value) => void handleOrderStatusChange(order.id, value as Order['status'])}
                       disabled={updatingOrderId === order.id}
                     >
-                      <SelectTrigger className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base">
+                      <SelectTrigger className="h-11 rounded-full border-border bg-card text-sm sm:h-12 sm:text-base">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -922,7 +928,7 @@ export function AdminPage() {
             ))}
 
             {filteredOrders.length === 0 && (
-              <div className="rounded-[1.5rem] border border-dashed border-[#111111]/12 bg-white/70 px-6 py-12 text-center text-[#5c5c5c]">
+              <div className="rounded-[1.5rem] border border-dashed border-border bg-card/70 px-6 py-12 text-center text-muted-foreground">
                 Заказы по текущему фильтру не найдены.
               </div>
             )}
@@ -930,17 +936,17 @@ export function AdminPage() {
         </TabsContent>
 
         <TabsContent value="users" data-reveal="section" className="reveal-section space-y-6">
-          <Card className="mono-panel border border-[#111111]/8">
+          <Card className="mono-panel border border-border">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
+                  <CardTitle className="flex items-center gap-2 text-2xl text-foreground">
                     <Users className="h-5 w-5" />
                     Пользователи
                   </CardTitle>
-                  <CardDescription className="text-[#5c5c5c]">Управление пользователями: создание, редактирование, удаление.</CardDescription>
+                  <CardDescription className="text-muted-foreground">Управление пользователями: создание, редактирование, удаление.</CardDescription>
                 </div>
-                <Button className="h-11 rounded-full bg-[#111111] text-white hover:bg-[#333333] sm:h-12" onClick={() => { setUserCreateForm({ username: '', password: '', email: '', first_name: '', last_name: '', is_staff: false, is_manager: false }); setUserCreateDialog(true); }}>
+                <Button className="h-11 rounded-full bg-foreground text-background hover:bg-[#333333] sm:h-12" onClick={() => { setUserCreateForm({ username: '', password: '', email: '', first_name: '', last_name: '', is_staff: false, is_manager: false }); setUserCreateDialog(true); }}>
                   <Plus className="mr-2 h-4 w-4" />
                   Создать
                 </Button>
@@ -948,12 +954,12 @@ export function AdminPage() {
             </CardHeader>
             <CardContent className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6 md:grid-cols-[minmax(0,1fr)_220px_160px]">
               <div className="space-y-2">
-                <Label htmlFor="user-search" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Поиск</Label>
+                <Label htmlFor="user-search" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Поиск</Label>
                 <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#777777]" />
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="user-search"
-                    className="h-11 rounded-full border-[#111111]/12 bg-white pl-9 text-sm sm:h-12 sm:text-base"
+                    className="h-11 rounded-full border-border bg-card pl-9 text-sm sm:h-12 sm:text-base"
                     placeholder="Имя, логин или email"
                     value={userSearch}
                     onChange={(event) => setUserSearch(event.target.value)}
@@ -962,9 +968,9 @@ export function AdminPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="user-role" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Роль</Label>
+                <Label htmlFor="user-role" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Роль</Label>
                 <Select value={userRole} onValueChange={(value) => setUserRole(value as 'all' | 'staff' | 'client')}>
-                  <SelectTrigger id="user-role" className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base">
+                  <SelectTrigger id="user-role" className="h-11 rounded-full border-border bg-card text-sm sm:h-12 sm:text-base">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -976,14 +982,14 @@ export function AdminPage() {
               </div>
 
               <div className="flex items-end">
-                <Button variant="outline" className="h-11 w-full rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee] sm:h-12" onClick={() => void reloadUsers()}>
+                <Button variant="outline" className="h-11 w-full rounded-full border-border bg-card text-foreground hover:bg-accent sm:h-12" onClick={() => void reloadUsers()}>
                   Обновить
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="mono-panel border border-[#111111]/8">
+          <Card className="mono-panel border border-border">
             <CardContent className="px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
               <div className="overflow-x-auto">
                 <Table>
@@ -1001,17 +1007,17 @@ export function AdminPage() {
                     {filteredUsers.map((user) => (
                       <TableRow key={user.id}>
                         <TableCell>
-                          <p className="font-medium text-[#111111]">{user.first_name || user.last_name ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : user.username}</p>
-                          <p className="text-xs uppercase tracking-[0.18em] text-[#777777]">@{user.username}</p>
+                          <p className="font-medium text-foreground">{user.first_name || user.last_name ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : user.username}</p>
+                          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">@{user.username}</p>
                         </TableCell>
-                        <TableCell className="text-[#5c5c5c]">{user.email}</TableCell>
+                        <TableCell className="text-muted-foreground">{user.email}</TableCell>
                         <TableCell>
                           {user.is_staff ? (
-                            <Badge className="rounded-full bg-[#111111] text-white">Admin</Badge>
-                          ) : (user as any).is_manager ? (
+                            <Badge className="rounded-full bg-foreground text-background">Admin</Badge>
+                          ) : user.is_manager ? (
                             <Badge className="rounded-full bg-blue-600 text-white">Manager</Badge>
                           ) : (
-                            <Badge variant="secondary" className="rounded-full bg-white text-[#111111]">Client</Badge>
+                            <Badge variant="secondary" className="rounded-full bg-card text-foreground">Client</Badge>
                           )}
                         </TableCell>
                         <TableCell>
@@ -1021,15 +1027,15 @@ export function AdminPage() {
                             <Badge variant="secondary" className="rounded-full bg-red-50 text-red-700">Заблокирован</Badge>
                           )}
                         </TableCell>
-                        <TableCell className="text-[#5c5c5c]">{user.date_joined ? format(new Date(user.date_joined), 'dd.MM.yyyy', { locale: ru }) : '—'}</TableCell>
+                        <TableCell className="text-muted-foreground">{user.date_joined ? format(new Date(user.date_joined), 'dd.MM.yyyy', { locale: ru }) : '—'}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-8 rounded-full border-[#111111]/12 px-3 text-xs"
+                              className="h-8 rounded-full border-border px-3 text-xs"
                               onClick={() => {
-                                setUserEditForm({ first_name: user.first_name ?? '', last_name: user.last_name ?? '', email: user.email, phone: user.phone ?? '', is_staff: user.is_staff, is_manager: (user as any).is_manager ?? false, is_active: user.is_active !== false });
+                                setUserEditForm({ first_name: user.first_name ?? '', last_name: user.last_name ?? '', email: user.email, phone: user.phone ?? '', is_staff: user.is_staff, is_manager: user.is_manager ?? false, is_active: user.is_active !== false });
                                 setUserEditDialog({ open: true, user });
                               }}
                             >
@@ -1052,7 +1058,7 @@ export function AdminPage() {
               </div>
 
               {filteredUsers.length === 0 && (
-                <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#111111]/12 bg-white/70 px-6 py-10 text-center text-[#5c5c5c]">
+                <div className="mt-4 rounded-[1.2rem] border border-dashed border-border bg-card/70 px-6 py-10 text-center text-muted-foreground">
                   Пользователи по текущему фильтру не найдены.
                 </div>
               )}
@@ -1069,28 +1075,28 @@ export function AdminPage() {
               <div className="grid gap-4 py-2">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Имя</Label>
+                    <Label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Имя</Label>
                     <Input placeholder="Имя" value={userCreateForm.first_name ?? ''} onChange={(e) => setUserCreateForm((f) => ({ ...f, first_name: e.target.value }))} />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Фамилия</Label>
+                    <Label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Фамилия</Label>
                     <Input placeholder="Фамилия" value={userCreateForm.last_name ?? ''} onChange={(e) => setUserCreateForm((f) => ({ ...f, last_name: e.target.value }))} />
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Логин *</Label>
+                  <Label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Логин *</Label>
                   <Input placeholder="username" value={userCreateForm.username} onChange={(e) => setUserCreateForm((f) => ({ ...f, username: e.target.value }))} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Email *</Label>
+                  <Label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Email *</Label>
                   <Input type="email" placeholder="email@example.com" value={userCreateForm.email} onChange={(e) => setUserCreateForm((f) => ({ ...f, email: e.target.value }))} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Пароль *</Label>
+                  <Label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Пароль *</Label>
                   <Input type="password" placeholder="Минимум 8 символов" value={userCreateForm.password} onChange={(e) => setUserCreateForm((f) => ({ ...f, password: e.target.value }))} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Роль</Label>
+                  <Label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Роль</Label>
                   <Select
                     value={userCreateForm.is_staff ? 'admin' : userCreateForm.is_manager ? 'manager' : 'client'}
                     onValueChange={(v) => setUserCreateForm((f) => ({ ...f, is_staff: v === 'admin', is_manager: v === 'manager' }))}
@@ -1142,20 +1148,20 @@ export function AdminPage() {
               <div className="grid gap-4 py-2">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Имя</Label>
+                    <Label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Имя</Label>
                     <Input value={userEditForm.first_name ?? ''} onChange={(e) => setUserEditForm((f) => ({ ...f, first_name: e.target.value }))} />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Фамилия</Label>
+                    <Label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Фамилия</Label>
                     <Input value={userEditForm.last_name ?? ''} onChange={(e) => setUserEditForm((f) => ({ ...f, last_name: e.target.value }))} />
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Email</Label>
+                  <Label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Email</Label>
                   <Input type="email" value={userEditForm.email ?? ''} onChange={(e) => setUserEditForm((f) => ({ ...f, email: e.target.value }))} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Роль</Label>
+                  <Label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Роль</Label>
                   <Select
                     value={userEditForm.is_staff ? 'admin' : userEditForm.is_manager ? 'manager' : 'client'}
                     onValueChange={(v) => setUserEditForm((f) => ({ ...f, is_staff: v === 'admin', is_manager: v === 'manager' }))}
@@ -1169,7 +1175,7 @@ export function AdminPage() {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs uppercase tracking-[0.2em] text-[#737373]">Статус</Label>
+                  <Label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Статус</Label>
                   <Select
                     value={userEditForm.is_active !== false ? 'active' : 'blocked'}
                     onValueChange={(v) => setUserEditForm((f) => ({ ...f, is_active: v === 'active' }))}
@@ -1244,22 +1250,22 @@ export function AdminPage() {
         </TabsContent>
 
         <TabsContent value="logs" data-reveal="section" className="reveal-section space-y-6">
-          <Card className="mono-panel border border-[#111111]/8">
+          <Card className="mono-panel border border-border">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-              <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
+              <CardTitle className="flex items-center gap-2 text-2xl text-foreground">
                 <ShieldCheck className="h-5 w-5" />
                 Логи аудита
               </CardTitle>
-              <CardDescription className="text-[#5c5c5c]">Полнофункциональный просмотр событий безопасности и действий пользователей.</CardDescription>
+              <CardDescription className="text-muted-foreground">Полнофункциональный просмотр событий безопасности и действий пользователей.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6 lg:grid-cols-4">
               <div className="space-y-2 lg:col-span-2">
-                <Label htmlFor="log-search" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Поиск</Label>
+                <Label htmlFor="log-search" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Поиск</Label>
                 <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#777777]" />
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="log-search"
-                    className="h-11 rounded-full border-[#111111]/12 bg-white pl-9 text-sm sm:h-12 sm:text-base"
+                    className="h-11 rounded-full border-border bg-card pl-9 text-sm sm:h-12 sm:text-base"
                     placeholder="Action, username, email, details"
                     value={logSearch}
                     onChange={(event) => setLogSearch(event.target.value)}
@@ -1268,9 +1274,9 @@ export function AdminPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="log-action" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Тип</Label>
+                <Label htmlFor="log-action" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Тип</Label>
                 <Select value={logAction} onValueChange={setLogAction}>
-                  <SelectTrigger id="log-action" className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base">
+                  <SelectTrigger id="log-action" className="h-11 rounded-full border-border bg-card text-sm sm:h-12 sm:text-base">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1284,27 +1290,27 @@ export function AdminPage() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-2">
-                  <Label htmlFor="log-from" className="text-xs uppercase tracking-[0.32em] text-[#737373]">От</Label>
+                  <Label htmlFor="log-from" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">От</Label>
                   <DatePickerInput id="log-from" value={logDateFrom} onChange={setLogDateFrom} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="log-to" className="text-xs uppercase tracking-[0.32em] text-[#737373]">До</Label>
+                  <Label htmlFor="log-to" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">До</Label>
                   <DatePickerInput id="log-to" value={logDateTo} onChange={setLogDateTo} />
                 </div>
               </div>
 
               <div className="flex gap-2 lg:col-span-4">
-                <Button className="h-11 rounded-full bg-[#111111] px-6 text-white hover:bg-[#2a2a2a] sm:h-12" onClick={() => void applyLogFilters()} disabled={logsLoading}>
+                <Button className="h-11 rounded-full bg-[#111111] px-6 text-white hover:bg-foreground/90 sm:h-12" onClick={() => void applyLogFilters()} disabled={logsLoading}>
                   Применить
                 </Button>
-                <Button variant="outline" className="h-11 rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee] sm:h-12" onClick={() => void resetLogFilters()} disabled={logsLoading}>
+                <Button variant="outline" className="h-11 rounded-full border-border bg-card text-foreground hover:bg-accent sm:h-12" onClick={() => void resetLogFilters()} disabled={logsLoading}>
                   Сбросить
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="mono-panel border border-[#111111]/8">
+          <Card className="mono-panel border border-border">
             <CardContent className="px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
               <div className="overflow-x-auto">
                 <Table>
@@ -1319,13 +1325,13 @@ export function AdminPage() {
                   <TableBody>
                     {auditLogs.map((log) => (
                       <TableRow key={log.id}>
-                        <TableCell className="text-[#5c5c5c]">{format(new Date(log.timestamp), 'dd.MM.yyyy HH:mm', { locale: ru })}</TableCell>
+                        <TableCell className="text-muted-foreground">{format(new Date(log.timestamp), 'dd.MM.yyyy HH:mm', { locale: ru })}</TableCell>
                         <TableCell>
-                          <p className="font-medium text-[#111111]">{log.username || 'Anonymous'}</p>
-                          <p className="text-xs text-[#777777]">{log.user_email || 'Без email'}</p>
+                          <p className="font-medium text-foreground">{log.username || 'Anonymous'}</p>
+                          <p className="text-xs text-muted-foreground">{log.user_email || 'Без email'}</p>
                         </TableCell>
-                        <TableCell className="text-[#111111]">{log.action}</TableCell>
-                        <TableCell className="max-w-[440px] whitespace-normal text-[#5c5c5c]">{log.details || '—'}</TableCell>
+                        <TableCell className="text-foreground">{log.action}</TableCell>
+                        <TableCell className="max-w-[440px] whitespace-normal text-muted-foreground">{log.details || '—'}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -1333,7 +1339,7 @@ export function AdminPage() {
               </div>
 
               {!logsLoading && auditLogs.length === 0 && (
-                <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#111111]/12 bg-white/70 px-6 py-10 text-center text-[#5c5c5c]">
+                <div className="mt-4 rounded-[1.2rem] border border-dashed border-border bg-card/70 px-6 py-10 text-center text-muted-foreground">
                   События не найдены.
                 </div>
               )}
@@ -1346,23 +1352,23 @@ export function AdminPage() {
         </TabsContent>
 
         <TabsContent value="services" data-reveal="section" className="reveal-section space-y-6">
-          <Card className="mono-panel border border-[#111111]/8">
+          <Card className="mono-panel border border-border">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-              <CardTitle className="text-2xl text-[#111111]">Дополнительные услуги</CardTitle>
-              <CardDescription className="text-[#5c5c5c]">
+              <CardTitle className="text-2xl text-foreground">Дополнительные услуги</CardTitle>
+              <CardDescription className="text-muted-foreground">
                 Локальный CRUD для услуг фронтенда. Эти услуги используются в форме бронирования на странице зала.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6 md:grid-cols-[minmax(0,1fr)_220px]">
               <div className="space-y-2">
-                <Label htmlFor="service-search" className="text-xs uppercase tracking-[0.32em] text-[#737373]">
+                <Label htmlFor="service-search" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">
                   Поиск
                 </Label>
                 <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#777777]" />
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="service-search"
-                    className="h-11 rounded-full border-[#111111]/12 bg-white pl-9 text-sm sm:h-12 sm:text-base"
+                    className="h-11 rounded-full border-border bg-card pl-9 text-sm sm:h-12 sm:text-base"
                     placeholder="Название или описание услуги"
                     value={serviceSearch}
                     onChange={(event) => setServiceSearch(event.target.value)}
@@ -1373,7 +1379,7 @@ export function AdminPage() {
               <div className="flex items-end">
                 <Button
                   onClick={() => openServiceDialog()}
-                  className="h-11 w-full gap-2 rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a] sm:h-12"
+                  className="h-11 w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90 sm:h-12"
                 >
                   <Plus className="h-4 w-4" />
                   Добавить услугу
@@ -1384,12 +1390,12 @@ export function AdminPage() {
 
           <div className="grid gap-3">
             {filteredServices.map((service) => (
-              <Card key={service.id} className="mono-panel border border-[#111111]/8">
+              <Card key={service.id} className="mono-panel border border-border">
                 <CardContent className="flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-6">
                   <div>
-                    <p className="text-lg font-semibold text-[#111111]">{service.name}</p>
-                    <p className="text-sm text-[#5c5c5c]">{service.description || 'Без описания'}</p>
-                    <p className="text-xs uppercase tracking-[0.2em] text-[#777777]">
+                    <p className="text-lg font-semibold text-foreground">{service.name}</p>
+                    <p className="text-sm text-muted-foreground">{service.description || 'Без описания'}</p>
+                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                       {service.pricing_mode === 'hourly'
                         ? `${service.price.toLocaleString('ru-RU')} ₽ / час`
                         : `${service.price.toLocaleString('ru-RU')} ₽ / фикс`}
@@ -1398,16 +1404,16 @@ export function AdminPage() {
 
                   <div className="flex items-center gap-2">
                     {service.is_active ? (
-                      <Badge className="rounded-full bg-[#111111] text-white">Активна</Badge>
+                      <Badge className="rounded-full bg-foreground text-background">Активна</Badge>
                     ) : (
-                      <Badge variant="secondary" className="rounded-full bg-white text-[#111111]">
+                      <Badge variant="secondary" className="rounded-full bg-card text-foreground">
                         Выключена
                       </Badge>
                     )}
                     <Button
                       variant="outline"
                       size="sm"
-                      className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                      className="rounded-full border-border bg-card text-foreground hover:bg-accent"
                       onClick={() => openServiceDialog(service)}
                     >
                       <Edit2 className="h-4 w-4" />
@@ -1415,7 +1421,7 @@ export function AdminPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                      className="rounded-full border-border bg-card text-foreground hover:bg-accent"
                       disabled={deletingServiceId === service.id}
                       onClick={() => void handleServiceDelete(service.id)}
                     >
@@ -1427,7 +1433,7 @@ export function AdminPage() {
             ))}
 
             {filteredServices.length === 0 && (
-              <div className="rounded-[1.2rem] border border-dashed border-[#111111]/12 bg-white/70 px-6 py-10 text-center text-[#5c5c5c]">
+              <div className="rounded-[1.2rem] border border-dashed border-border bg-card/70 px-6 py-10 text-center text-muted-foreground">
                 Услуги по текущему фильтру не найдены.
               </div>
             )}
@@ -1435,21 +1441,21 @@ export function AdminPage() {
         </TabsContent>
 
         <TabsContent value="promos" data-reveal="section" className="reveal-section space-y-6">
-          <Card className="mono-panel border border-[#111111]/8">
+          <Card className="mono-panel border border-border">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-              <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
+              <CardTitle className="flex items-center gap-2 text-2xl text-foreground">
                 <TicketPercent className="h-5 w-5" />
                 Управление акциями
               </CardTitle>
-              <CardDescription className="text-[#5c5c5c]">Создание, активация и деактивация промокодов через PATCH.</CardDescription>
+              <CardDescription className="text-muted-foreground">Создание, активация и деактивация промокодов через PATCH.</CardDescription>
             </CardHeader>
             <CardContent className="px-5 pb-5 sm:px-6 sm:pb-6">
               <form onSubmit={handleCreatePromo} className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="promo-code" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Код</Label>
+                  <Label htmlFor="promo-code" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Код</Label>
                   <Input
                     id="promo-code"
-                    className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base"
+                    className="h-11 rounded-full border-border bg-card text-sm sm:h-12 sm:text-base"
                     value={promoForm.code}
                     onChange={(event) => setPromoForm((current) => ({ ...current, code: event.target.value }))}
                     placeholder="SPRING26"
@@ -1457,23 +1463,23 @@ export function AdminPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="promo-discount" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Скидка, %</Label>
+                  <Label htmlFor="promo-discount" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Скидка, %</Label>
                   <Input
                     id="promo-discount"
                     type="number"
                     min="1"
                     max="100"
-                    className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base"
+                    className="h-11 rounded-full border-border bg-card text-sm sm:h-12 sm:text-base"
                     value={promoForm.discount_percent}
                     onChange={(event) => setPromoForm((current) => ({ ...current, discount_percent: Number(event.target.value) }))}
                   />
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="promo-description" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Описание</Label>
+                  <Label htmlFor="promo-description" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Описание</Label>
                   <Input
                     id="promo-description"
-                    className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base"
+                    className="h-11 rounded-full border-border bg-card text-sm sm:h-12 sm:text-base"
                     value={promoForm.description || ''}
                     onChange={(event) => setPromoForm((current) => ({ ...current, description: event.target.value }))}
                     placeholder="Скидка на утренние съёмки"
@@ -1481,7 +1487,7 @@ export function AdminPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="promo-from" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Действует с</Label>
+                  <Label htmlFor="promo-from" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Действует с</Label>
                   <DatePickerInput
                     id="promo-from"
                     value={promoForm.valid_from || ''}
@@ -1491,7 +1497,7 @@ export function AdminPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="promo-to" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Действует до</Label>
+                  <Label htmlFor="promo-to" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Действует до</Label>
                   <DatePickerInput
                     id="promo-to"
                     value={promoForm.valid_to || ''}
@@ -1502,7 +1508,7 @@ export function AdminPage() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <Button type="submit" className="h-11 rounded-full bg-[#111111] px-6 text-white hover:bg-[#2a2a2a] sm:h-12" disabled={creatingPromo}>
+                  <Button type="submit" className="h-11 rounded-full bg-[#111111] px-6 text-white hover:bg-foreground/90 sm:h-12" disabled={creatingPromo}>
                     {creatingPromo ? 'Создание...' : 'Создать промокод'}
                   </Button>
                 </div>
@@ -1510,16 +1516,16 @@ export function AdminPage() {
             </CardContent>
           </Card>
 
-          <Card className="mono-panel border border-[#111111]/8">
+          <Card className="mono-panel border border-border">
             <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-              <CardTitle className="text-2xl text-[#111111]">Список промокодов</CardTitle>
-              <CardDescription className="text-[#5c5c5c]">Активные коды можно деактивировать без удаления.</CardDescription>
+              <CardTitle className="text-2xl text-foreground">Список промокодов</CardTitle>
+              <CardDescription className="text-muted-foreground">Активные коды можно деактивировать без удаления.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
               <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#777777]" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  className="h-11 rounded-full border-[#111111]/12 bg-white pl-9 text-sm sm:h-12 sm:text-base"
+                  className="h-11 rounded-full border-border bg-card pl-9 text-sm sm:h-12 sm:text-base"
                   placeholder="Поиск по коду и описанию"
                   value={promoSearch}
                   onChange={(event) => setPromoSearch(event.target.value)}
@@ -1528,16 +1534,16 @@ export function AdminPage() {
 
               <div className="grid gap-3">
                 {filteredPromos.map((promo) => (
-                  <div key={promo.id} className="flex flex-col gap-3 rounded-[1.3rem] border border-[#111111]/8 bg-white/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div key={promo.id} className="flex flex-col gap-3 rounded-[1.3rem] border border-border bg-card/70 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-lg font-semibold text-[#111111]">{promo.code}</p>
-                      <p className="text-sm text-[#5c5c5c]">
+                      <p className="text-lg font-semibold text-foreground">{promo.code}</p>
+                      <p className="text-sm text-muted-foreground">
                         {promo.description || 'Без описания'} · Скидка {promo.discount_percent}%
                       </p>
-                      <p className="text-xs uppercase tracking-[0.2em] text-[#777777]">
+                      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                         {promo.valid_to ? `До ${format(new Date(promo.valid_to), 'dd.MM.yyyy HH:mm', { locale: ru })}` : 'Без срока'}
                       </p>
-                      <p className="text-xs text-[#777777]">
+                      <p className="text-xs text-muted-foreground">
                         Использований: {promo.uses_count ?? 0}
                         {promo.max_uses ? ` / ${promo.max_uses}` : ''}
                       </p>
@@ -1545,15 +1551,15 @@ export function AdminPage() {
 
                     <div className="flex items-center gap-2">
                       {promo.is_active ? (
-                        <Badge className="rounded-full bg-[#111111] text-white">Активен</Badge>
+                        <Badge className="rounded-full bg-foreground text-background">Активен</Badge>
                       ) : (
-                        <Badge variant="secondary" className="rounded-full bg-white text-[#111111]">
+                        <Badge variant="secondary" className="rounded-full bg-card text-foreground">
                           Выключен
                         </Badge>
                       )}
                       <Button
                         variant="outline"
-                        className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                        className="rounded-full border-border bg-card text-foreground hover:bg-accent"
                         disabled={updatingPromoId === promo.id}
                         onClick={() => void (promo.is_active ? handleDeactivatePromo(promo.id) : handleActivatePromo(promo.id))}
                       >
@@ -1565,7 +1571,7 @@ export function AdminPage() {
               </div>
 
               {filteredPromos.length === 0 && (
-                <div className="rounded-[1.2rem] border border-dashed border-[#111111]/12 bg-white/70 px-6 py-10 text-center text-[#5c5c5c]">
+                <div className="rounded-[1.2rem] border border-dashed border-border bg-card/70 px-6 py-10 text-center text-muted-foreground">
                   Промокоды не найдены.
                 </div>
               )}
@@ -1578,12 +1584,12 @@ export function AdminPage() {
         open={serviceDialog.open}
         onOpenChange={(open) => setServiceDialog((current) => ({ open, service: open ? current.service : null }))}
       >
-        <DialogContent className="max-w-xl border border-[#111111]/10 bg-white">
+        <DialogContent className="max-w-xl border border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="text-[#111111]">
+            <DialogTitle className="text-foreground">
               {serviceDialog.service ? 'Редактировать услугу' : 'Добавить услугу'}
             </DialogTitle>
-            <DialogDescription className="text-[#5c5c5c]">
+            <DialogDescription className="text-muted-foreground">
               Настройки применяются к форме бронирования на карточке зала.
             </DialogDescription>
           </DialogHeader>
@@ -1641,7 +1647,7 @@ export function AdminPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="service-active" className="text-xs uppercase tracking-[0.22em] text-[#737373]">
+              <Label htmlFor="service-active" className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
                 Статус
               </Label>
               <Select
@@ -1664,14 +1670,14 @@ export function AdminPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                className="rounded-full border-border bg-card text-foreground hover:bg-accent"
                 onClick={() => setServiceDialog({ open: false, service: null })}
               >
                 Отмена
               </Button>
               <Button
                 type="submit"
-                className="rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a]"
+                className="rounded-full bg-foreground text-background hover:bg-foreground/90"
                 disabled={submittingService}
               >
                 {submittingService ? 'Сохранение...' : 'Сохранить'}
@@ -1691,10 +1697,10 @@ export function AdminPage() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl border border-[#111111]/10 bg-white">
+        <DialogContent className="max-w-2xl border border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="text-[#111111]">{hallDialog.hall ? 'Редактировать зал' : 'Добавить зал'}</DialogTitle>
-            <DialogDescription className="text-[#5c5c5c]">Поля валидируются до отправки запроса на сервер.</DialogDescription>
+            <DialogTitle className="text-foreground">{hallDialog.hall ? 'Редактировать зал' : 'Добавить зал'}</DialogTitle>
+            <DialogDescription className="text-muted-foreground">Поля валидируются до отправки запроса на сервер.</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleHallSubmit} className="space-y-4">
@@ -1745,8 +1751,63 @@ export function AdminPage() {
                 value={hallFormData.description || ''}
                 onChange={(event) => setHallFormData({ ...hallFormData, description: event.target.value })}
                 placeholder="Краткое описание зала, атмосферы и назначения."
-                className="min-h-[110px] rounded-2xl border-[#111111]/12 bg-white"
+                className="min-h-[110px] rounded-2xl border-border bg-card"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Оборудование</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Например, Рефлектор"
+                  value={hallEquipmentInput}
+                  onChange={(event) => setHallEquipmentInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      const trimmed = hallEquipmentInput.trim();
+                      if (trimmed && !hallEquipment.includes(trimmed)) {
+                        setHallEquipment((prev) => [...prev, trimmed]);
+                      }
+                      setHallEquipmentInput('');
+                    }
+                  }}
+                  className="rounded-full border-border bg-card"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 rounded-full border-border bg-card text-foreground hover:bg-accent"
+                  onClick={() => {
+                    const trimmed = hallEquipmentInput.trim();
+                    if (trimmed && !hallEquipment.includes(trimmed)) {
+                      setHallEquipment((prev) => [...prev, trimmed]);
+                    }
+                    setHallEquipmentInput('');
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {hallEquipment.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {hallEquipment.map((item) => (
+                    <span
+                      key={item}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary px-3 py-1 text-sm text-foreground"
+                    >
+                      {item}
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => setHallEquipment((prev) => prev.filter((e) => e !== item))}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -1755,7 +1816,7 @@ export function AdminPage() {
                 value={hallFormData.is_active ? 'active' : 'inactive'}
                 onValueChange={(value) => setHallFormData({ ...hallFormData, is_active: value === 'active' })}
               >
-                <SelectTrigger id="hall-status" className="rounded-full border-[#111111]/12 bg-white">
+                <SelectTrigger id="hall-status" className="rounded-full border-border bg-card">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1779,8 +1840,8 @@ export function AdminPage() {
               >
                 <div className="flex flex-col items-center justify-center gap-2 text-center">
                   <UploadCloud className="h-6 w-6 text-[#6b6b6b]" />
-                  <p className="text-sm text-[#5c5c5c]">Перетащите фото сюда или выберите вручную</p>
-                  <label className="inline-flex cursor-pointer items-center rounded-full border border-[#111111]/12 bg-white px-4 py-2 text-sm text-[#111111] hover:bg-[#f1f1ee]">
+                  <p className="text-sm text-muted-foreground">Перетащите фото сюда или выберите вручную</p>
+                  <label className="inline-flex cursor-pointer items-center rounded-full border border-border bg-card px-4 py-2 text-sm text-foreground hover:bg-accent">
                     Выбрать файлы
                     <input
                       type="file"
@@ -1798,18 +1859,18 @@ export function AdminPage() {
                   {hallImageFiles.map((file) => {
                     const progress = hallUploadProgress[file.name] || 0;
                     return (
-                      <div key={file.name} className="rounded-xl border border-[#111111]/8 bg-white p-3">
+                      <div key={file.name} className="rounded-xl border border-border bg-card p-3">
                         <div className="mb-2 flex items-center justify-between gap-3">
-                          <p className="truncate text-sm font-medium text-[#111111]">{file.name}</p>
+                          <p className="truncate text-sm font-medium text-foreground">{file.name}</p>
                           <button
                             type="button"
-                            className="text-xs text-[#6b6b6b] hover:text-[#111111]"
+                            className="text-xs text-[#6b6b6b] hover:text-foreground"
                             onClick={() => removeHallImageFile(file.name)}
                           >
                             Убрать
                           </button>
                         </div>
-                        <div className="h-2 rounded-full bg-[#efefec]">
+                        <div className="h-2 rounded-full bg-secondary">
                           <div className="h-2 rounded-full bg-[#111111] transition-all" style={{ width: `${progress}%` }} />
                         </div>
                         <p className="mt-1 text-xs text-[#6b6b6b]">{progress > 0 ? `${progress}%` : 'Ожидает загрузки'}</p>
@@ -1821,10 +1882,10 @@ export function AdminPage() {
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]" onClick={() => setHallDialog({ open: false, hall: null })}>
+              <Button type="button" variant="outline" className="rounded-full border-border bg-card text-foreground hover:bg-accent" onClick={() => setHallDialog({ open: false, hall: null })}>
                 Отмена
               </Button>
-              <Button type="submit" className="rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a]" disabled={submittingHall}>
+              <Button type="submit" className="rounded-full bg-foreground text-background hover:bg-foreground/90" disabled={submittingHall}>
                 {submittingHall ? 'Сохранение...' : 'Сохранить'}
               </Button>
             </DialogFooter>
@@ -1833,16 +1894,16 @@ export function AdminPage() {
       </Dialog>
 
       <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog((current) => ({ open, hallId: open ? current.hallId : null }))}>
-        <AlertDialogContent className="border border-[#111111]/10 bg-white">
+        <AlertDialogContent className="border border-border bg-card">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-[#111111]">Удалить зал?</AlertDialogTitle>
-            <AlertDialogDescription className="text-[#5c5c5c]">
+            <AlertDialogTitle className="text-foreground">Удалить зал?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
               Действие удалит зал из каталога и может повлиять на отчеты.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]">Отмена</AlertDialogCancel>
-            <AlertDialogAction className="rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a]" onClick={handleDeleteHall} disabled={deletingHall}>
+            <AlertDialogCancel className="rounded-full border-border bg-card text-foreground hover:bg-accent">Отмена</AlertDialogCancel>
+            <AlertDialogAction className="rounded-full bg-foreground text-background hover:bg-foreground/90" onClick={handleDeleteHall} disabled={deletingHall}>
               {deletingHall ? 'Удаляем...' : 'Удалить'}
             </AlertDialogAction>
           </AlertDialogFooter>

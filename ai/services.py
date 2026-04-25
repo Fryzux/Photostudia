@@ -67,14 +67,14 @@ class AIService:
         return {
             "date": date_str,
             "predicted_orders": int(max(0, round(predicted_value))),
-            "confidence": confidence,
+            "confidence": 0.75,
             "explanation": explanation
         }
 
     @classmethod
-    def forecast_hourly(cls, studio_id: int, date_str: str):
+    def forecast_hourly(cls, hall_id: int, date_str: str):
         """
-        Возвращает почасовой прогноз загрузки для студии на конкретную дату.
+        Возвращает почасовой прогноз загрузки для зала на конкретную дату.
         Формат: [{date, hour, load_pct}, ...]  (часы 08:00–22:00)
         """
         try:
@@ -91,7 +91,7 @@ class AIService:
 
         if use_ml:
             features = pd.DataFrame([{
-                'hall_id': studio_id,
+                'hall_id': hall_id,
                 'day_of_week': day_of_week,
                 'month': month,
                 'season': season,

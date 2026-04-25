@@ -194,7 +194,7 @@ export function HallDetailPage() {
       const orders = await getOrders();
       const relatedOrder =
         orders.find((order) => order.booking.id === booking.id) ??
-        orders.find((order) => order.status === 'PENDING' || order.status === 'NEW');
+        orders.find((order) => order.status === 'PENDING');
 
       toast.success('Бронь создана. Переходим к оплате.');
       if (relatedOrder) {
@@ -216,42 +216,42 @@ export function HallDetailPage() {
   return (
     <div>
       <div data-reveal="section" className="reveal-section mb-5 flex justify-center sm:mb-6">
-        <Button variant="ghost" onClick={() => navigate('/halls')} className="h-10 gap-2 rounded-full border border-[#111111]/10 px-5 hover:bg-white sm:h-11">
+        <Button variant="ghost" onClick={() => navigate('/halls')} className="h-10 gap-2 rounded-full border border-border px-5 hover:bg-card sm:h-11">
           <ArrowLeft className="h-4 w-4" />
           Назад к залам
         </Button>
       </div>
 
       <div data-reveal="section" className="reveal-section mb-8 text-center sm:mb-10">
-        <p className="text-xs uppercase tracking-[0.36em] text-[#737373]">Карточка зала</p>
-        <h1 className="mt-3 text-4xl text-[#111111] sm:text-6xl">{hall.name}</h1>
+        <p className="text-xs uppercase tracking-[0.36em] text-muted-foreground">Карточка зала</p>
+        <h1 className="mt-3 text-4xl text-foreground sm:text-6xl">{hall.name}</h1>
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-2">
         <div className="space-y-6">
-          <div data-reveal="section" className="reveal-section mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8">
+          <div data-reveal="section" className="reveal-section mono-panel overflow-hidden rounded-[2rem] border border-border">
             <div className="relative h-72 bg-gray-200 sm:h-96">
               {hall.images[0] && <img src={hall.images[0]} alt={hall.name} className="grayscale-photo h-full w-full object-cover" />}
             </div>
-            <div className="space-y-5 border-t border-[#111111]/8 p-5 text-center sm:p-8">
+            <div className="space-y-5 border-t border-border p-5 text-center sm:p-8">
               <div className="flex flex-wrap justify-center gap-3">
-                <Badge variant="secondary" className="rounded-full bg-white px-4 py-1.5 text-[#111111]">
+                <Badge variant="secondary" className="rounded-full bg-card px-4 py-1.5 text-foreground">
                   <Users className="mr-1 h-3 w-3" />
                   До {hall.capacity} чел.
                 </Badge>
-                <Badge variant="secondary" className="rounded-full bg-white px-4 py-1.5 text-[#111111]">
+                <Badge variant="secondary" className="rounded-full bg-card px-4 py-1.5 text-foreground">
                   {hall.price_per_hour} ₽ / час
                 </Badge>
               </div>
 
-              <p className="mx-auto max-w-xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">{hall.description}</p>
+              <p className="mx-auto max-w-xl text-lg leading-7 text-muted-foreground sm:text-xl sm:leading-8">{hall.description}</p>
 
               {hall.equipment?.length ? (
-                <div className="rounded-[1.25rem] border border-[#111111]/8 bg-white/70 p-4">
-                  <p className="mb-3 text-xs uppercase tracking-[0.24em] text-[#737373]">Оборудование</p>
+                <div className="rounded-[1.25rem] border border-border bg-card/70 p-4">
+                  <p className="mb-3 text-xs uppercase tracking-[0.24em] text-muted-foreground">Оборудование</p>
                   <div className="flex flex-wrap justify-center gap-2">
                     {hall.equipment.map((item) => (
-                      <Badge key={`${hall.id}-${item}`} variant="secondary" className="rounded-full bg-white px-3 py-1 text-xs text-[#4f4f4f]">
+                      <Badge key={`${hall.id}-${item}`} variant="secondary" className="rounded-full bg-card px-3 py-1 text-xs text-muted-foreground">
                         {item}
                       </Badge>
                     ))}
@@ -259,7 +259,7 @@ export function HallDetailPage() {
                 </div>
               ) : null}
 
-              <Alert className="border-[#111111]/8 bg-white/70 text-left">
+              <Alert className="border-border bg-card/70 text-left">
                 <Info className="h-4 w-4" />
                 <AlertDescription>
                   Отмечайте свободный слот справа и сразу оформляйте бронь в этой же карточке.
@@ -270,19 +270,19 @@ export function HallDetailPage() {
         </div>
 
         <div className="space-y-6">
-          <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
+          <Card data-reveal="section" className="reveal-section mono-panel border border-border">
             <CardHeader className="px-5 pt-5 text-center sm:px-6 sm:pt-6">
-              <CardTitle className="flex items-center justify-center gap-2 text-2xl text-[#111111] sm:text-3xl">
+              <CardTitle className="flex items-center justify-center gap-2 text-2xl text-foreground sm:text-3xl">
                 <CalendarRange className="h-5 w-5" />
                 Свободные интервалы
               </CardTitle>
-              <CardDescription className="text-base leading-7 text-[#5c5c5c]">
+              <CardDescription className="text-base leading-7 text-muted-foreground">
                 Выберите дату и отмечайте свободный слот кликом. Занятые интервалы недоступны для выбора.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
               <div className="space-y-2">
-                <Label htmlFor="availability-date" className="block text-center text-xs uppercase tracking-[0.32em] text-[#737373]">
+                <Label htmlFor="availability-date" className="block text-center text-xs uppercase tracking-[0.32em] text-muted-foreground">
                   Проверить дату
                 </Label>
                 <DatePickerInput
@@ -298,7 +298,7 @@ export function HallDetailPage() {
                 />
               </div>
 
-              {availabilityLoading && <p className="text-center text-sm text-[#5c5c5c]">Загружаем слоты на выбранную дату...</p>}
+              {availabilityLoading && <p className="text-center text-sm text-muted-foreground">Загружаем слоты на выбранную дату...</p>}
 
               {!availabilityLoading && availabilitySlots.length > 0 && (
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -309,7 +309,7 @@ export function HallDetailPage() {
                       onClick={() => selectSlot(slot)}
                       disabled={!slot.available}
                       className={`booking-slot rounded-[1.2rem] border px-4 py-3 text-center text-sm ${
-                        slot.available ? 'booking-slot--free border-[#111111]/10 text-[#111111]' : 'booking-slot--busy border-[#111111]/8 text-[#555555]'
+                        slot.available ? 'booking-slot--free border-border text-foreground' : 'booking-slot--busy border-border text-muted-foreground'
                       } ${
                         selectedSlotKey === `${getTime(slot.start)}-${getTime(slot.end)}` ? 'booking-slot--selected' : ''
                       }`}
@@ -321,7 +321,7 @@ export function HallDetailPage() {
               )}
 
               {!availabilityLoading && availabilityUnsupported && (
-                <Alert className="border-[#111111]/8 bg-white/70">
+                <Alert className="border-border bg-card/70">
                   <Info className="h-4 w-4" />
                   <AlertDescription>
                     Endpoint доступности пока не подключён на сервере. Попробуйте позже или выберите другую дату.
@@ -330,30 +330,30 @@ export function HallDetailPage() {
               )}
 
               {!availabilityLoading && !availabilityUnsupported && availabilityDate && availabilitySlots.length === 0 && (
-                <Alert className="border-dashed border-[#111111]/12 bg-white/60">
+                <Alert className="border-dashed border-border bg-white/60">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>На эту дату пока нет отображённых слотов. Попробуйте выбрать другой день.</AlertDescription>
                 </Alert>
               )}
 
               {!availabilityLoading && availabilityDate && !availabilityUnsupported && (
-                <p className="text-center text-xs uppercase tracking-[0.24em] text-[#737373]">
+                <p className="text-center text-xs uppercase tracking-[0.24em] text-muted-foreground">
                   Календарь обновляется автоматически каждые 15 секунд.
                 </p>
               )}
 
               {selectedSlotSummary && (
-                <p className="text-center text-sm text-[#5c5c5c]">
+                <p className="text-center text-sm text-muted-foreground">
                   Для выбранного стартового времени слот сейчас: {selectedSlotSummary.available ? 'свободен' : 'занят'}.
                 </p>
               )}
 
-              <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4 sm:p-5">
+              <div className="rounded-[1.35rem] border border-border bg-card/70 p-4 sm:p-5">
                 {services.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <PackageCheck className="h-4 w-4 text-[#5c5c5c]" />
-                      <p className="text-sm uppercase tracking-[0.22em] text-[#737373]">Доп. услуги</p>
+                      <PackageCheck className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm uppercase tracking-[0.22em] text-muted-foreground">Доп. услуги</p>
                     </div>
 
                     <div className="grid gap-2">
@@ -363,15 +363,15 @@ export function HallDetailPage() {
                           <label
                             key={service.id}
                             className={`flex cursor-pointer items-start justify-between gap-3 rounded-[1rem] border px-3 py-2.5 transition ${
-                              checked ? 'border-[#111111]/24 bg-white' : 'border-[#111111]/10 bg-[#fafaf8] hover:border-[#111111]/18'
+                              checked ? 'border-[#111111]/24 bg-card' : 'border-border bg-[#fafaf8] hover:border-[#111111]/18'
                             }`}
                           >
                             <div>
-                              <p className="text-sm font-medium text-[#111111]">{service.name}</p>
-                              {service.description ? <p className="text-xs text-[#5c5c5c]">{service.description}</p> : null}
+                              <p className="text-sm font-medium text-foreground">{service.name}</p>
+                              {service.description ? <p className="text-xs text-muted-foreground">{service.description}</p> : null}
                             </div>
                             <div className="flex items-center gap-3">
-                              <p className="text-xs text-[#4f4f4f]">
+                              <p className="text-xs text-muted-foreground">
                                 {service.pricing_mode === 'hourly' ? `${formatMoney(service.price)} ₽/ч` : `${formatMoney(service.price)} ₽`}
                               </p>
                               <input
@@ -389,7 +389,7 @@ export function HallDetailPage() {
                 )}
 
                 <div className="mt-4 space-y-2">
-                  <Label htmlFor="hall-promo-code" className="text-sm uppercase tracking-[0.22em] text-[#737373]">
+                  <Label htmlFor="hall-promo-code" className="text-sm uppercase tracking-[0.22em] text-muted-foreground">
                     Промокод
                   </Label>
                   <Input
@@ -398,14 +398,14 @@ export function HallDetailPage() {
                     onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
                     placeholder="Введите промокод (если есть)"
                     maxLength={32}
-                    className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base"
+                    className="h-11 rounded-full border-border bg-card text-sm sm:h-12 sm:text-base"
                   />
-                  <p className="text-xs text-[#6a6a6a]">
+                  <p className="text-xs text-muted-foreground">
                     Код проверится и применится на экране оплаты после создания бронирования.
                   </p>
                 </div>
 
-                <div className="mt-4 rounded-[1rem] border border-[#111111]/10 bg-[#fbfbf8] p-3 text-sm text-[#4f4f4f]">
+                <div className="mt-4 rounded-[1rem] border border-border bg-[#fbfbf8] p-3 text-sm text-muted-foreground">
                   <div className="mb-1 flex items-center justify-between">
                     <span>Выбранный интервал</span>
                     <span>{selectedSlotSummary ? `${getTime(selectedSlotSummary.start)} - ${getTime(selectedSlotSummary.end)}` : '—'}</span>
@@ -422,7 +422,7 @@ export function HallDetailPage() {
                     <span>Доп. услуги</span>
                     <span>{formatMoney(servicesCost)} ₽</span>
                   </div>
-                  <div className="flex items-center justify-between border-t border-[#111111]/10 pt-2 font-semibold text-[#111111]">
+                  <div className="flex items-center justify-between border-t border-border pt-2 font-semibold text-foreground">
                     <span>Итого (оценка на клиенте)</span>
                     <span>{formatMoney(estimatedTotal)} ₽</span>
                   </div>
@@ -430,7 +430,7 @@ export function HallDetailPage() {
 
                 <Button
                   type="button"
-                  className="mt-4 h-11 w-full rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a] sm:h-12"
+                  className="mt-4 h-11 w-full rounded-full bg-foreground text-background hover:bg-foreground/90 sm:h-12"
                   disabled={submittingBooking || !availabilityDate || !selectedSlotSummary}
                   onClick={() => void submitBooking()}
                 >

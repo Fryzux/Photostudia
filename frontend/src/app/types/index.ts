@@ -9,6 +9,7 @@ export interface User {
   phone?: string | null;
   is_staff: boolean;
   is_superuser?: boolean;
+  is_manager?: boolean;
   is_active?: boolean;
   date_joined?: string;
   last_login?: string | null;
@@ -53,7 +54,7 @@ export interface Booking {
   end_time: string;
 }
 
-export type OrderStatus = 'NEW' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
 
 export interface Order {
   id: number;
@@ -147,6 +148,7 @@ export interface CreateHallData {
   capacity: number;
   description?: string;
   is_active?: boolean;
+  equipment?: string[];
 }
 
 export interface AuditLog {

@@ -15,7 +15,7 @@ sys.path.append(str(BASE_DIR))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
-from booking.models import Booking
+from studio.models import Booking
 from django.db.models.functions import TruncDate
 from django.db.models import Count
 

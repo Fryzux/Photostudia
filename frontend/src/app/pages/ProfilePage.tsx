@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 
 import { useAuth } from '../context/AuthContext';
 import { getOrders } from '../services/api';
-import type { Order } from '../types';
+import type { Order, OrderStatus } from '../types';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -65,9 +65,12 @@ export function ProfilePage() {
         const nextStatus = payload.status || payload.order_status || payload.type || 'status_update';
         setLastRealtimeMessage(`Получено событие realtime: ${nextStatus}.`);
 
-        if (payload.status) {
+        const validStatuses: OrderStatus[] = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
+        if (payload.status && validStatuses.includes(payload.status as OrderStatus)) {
           setOrders((current) =>
-            current.map((order) => (order.id === selectedOrderId ? { ...order, status: payload.status } : order)),
+            current.map((order) =>
+              order.id === selectedOrderId ? { ...order, status: payload.status as OrderStatus } : order,
+            ),
           );
         }
       } catch {
@@ -103,59 +106,59 @@ export function ProfilePage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <section data-reveal="section" className="reveal-section mono-panel rounded-[2rem] border border-[#111111]/8 px-5 py-8 text-center sm:px-8 sm:py-10">
-        <p className="mb-3 text-xs uppercase tracking-[0.36em] text-[#737373]">Профиль</p>
-        <h1 className="text-4xl text-[#111111] sm:text-5xl">Личный кабинет</h1>
-        <p className="mx-auto mt-4 max-w-2xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">
+      <section data-reveal="section" className="reveal-section mono-panel rounded-[2rem] border border-border px-5 py-8 text-center sm:px-8 sm:py-10">
+        <p className="mb-3 text-xs uppercase tracking-[0.36em] text-muted-foreground">Профиль</p>
+        <h1 className="text-4xl text-foreground sm:text-5xl">Личный кабинет</h1>
+        <p className="mx-auto mt-4 max-w-2xl text-lg leading-7 text-muted-foreground sm:text-xl sm:leading-8">
           Здесь собраны ваши данные, история заказов и realtime-статус выбранного бронирования.
         </p>
         <div className="mt-6">
           <Link to="/profile/bookings">
-            <Button className="rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a]">Открыть мои бронирования</Button>
+            <Button className="rounded-full bg-foreground text-background hover:bg-foreground/90">Открыть мои бронирования</Button>
           </Link>
         </div>
       </section>
 
       <div className="grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
+        <Card data-reveal="section" className="reveal-section mono-panel border border-border">
           <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
             <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[#111111]/10 bg-white sm:h-16 sm:w-16">
-                <User className="h-7 w-7 text-[#111111] sm:h-8 sm:w-8" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-card sm:h-16 sm:w-16">
+                <User className="h-7 w-7 text-foreground sm:h-8 sm:w-8" />
               </div>
               <div>
-                <CardTitle className="text-2xl text-[#111111]">{user.username}</CardTitle>
-                <CardDescription className="text-[#5c5c5c]">{user.email}</CardDescription>
+                <CardTitle className="text-2xl text-foreground">{user.username}</CardTitle>
+                <CardDescription className="text-muted-foreground">{user.email}</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
             <div className="space-y-3">
-              <div className="flex items-center gap-3 rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-                <User className="h-5 w-5 text-[#5c5c5c]" />
+              <div className="flex items-center gap-3 rounded-[1.35rem] border border-border bg-card/70 p-4">
+                <User className="h-5 w-5 text-muted-foreground" />
                 <div className="flex-1">
-                  <p className="text-sm text-[#5c5c5c]">Логин</p>
-                  <p className="font-medium text-[#111111]">{user.username}</p>
+                  <p className="text-sm text-muted-foreground">Логин</p>
+                  <p className="font-medium text-foreground">{user.username}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-                <Mail className="h-5 w-5 text-[#5c5c5c]" />
+              <div className="flex items-center gap-3 rounded-[1.35rem] border border-border bg-card/70 p-4">
+                <Mail className="h-5 w-5 text-muted-foreground" />
                 <div className="flex-1">
-                  <p className="text-sm text-[#5c5c5c]">Email</p>
-                  <p className="font-medium break-all text-[#111111]">{user.email}</p>
+                  <p className="text-sm text-muted-foreground">Email</p>
+                  <p className="font-medium break-all text-foreground">{user.email}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-                <Shield className="h-5 w-5 text-[#5c5c5c]" />
+              <div className="flex items-center gap-3 rounded-[1.35rem] border border-border bg-card/70 p-4">
+                <Shield className="h-5 w-5 text-muted-foreground" />
                 <div className="flex-1">
-                  <p className="text-sm text-[#5c5c5c]">Роль</p>
+                  <p className="text-sm text-muted-foreground">Роль</p>
                   <div className="flex gap-2">
-                    {user.is_staff && <Badge className="rounded-full bg-[#111111] text-white">Администратор</Badge>}
+                    {user.is_staff && <Badge className="rounded-full bg-foreground text-background">Администратор</Badge>}
                     {user.is_manager && <Badge className="rounded-full bg-amber-500 text-white hover:bg-amber-600">Менеджер</Badge>}
                     {!user.is_staff && !user.is_manager && (
-                      <Badge variant="secondary" className="rounded-full bg-white text-[#111111]">
+                      <Badge variant="secondary" className="rounded-full bg-card text-foreground">
                         Пользователь
                       </Badge>
                     )}
@@ -166,20 +169,20 @@ export function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
+        <Card data-reveal="section" className="reveal-section mono-panel border border-border">
           <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-            <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
-              <Radio className="h-5 w-5 text-[#111111]" />
+            <CardTitle className="flex items-center gap-2 text-2xl text-foreground">
+              <Radio className="h-5 w-5 text-foreground" />
               Realtime-статус заказа
             </CardTitle>
-            <CardDescription className="text-[#5c5c5c]">
+            <CardDescription className="text-muted-foreground">
               Подключение к `ws://.../ws/orders/:id/` для обновления статуса в реальном времени.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
-            <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-              <p className="text-sm text-[#5c5c5c]">Состояние канала</p>
-              <p className="mt-1 text-lg font-semibold text-[#111111]">
+            <div className="rounded-[1.35rem] border border-border bg-card/70 p-4">
+              <p className="text-sm text-muted-foreground">Состояние канала</p>
+              <p className="mt-1 text-lg font-semibold text-foreground">
                 {wsState === 'connected' && 'Подключено'}
                 {wsState === 'connecting' && 'Подключаемся'}
                 {wsState === 'idle' && 'Ожидание'}
@@ -187,12 +190,12 @@ export function ProfilePage() {
               </p>
             </div>
 
-            <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4 text-sm leading-7 text-[#4e4e4e]">{lastRealtimeMessage}</div>
+            <div className="rounded-[1.35rem] border border-border bg-card/70 p-4 text-sm leading-7 text-[#4e4e4e]">{lastRealtimeMessage}</div>
 
             {wsState === 'unsupported' && (
               <Button
                 variant="outline"
-                className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]"
+                className="rounded-full border-border bg-card text-foreground hover:bg-accent"
                 onClick={() => setWsRetryTick((value) => value + 1)}
               >
                 Повторить подключение
@@ -200,48 +203,48 @@ export function ProfilePage() {
             )}
 
             {selectedOrder && (
-              <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-                <p className="text-sm text-[#5c5c5c]">Отслеживаем заказ</p>
-                <p className="mt-1 font-semibold text-[#111111]">#{selectedOrder.id} · {selectedOrder.booking.hall.name}</p>
-                <p className="mt-1 text-sm text-[#5c5c5c]">Текущий статус: {selectedOrder.status}</p>
+              <div className="rounded-[1.35rem] border border-border bg-card/70 p-4">
+                <p className="text-sm text-muted-foreground">Отслеживаем заказ</p>
+                <p className="mt-1 font-semibold text-foreground">#{selectedOrder.id} · {selectedOrder.booking.hall.name}</p>
+                <p className="mt-1 text-sm text-muted-foreground">Текущий статус: {selectedOrder.status}</p>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
+      <Card data-reveal="section" className="reveal-section mono-panel border border-border">
         <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-          <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
-            <CalendarClock className="h-5 w-5 text-[#111111]" />
+          <CardTitle className="flex items-center gap-2 text-2xl text-foreground">
+            <CalendarClock className="h-5 w-5 text-foreground" />
             История бронирований
           </CardTitle>
-          <CardDescription className="text-[#5c5c5c]">Клиент видит свои заказы и может выбрать любой для realtime-наблюдения.</CardDescription>
+          <CardDescription className="text-muted-foreground">Клиент видит свои заказы и может выбрать любой для realtime-наблюдения.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6">
           {orders.map((order) => (
-            <div key={order.id} className="flex flex-col gap-3 rounded-[1.5rem] border border-[#111111]/8 bg-white/70 p-4 md:flex-row md:items-center md:justify-between">
+            <div key={order.id} className="flex flex-col gap-3 rounded-[1.5rem] border border-border bg-card/70 p-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <p className="font-semibold text-[#111111]">{order.booking.hall.name}</p>
-                <p className="text-sm text-[#5c5c5c]">
+                <p className="font-semibold text-foreground">{order.booking.hall.name}</p>
+                <p className="text-sm text-muted-foreground">
                   Заказ #{order.id} · {new Date(order.booking.start_time).toLocaleString('ru-RU')}
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Badge
                   variant={order.status === 'COMPLETED' ? 'default' : 'secondary'}
-                  className={order.status === 'COMPLETED' ? 'rounded-full bg-[#111111] text-white' : 'rounded-full bg-white text-[#111111]'}
+                  className={order.status === 'COMPLETED' ? 'rounded-full bg-foreground text-background' : 'rounded-full bg-card text-foreground'}
                 >
                   {order.status}
                 </Badge>
-                <Button variant="outline" className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]" onClick={() => setSelectedOrderId(order.id)}>
+                <Button variant="outline" className="rounded-full border-border bg-card text-foreground hover:bg-accent" onClick={() => setSelectedOrderId(order.id)}>
                   Отслеживать
                 </Button>
               </div>
             </div>
           ))}
 
-          {orders.length === 0 && <p className="text-sm text-[#5c5c5c]">История заказов пока пуста.</p>}
+          {orders.length === 0 && <p className="text-sm text-muted-foreground">История заказов пока пуста.</p>}
         </CardContent>
       </Card>
     </div>

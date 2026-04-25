@@ -43,11 +43,41 @@ services:
     networks:
       - photostudia_network
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8000
+    container_name: photostudia_frontend_prod
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - photostudia_network
+
   celery:
     build: .
     container_name: photostudia_celery_prod
     restart: always
     command: celery -A core worker -l INFO
+    env_file:
+      - .env
+    environment:
+      - CELERY_BROKER_URL=redis://:photostudia_redis_pass@redis:6379/0
+    depends_on:
+      - redis
+      - db
+    networks:
+      - photostudia_network
+
+  celery-beat:
+    build: .
+    container_name: photostudia_celery_beat_prod
+    restart: always
+    command: celery -A core beat -l INFO
     env_file:
       - .env
     environment:

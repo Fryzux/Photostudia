@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM node:20-alpine as build-stage
+FROM node:20-alpine AS build-stage
 
 WORKDIR /app
 
@@ -7,16 +7,17 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
+
+ARG VITE_API_URL=http://localhost:8000
+ENV VITE_API_URL=$VITE_API_URL
+
 RUN npm run build
 
-# Stage 2: Serve
+# Stage 2: Serve via nginx
 FROM nginx:stable-alpine
 
-# Copy built assets from builder stage
 COPY --from=build-stage /app/dist /usr/share/nginx/html
-
-# Custom nginx config to handle SPA routing if needed
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 

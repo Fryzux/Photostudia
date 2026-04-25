@@ -64,7 +64,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'phone', 'is_staff', 'is_superuser', 'is_manager', 'is_active', 'date_joined')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'phone', 'is_staff', 'is_superuser', 'is_manager', 'is_active', 'date_joined', 'last_login')
         read_only_fields = ('is_staff', 'is_superuser', 'is_manager', 'date_joined')
         ref_name = 'CoreUserSerializer'
 
@@ -95,6 +95,10 @@ class AdminCreateUserSerializer(serializers.ModelSerializer):
 
 
 class AdminUpdateUserSerializer(serializers.ModelSerializer):
+    is_staff = serializers.BooleanField(required=False)
+    is_manager = serializers.BooleanField(required=False)
+    is_active = serializers.BooleanField(required=False)
+
     class Meta:
         model = User
         fields = ('first_name', 'last_name', 'email', 'phone', 'is_staff', 'is_manager', 'is_active')

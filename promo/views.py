@@ -1,6 +1,7 @@
 from rest_framework import views, generics, permissions, status
 from rest_framework.response import Response
 from django.utils import timezone
+from decimal import Decimal
 from .models import PromoCode
 from .serializers import PromoCodeSerializer, PromoCodeCreateSerializer, PromoValidateSerializer
 
@@ -27,11 +28,22 @@ class PromoCodeListCreateView(views.APIView):
         return [IsManagerOrAdmin()]
 
     def get(self, request):
-        now = timezone.now()
         hall_id = request.query_params.get('hall_id')
-        qs = PromoCode.objects.filter(is_active=True, valid_from__lte=now, valid_to__gte=now)
+        is_admin = request.user and request.user.is_authenticated and (
+            request.user.is_staff or getattr(request.user, 'is_manager', False)
+        )
+
+        if is_admin:
+            # Администратор/менеджер видит все промокоды
+            qs = PromoCode.objects.all()
+        else:
+            # Обычный пользователь видит только активные и в срок
+            now = timezone.now()
+            qs = PromoCode.objects.filter(is_active=True, valid_from__lte=now, valid_to__gte=now)
+
         if hall_id:
             qs = qs.filter(hall_id=hall_id)
+
         serializer = PromoCodeSerializer(qs, many=True)
         return Response(serializer.data)
 
@@ -53,8 +65,18 @@ class PromoCodeValidateView(views.APIView):
         serializer.is_valid(raise_exception=True)
 
         code = serializer.validated_data['code']
-        hall_id = serializer.validated_data['hall_id']
-        start_time = serializer.validated_data['start_time']
+        order_id = serializer.validated_data['order_id']
+
+        # Импортируем Order здесь чтобы избежать циклических импортов
+        from studio.models import Order
+        try:
+            order = Order.objects.select_related('booking__hall').get(pk=order_id)
+        except Order.DoesNotExist:
+            return Response({'error': 'Заказ не найден.'}, status=status.HTTP_404_NOT_FOUND)
+
+        booking = order.booking
+        hall_id = booking.hall_id
+        start_time = booking.start_time
 
         now = timezone.now()
         try:
@@ -68,12 +90,21 @@ class PromoCodeValidateView(views.APIView):
                 hour_to__gt=start_time.hour,
             )
         except PromoCode.DoesNotExist:
-            return Response({'valid': False, 'error': 'Промокод недействителен или не подходит для этого слота.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'error': 'Промокод недействителен или не подходит для этого слота.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        base_total = order.total_amount
+        discount_amount = (base_total * Decimal(promo.discount_percent) / Decimal(100)).quantize(Decimal('0.01'))
+        final_total = base_total - discount_amount
 
         return Response({
-            'valid': True,
-            'discount_percent': promo.discount_percent,
-            'code': promo.code,
+            'promo': PromoCodeSerializer(promo).data,
+            'order_id': order_id,
+            'base_total': str(base_total),
+            'discount_amount': str(discount_amount),
+            'final_total': str(final_total),
         })
 
 
