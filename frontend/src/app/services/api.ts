@@ -64,7 +64,7 @@ type BackendOrder = {
   discount_amount?: number | string;
   final_amount?: number | string | null;
   promo_code?: string | null;
-  status: 'NEW' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
   created_at: string;
 };
 
@@ -241,6 +241,7 @@ function normalizeUser(raw: unknown): User {
     phone: typeof raw.phone === 'string' ? raw.phone : null,
     is_staff: Boolean(raw.is_staff),
     is_superuser: Boolean(raw.is_superuser),
+    is_manager: Boolean(raw.is_manager),
     is_active: Boolean(raw.is_active),
     date_joined: typeof raw.date_joined === 'string' ? raw.date_joined : undefined,
     last_login: typeof raw.last_login === 'string' ? raw.last_login : null,
@@ -1004,10 +1005,7 @@ export async function validatePromoCode(code: string, orderId: number): Promise<
     `${API_URL}/promo/validate/`,
     {
       method: 'POST',
-      body: JSON.stringify({
-        code,
-        order_id: orderId,
-      }),
+      body: JSON.stringify({ code, order_id: orderId }),
     },
     true,
   )) as {
@@ -1129,6 +1127,6 @@ export async function deleteStudioService(id: number): Promise<void> {
 }
 
 export async function getWeeklyForecast(hallId: number): Promise<DailyForecast[]> {
-  const url = `${API_URL}/ai/weekly-predict/?hall_id=${hallId}`;
+  const url = `${API_URL}/ai/weekly/?hall_id=${hallId}`;
   return request(url, {}, true) as Promise<DailyForecast[]>;
 }

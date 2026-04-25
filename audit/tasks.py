@@ -1,7 +1,7 @@
 from celery import shared_task
 import requests
 import logging
-from .security import validate_no_ssrf
+from core.security import validate_no_ssrf
 from django.core.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)

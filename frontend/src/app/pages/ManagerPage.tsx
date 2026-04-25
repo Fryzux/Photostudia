@@ -98,10 +98,10 @@ export function ManagerPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div className="mono-panel rounded-[2rem] border border-[#111111]/8 px-5 py-8 text-center sm:px-8 sm:py-10">
-        <p className="mb-3 text-xs uppercase tracking-[0.36em] text-[#737373]">Менеджер</p>
-        <h1 className="mb-3 text-4xl text-[#111111] sm:text-5xl">Планирование загрузки</h1>
-        <p className="mx-auto max-w-2xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">
+      <div className="mono-panel rounded-[2rem] border border-border px-5 py-8 text-center sm:px-8 sm:py-10">
+        <p className="mb-3 text-xs uppercase tracking-[0.36em] text-muted-foreground">Менеджер</p>
+        <h1 className="mb-3 text-4xl text-foreground sm:text-5xl">Планирование загрузки</h1>
+        <p className="mx-auto max-w-2xl text-lg leading-7 text-muted-foreground sm:text-xl sm:leading-8">
           Анализируйте AI-прогнозы спроса на неделю вперёд и создавайте акции для часов с низкой вероятностью бронирования.
         </p>
       </div>
@@ -110,7 +110,7 @@ export function ManagerPage() {
         <h2 className="text-2xl font-bold">Выбор зала</h2>
         <div className="w-full sm:w-72">
           <Select value={selectedHallId?.toString()} onValueChange={(val) => setSelectedHallId(Number(val))}>
-            <SelectTrigger className="h-12 rounded-full border-[#111111]/12 bg-white text-base">
+            <SelectTrigger className="h-12 rounded-full border-border bg-card text-base">
               <SelectValue placeholder="Выберите зал" />
             </SelectTrigger>
             <SelectContent>
@@ -124,7 +124,7 @@ export function ManagerPage() {
         </div>
       </div>
 
-      <Card className="mono-panel overflow-hidden border border-[#111111]/8">
+      <Card className="mono-panel overflow-hidden border border-border">
         <CardHeader className="bg-[#f8f8f5] px-5 sm:px-8">
           <div className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-amber-500" />
@@ -202,10 +202,10 @@ export function ManagerPage() {
         open={promoDialog.open}
         onOpenChange={(open) => setPromoDialog((cur) => ({ ...cur, open }))}
       >
-        <DialogContent className="border border-[#111111]/10 bg-white">
+        <DialogContent className="border border-border bg-card">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <BadgePercent className="h-5 w-5 text-[#111111]" />
+              <BadgePercent className="h-5 w-5 text-foreground" />
               Создать акцию для стимуляции спроса
             </DialogTitle>
             <DialogDescription>
@@ -257,7 +257,7 @@ export function ManagerPage() {
               <Button type="button" variant="outline" className="rounded-full" onClick={() => setPromoDialog({ open: false, date: '', slot: null })}>
                 Отмена
               </Button>
-              <Button type="submit" className="rounded-full bg-[#111111] text-white" disabled={creatingPromo}>
+              <Button type="submit" className="rounded-full bg-foreground text-background" disabled={creatingPromo}>
                 {creatingPromo ? 'Генерация...' : 'Опубликовать промокод'}
               </Button>
             </DialogFooter>

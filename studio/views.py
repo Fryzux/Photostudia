@@ -12,7 +12,10 @@ from django.conf import settings
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter
 from django.utils import timezone
 import os
+import logging
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+logger = logging.getLogger(__name__)
 from .models import Booking, HallImage, Order, Payment, Hall, StudioService
 from .serializers import BookingSerializer, OrderSerializer, PaymentSerializer, PaymentCreateSerializer, HallSerializer, OrderStatusUpdateSerializer, StudioServiceSerializer
 from .services import BookingService, PaymentService, BookingConflictError
@@ -28,10 +31,6 @@ class IsAdminOrReadOnly(permissions.BasePermission):
             return True
         return request.user and request.user.is_authenticated and request.user.is_staff
 
-
-from rest_framework.filters import SearchFilter
-from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter
-from rest_framework.decorators import action
 
 class HallFilter(FilterSet):
     """Custom filters for halls endpoint."""
@@ -61,12 +60,40 @@ class HallViewSet(viewsets.ModelViewSet):
     Availability:
       GET /api/studio/halls/{id}/availability/?date=2026-03-20
     """
-    queryset = Hall.objects.all().order_by('name')
+    queryset = Hall.objects.prefetch_related('gallery_images').order_by('name')
     serializer_class = HallSerializer
     permission_classes = [IsAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = HallFilter
     search_fields = ['name']
+
+    @action(detail=True, methods=['post'], url_path='images',
+            permission_classes=[IsAuthenticated], parser_classes=[MultiPartParser, FormParser])
+    def upload_images(self, request, pk=None):
+        """
+        POST /api/halls/{id}/images/  — загрузить изображения в галерею зала.
+        Принимает form-data с полем 'images' (одно или несколько файлов).
+        """
+        hall = self.get_object()
+        if not request.user.is_staff:
+            return Response({'error': 'Нет прав доступа.'}, status=status.HTTP_403_FORBIDDEN)
+
+        files = request.FILES.getlist('images') or request.FILES.getlist('image')
+        if not files:
+            return Response({'error': 'Файлы не переданы.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        created = []
+        for file in files:
+            img = HallImage.objects.create(hall=hall, image=file)
+            created.append(img.image.url)
+
+        # Обновляем главное изображение если оно ещё не установлено
+        if not hall.image and files:
+            hall.image = files[0]
+            hall.save(update_fields=['image'])
+
+        serializer = self.get_serializer(hall)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['get'], url_path='availability', permission_classes=[permissions.AllowAny])
     def availability(self, request, pk=None):
@@ -127,16 +154,18 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # Admin can see all, user can see only theirs
+        qs = Booking.objects.select_related('hall', 'user')
         if self.request.user.is_staff:
-            return Booking.objects.all()
-        return Booking.objects.filter(user=self.request.user)
+            return qs
+        return qs.filter(user=self.request.user)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
         promo_code = serializer.validated_data.pop('promo_code', None)
-        
+        extra_services_total = request.data.get('extra_services_total')
+
         # Service layer orchestrates atomic creation and overlap check
         try:
             booking, order, applied_promo = BookingService.create_booking(
@@ -145,12 +174,16 @@ class BookingViewSet(viewsets.ModelViewSet):
                 start_time=serializer.validated_data['start_time'],
                 end_time=serializer.validated_data['end_time'],
                 promo_code=promo_code or None,
+                extra_services_total=extra_services_total,
             )
         except BookingConflictError as e:
             return Response(
                 {"error": "Конфликт бронирования", "details": str(e)},
                 status=status.HTTP_409_CONFLICT
             )
+        except ValidationError as e:
+            msg = e.messages[0] if hasattr(e, 'messages') and e.messages else str(e)
+            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
         
         # Trigger background task
         from .tasks import send_booking_confirmation_email
@@ -306,8 +339,9 @@ class PaymentCreateView(views.APIView):
                 promo_code=serializer.validated_data.get('promo_code'),
             )
         except ValidationError as e:
+            msg = e.messages[0] if hasattr(e, 'messages') and e.messages else str(e)
             return Response(
-                {"error": e.message},
+                {"error": msg},
                 status=status.HTTP_400_BAD_REQUEST
             )
 

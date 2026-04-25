@@ -4,9 +4,11 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from booking.models import Hall, Booking, Order, Payment, AuditLog
+from studio.models import Hall, Booking, Order, Payment
+from audit.models import ActionLog
 
 User = get_user_model()
+
 
 class Command(BaseCommand):
     help = 'Наполнение базы тестовыми данными'
@@ -35,10 +37,10 @@ class Command(BaseCommand):
         # 3. Создание истории бронирований и заказов за последние 2 года (730 дней)
         now = timezone.now()
         start_history = now - timedelta(days=730)
-        
+
         self.stdout.write('Генерация истории бронирований за 2 года...')
-        
-        for i in range(1000): # Генерируем 1000 записей
+
+        for i in range(1000):  # Генерируем 1000 записей
             hall = random.choice(halls)
             days_ago = random.randint(0, 729)
             hour = random.randint(9, 20)
@@ -54,28 +56,32 @@ class Command(BaseCommand):
                     start_time=start_time,
                     end_time=end_time
                 )
-                
-                # Коэффициент цены может зависеть от зала
-                total_price = Decimal(hall.price_per_hour) * Decimal(duration_hours)
-                
-                # Большинство заказов оплачены в прошлом
-                status = 'PAID' if days_ago > 2 else random.choice(['PAID', 'PENDING'])
+
+                total_amount = Decimal(hall.price_per_hour) * Decimal(duration_hours)
+                order_status = 'COMPLETED' if days_ago > 2 else random.choice(['COMPLETED', 'PENDING'])
                 order = Order.objects.create(
+                    user=client,
                     booking=booking,
-                    total_price=total_price,
-                    status=status
+                    total_amount=total_amount,
+                    final_amount=total_amount,
+                    status=order_status
                 )
-                
-                if status == 'PAID':
+
+                if order_status == 'COMPLETED':
                     Payment.objects.create(
                         order=order,
-                        amount=total_price,
-                        payment_method=random.choice(['card', 'cash', 'online'])
+                        amount=total_amount,
+                        method=random.choice(['card', 'cash', 'online']),
+                        is_successful=True,
                     )
 
         # 4. Лог действий
-        AuditLog.objects.create(user=admin, action="База данных инициализирована и наполнена по ТЗ 2026", details={"total_records": 20})
-        
+        ActionLog.objects.create(
+            user=admin,
+            action="База данных инициализирована и наполнена по ТЗ 2026",
+            details="total_records: 1000",
+        )
+
         self.stdout.write(self.style.SUCCESS('База данных успешно наполнена данными!'))
-        self.stdout.write(f'Админ: admin / admin123')
-        self.stdout.write(f'Клиент: client / client123')
+        self.stdout.write('Админ: admin / admin123')
+        self.stdout.write('Клиент: client / client123')

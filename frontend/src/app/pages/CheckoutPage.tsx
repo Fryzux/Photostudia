@@ -141,13 +141,13 @@ export function CheckoutPage() {
   if (loadError) {
     return (
       <div className="mx-auto max-w-3xl space-y-6">
-        <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
+        <Card data-reveal="section" className="reveal-section mono-panel border border-border">
           <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-            <CardTitle className="text-[#111111]">Не удалось загрузить заказы</CardTitle>
-            <CardDescription className="text-[#5c5c5c]">{loadError}</CardDescription>
+            <CardTitle className="text-foreground">Не удалось загрузить заказы</CardTitle>
+            <CardDescription className="text-muted-foreground">{loadError}</CardDescription>
           </CardHeader>
           <CardContent className="px-5 pb-5 sm:px-6 sm:pb-6">
-            <Button className="rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a]" onClick={() => void loadOrders()}>
+            <Button className="rounded-full bg-foreground text-background hover:bg-foreground/90" onClick={() => void loadOrders()}>
               Повторить
             </Button>
           </CardContent>
@@ -159,13 +159,13 @@ export function CheckoutPage() {
   if (!pendingOrder) {
     return (
       <div className="mx-auto max-w-3xl space-y-6">
-        <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
+        <Card data-reveal="section" className="reveal-section mono-panel border border-border">
           <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-            <CardTitle className="flex items-center gap-2 text-[#111111]">
-              <CheckCircle2 className="h-5 w-5 text-[#111111]" />
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <CheckCircle2 className="h-5 w-5 text-foreground" />
               {justPaidOrderId ? `Заказ #${justPaidOrderId} успешно оплачен` : 'Активных заказов на оплату нет'}
             </CardTitle>
-            <CardDescription className="text-[#5c5c5c]">
+            <CardDescription className="text-muted-foreground">
               {justPaidOrderId
                 ? 'Оплата подтверждена. Можно перейти в историю бронирований для проверки статуса.'
                 : 'Можно вернуться в каталог залов или открыть историю бронирований.'}
@@ -173,10 +173,10 @@ export function CheckoutPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3 px-5 pb-5 sm:flex-row sm:px-6 sm:pb-6">
             <Link to="/halls">
-              <Button className="w-full rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a]">Перейти к залам</Button>
+              <Button className="w-full rounded-full bg-foreground text-background hover:bg-foreground/90">Перейти к залам</Button>
             </Link>
             <Link to="/profile/bookings">
-              <Button variant="outline" className="w-full rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]">
+              <Button variant="outline" className="w-full rounded-full border-border bg-card text-foreground hover:bg-accent">
                 Мои бронирования
               </Button>
             </Link>
@@ -188,40 +188,40 @@ export function CheckoutPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <section data-reveal="section" className="reveal-section mono-panel overflow-hidden rounded-[2rem] border border-[#111111]/8 p-5 sm:p-8">
-        <p className="mb-3 text-xs uppercase tracking-[0.36em] text-[#737373]">Checkout</p>
-        <h1 className="mb-3 text-4xl text-[#111111] sm:text-5xl">Оформление и оплата бронирования</h1>
-        <p className="max-w-3xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">Заказ уже создан на сервере со статусом `PENDING`. Осталось выбрать способ оплаты и подтвердить бронирование.</p>
+      <section data-reveal="section" className="reveal-section mono-panel overflow-hidden rounded-[2rem] border border-border p-5 sm:p-8">
+        <p className="mb-3 text-xs uppercase tracking-[0.36em] text-muted-foreground">Checkout</p>
+        <h1 className="mb-3 text-4xl text-foreground sm:text-5xl">Оформление и оплата бронирования</h1>
+        <p className="max-w-3xl text-lg leading-7 text-muted-foreground sm:text-xl sm:leading-8">Заказ уже создан на сервере со статусом `PENDING`. Осталось выбрать способ оплаты и подтвердить бронирование.</p>
       </section>
 
       <div className="grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
-        <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
+        <Card data-reveal="section" className="reveal-section mono-panel border border-border">
           <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-            <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
-              <Receipt className="h-5 w-5 text-[#111111]" />
+            <CardTitle className="flex items-center gap-2 text-2xl text-foreground">
+              <Receipt className="h-5 w-5 text-foreground" />
               Заказ #{pendingOrder.id}
             </CardTitle>
-            <CardDescription className="text-[#5c5c5c]">Проверьте зал, время и итоговую сумму перед оплатой.</CardDescription>
+            <CardDescription className="text-muted-foreground">Проверьте зал, время и итоговую сумму перед оплатой.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
-            <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-              <p className="text-sm text-[#5c5c5c]">Зал</p>
-              <p className="mt-1 text-xl font-semibold text-[#111111]">{pendingOrder.booking.hall.name}</p>
+            <div className="rounded-[1.35rem] border border-border bg-card/70 p-4">
+              <p className="text-sm text-muted-foreground">Зал</p>
+              <p className="mt-1 text-xl font-semibold text-foreground">{pendingOrder.booking.hall.name}</p>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-                <p className="text-sm text-[#5c5c5c]">Начало</p>
-                <p className="mt-1 font-medium text-[#111111]">{new Date(pendingOrder.booking.start_time).toLocaleString('ru-RU')}</p>
+              <div className="rounded-[1.35rem] border border-border bg-card/70 p-4">
+                <p className="text-sm text-muted-foreground">Начало</p>
+                <p className="mt-1 font-medium text-foreground">{new Date(pendingOrder.booking.start_time).toLocaleString('ru-RU')}</p>
               </div>
-              <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-                <p className="text-sm text-[#5c5c5c]">Окончание</p>
-                <p className="mt-1 font-medium text-[#111111]">{new Date(pendingOrder.booking.end_time).toLocaleString('ru-RU')}</p>
+              <div className="rounded-[1.35rem] border border-border bg-card/70 p-4">
+                <p className="text-sm text-muted-foreground">Окончание</p>
+                <p className="mt-1 font-medium text-foreground">{new Date(pendingOrder.booking.end_time).toLocaleString('ru-RU')}</p>
               </div>
             </div>
-            <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-5">
-              <p className="text-sm text-[#5c5c5c]">Сумма к оплате</p>
+            <div className="rounded-[1.35rem] border border-border bg-card/70 p-5">
+              <p className="text-sm text-muted-foreground">Сумма к оплате</p>
               <div className="mt-2 space-y-1.5">
-                <div className="flex items-center justify-between text-sm text-[#5c5c5c]">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>Базовая сумма</span>
                   <span>{pendingOrder.total_amount.toLocaleString('ru-RU')} ₽</span>
                 </div>
@@ -231,38 +231,38 @@ export function CheckoutPage() {
                     <span>-{discountAmount.toLocaleString('ru-RU')} ₽</span>
                   </div>
                 ) : null}
-                <div className="flex items-center justify-between border-t border-[#111111]/10 pt-2">
-                  <span className="font-medium text-[#111111]">Итог</span>
-                  <span className="text-3xl font-semibold text-[#111111]">{payableTotal.toLocaleString('ru-RU')} ₽</span>
+                <div className="flex items-center justify-between border-t border-border pt-2">
+                  <span className="font-medium text-foreground">Итог</span>
+                  <span className="text-3xl font-semibold text-foreground">{payableTotal.toLocaleString('ru-RU')} ₽</span>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
+        <Card data-reveal="section" className="reveal-section mono-panel border border-border">
           <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-            <CardTitle className="flex items-center gap-2 text-2xl text-[#111111]">
-              <Wallet className="h-5 w-5 text-[#111111]" />
+            <CardTitle className="flex items-center gap-2 text-2xl text-foreground">
+              <Wallet className="h-5 w-5 text-foreground" />
               Способ оплаты
             </CardTitle>
-            <CardDescription className="text-[#5c5c5c]">Клиент может завершить заказ сразу после бронирования, без перехода в отдельную админку.</CardDescription>
+            <CardDescription className="text-muted-foreground">Клиент может завершить заказ сразу после бронирования, без перехода в отдельную админку.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5 px-5 pb-5 sm:px-6 sm:pb-6">
             <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as 'card' | 'cash' | 'online')}>
               {paymentOptions.map((option) => (
-                <div key={option.value} className="flex items-center gap-3 rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4 hover:bg-[#f8f8f5]">
+                <div key={option.value} className="flex items-center gap-3 rounded-[1.35rem] border border-border bg-card/70 p-4 hover:bg-[#f8f8f5]">
                   <RadioGroupItem value={option.value} id={`payment-${option.value}`} />
                   <Label htmlFor={`payment-${option.value}`} className="cursor-pointer">
-                    <div className="font-medium text-[#111111]">{option.title}</div>
-                    <div className="text-sm text-[#5c5c5c]">{option.description}</div>
+                    <div className="font-medium text-foreground">{option.title}</div>
+                    <div className="text-sm text-muted-foreground">{option.description}</div>
                   </Label>
                 </div>
               ))}
             </RadioGroup>
 
-            <div className="space-y-2 rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
-              <Label htmlFor="checkout-promo" className="text-xs uppercase tracking-[0.32em] text-[#737373]">
+            <div className="space-y-2 rounded-[1.35rem] border border-border bg-card/70 p-4">
+              <Label htmlFor="checkout-promo" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">
                 Промокод
               </Label>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -276,12 +276,12 @@ export function CheckoutPage() {
                   }}
                   placeholder="Введите код"
                   maxLength={32}
-                  className="h-11 rounded-full border-[#111111]/12 bg-white sm:h-12"
+                  className="h-11 rounded-full border-border bg-card sm:h-12"
                 />
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-11 rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee] sm:h-12"
+                  className="h-11 rounded-full border-border bg-card text-foreground hover:bg-accent sm:h-12"
                   disabled={validatingPromo || !promoCode.trim()}
                   onClick={() => void applyPromo()}
                 >
@@ -296,7 +296,7 @@ export function CheckoutPage() {
               ) : null}
             </div>
 
-            <Button className="h-11 w-full gap-2 rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a] sm:h-12" disabled={paying} onClick={handlePayment}>
+            <Button className="h-11 w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90 sm:h-12" disabled={paying} onClick={handlePayment}>
               <CreditCard className="h-4 w-4" />
               {paying ? 'Проводим оплату...' : 'Оплатить заказ'}
             </Button>

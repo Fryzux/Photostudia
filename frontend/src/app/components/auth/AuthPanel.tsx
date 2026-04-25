@@ -20,11 +20,6 @@ const emptyRegisterForm = {
   password: '',
 };
 
-const sessionPoints = [
-  'Один кабинет для залов, заказов и оплаты.',
-  'Быстрый вход без лишних экранов и шагов.',
-  'Вся работа со студией собрана в одном месте.',
-];
 
 export function AuthPanel() {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
@@ -85,30 +80,22 @@ export function AuthPanel() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <Card className="mono-panel rounded-[2rem] border border-[#111111]/8">
+      <Card className="mono-panel rounded-[2rem] border border-border">
         <CardContent className="p-6 sm:p-8 lg:p-10">
           <div className="space-y-6 text-center sm:space-y-8">
             <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#111111]/10 px-4 py-2 text-xs uppercase tracking-[0.32em] text-[#666666]">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs uppercase tracking-[0.32em] text-muted-foreground">
                 <Sparkles className="h-3.5 w-3.5" />
                 Личный кабинет
               </div>
-              <h1 className="text-4xl text-[#111111] sm:text-6xl">Вход и регистрация</h1>
+              <h1 className="text-4xl text-foreground sm:text-6xl">Вход и регистрация</h1>
               <p className="mx-auto max-w-2xl text-lg leading-7 text-[#5f5f5f] sm:text-xl sm:leading-8">
                 Всё собрано в одном спокойном экране: доступ к залам, бронированиям, оплате и истории заказов.
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              {sessionPoints.map((point) => (
-                <div key={point} className="rounded-[1.2rem] border border-[#111111]/8 bg-white/70 p-4 text-sm leading-7 text-[#4d4d4d]">
-                  {point}
-                </div>
-              ))}
-            </div>
-
             <Tabs defaultValue="login" className="w-full text-left">
-              <TabsList className="mx-auto grid h-auto w-full max-w-md grid-cols-2 rounded-full bg-[#efefec] p-1">
+              <TabsList className="mx-auto grid h-auto w-full max-w-md grid-cols-2 rounded-full bg-secondary p-1">
                 <TabsTrigger value="login" className="rounded-full text-center">
                   Вход
                 </TabsTrigger>
@@ -120,7 +107,7 @@ export function AuthPanel() {
               <TabsContent value="login" className="mt-8">
                 <form onSubmit={handleLogin} className="mx-auto max-w-xl space-y-5">
                   <div className="space-y-2">
-                    <Label htmlFor="username" className="block text-center text-xs uppercase tracking-[0.32em] text-[#777777]">
+                    <Label htmlFor="username" className="block text-center text-xs uppercase tracking-[0.32em] text-muted-foreground">
                       Логин
                     </Label>
                     <Input
@@ -130,13 +117,13 @@ export function AuthPanel() {
                       value={loginData.username}
                       onChange={(event) => setLoginData({ ...loginData, username: event.target.value })}
                       aria-invalid={!!loginErrors.username}
-                      className="h-11 rounded-full border-[#111111]/12 bg-white text-center text-sm sm:h-12 sm:text-base"
+                      className="h-11 rounded-full border-border bg-card text-center text-sm sm:h-12 sm:text-base"
                     />
                     {loginErrors.username ? <p className="text-center text-sm text-rose-600">{loginErrors.username}</p> : null}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="block text-center text-xs uppercase tracking-[0.32em] text-[#777777]">
+                    <Label htmlFor="password" className="block text-center text-xs uppercase tracking-[0.32em] text-muted-foreground">
                       Пароль
                     </Label>
                     <Input
@@ -146,7 +133,7 @@ export function AuthPanel() {
                       value={loginData.password}
                       onChange={(event) => setLoginData({ ...loginData, password: event.target.value })}
                       aria-invalid={!!loginErrors.password}
-                      className="h-11 rounded-full border-[#111111]/12 bg-white text-center text-sm sm:h-12 sm:text-base"
+                      className="h-11 rounded-full border-border bg-card text-center text-sm sm:h-12 sm:text-base"
                     />
                     {loginErrors.password ? <p className="text-center text-sm text-rose-600">{loginErrors.password}</p> : null}
                   </div>
@@ -155,7 +142,7 @@ export function AuthPanel() {
                     <Button
                       type="submit"
                       disabled={loading}
-                      className="min-h-11 w-full rounded-full bg-[#111111] px-8 text-white hover:bg-[#2a2a2a] sm:min-w-52 sm:w-auto"
+                      className="min-h-11 w-full rounded-full bg-[#111111] px-8 text-white hover:bg-foreground/90 sm:min-w-52 sm:w-auto"
                     >
                       {loading ? 'Открываем сессию...' : 'Войти'}
                       <ArrowRight className="ml-2 h-4 w-4" />
@@ -168,7 +155,7 @@ export function AuthPanel() {
                 <form onSubmit={handleRegister} className="mx-auto max-w-2xl space-y-5">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="reg-first-name" className="block text-center text-xs uppercase tracking-[0.32em] text-[#777777]">
+                      <Label htmlFor="reg-first-name" className="block text-center text-xs uppercase tracking-[0.32em] text-muted-foreground">
                         Имя
                       </Label>
                       <Input
@@ -177,13 +164,13 @@ export function AuthPanel() {
                         value={registerData.first_name}
                         onChange={(event) => setRegisterData({ ...registerData, first_name: event.target.value })}
                         aria-invalid={!!registerErrors.first_name}
-                        className="h-11 rounded-full border-[#111111]/12 bg-white text-center text-sm sm:h-12 sm:text-base"
+                        className="h-11 rounded-full border-border bg-card text-center text-sm sm:h-12 sm:text-base"
                       />
                       {registerErrors.first_name ? <p className="text-center text-sm text-rose-600">{registerErrors.first_name}</p> : null}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="reg-last-name" className="block text-center text-xs uppercase tracking-[0.32em] text-[#777777]">
+                      <Label htmlFor="reg-last-name" className="block text-center text-xs uppercase tracking-[0.32em] text-muted-foreground">
                         Фамилия
                       </Label>
                       <Input
@@ -191,14 +178,14 @@ export function AuthPanel() {
                         type="text"
                         value={registerData.last_name}
                         onChange={(event) => setRegisterData({ ...registerData, last_name: event.target.value })}
-                        className="h-11 rounded-full border-[#111111]/12 bg-white text-center text-sm sm:h-12 sm:text-base"
+                        className="h-11 rounded-full border-border bg-card text-center text-sm sm:h-12 sm:text-base"
                       />
                     </div>
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="reg-email" className="block text-center text-xs uppercase tracking-[0.32em] text-[#777777]">
+                      <Label htmlFor="reg-email" className="block text-center text-xs uppercase tracking-[0.32em] text-muted-foreground">
                         Email
                       </Label>
                       <Input
@@ -207,13 +194,13 @@ export function AuthPanel() {
                         value={registerData.email}
                         onChange={(event) => setRegisterData({ ...registerData, email: event.target.value })}
                         aria-invalid={!!registerErrors.email}
-                        className="h-11 rounded-full border-[#111111]/12 bg-white text-center text-sm sm:h-12 sm:text-base"
+                        className="h-11 rounded-full border-border bg-card text-center text-sm sm:h-12 sm:text-base"
                       />
                       {registerErrors.email ? <p className="text-center text-sm text-rose-600">{registerErrors.email}</p> : null}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="reg-phone" className="block text-center text-xs uppercase tracking-[0.32em] text-[#777777]">
+                      <Label htmlFor="reg-phone" className="block text-center text-xs uppercase tracking-[0.32em] text-muted-foreground">
                         Телефон
                       </Label>
                       <Input
@@ -222,14 +209,14 @@ export function AuthPanel() {
                         value={registerData.phone}
                         onChange={(event) => setRegisterData({ ...registerData, phone: event.target.value })}
                         aria-invalid={!!registerErrors.phone}
-                        className="h-11 rounded-full border-[#111111]/12 bg-white text-center text-sm sm:h-12 sm:text-base"
+                        className="h-11 rounded-full border-border bg-card text-center text-sm sm:h-12 sm:text-base"
                       />
                       {registerErrors.phone ? <p className="text-center text-sm text-rose-600">{registerErrors.phone}</p> : null}
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="reg-username" className="block text-center text-xs uppercase tracking-[0.32em] text-[#777777]">
+                    <Label htmlFor="reg-username" className="block text-center text-xs uppercase tracking-[0.32em] text-muted-foreground">
                       Логин
                     </Label>
                     <Input
@@ -238,13 +225,13 @@ export function AuthPanel() {
                       value={registerData.username}
                       onChange={(event) => setRegisterData({ ...registerData, username: event.target.value })}
                       aria-invalid={!!registerErrors.username}
-                      className="h-11 rounded-full border-[#111111]/12 bg-white text-center text-sm sm:h-12 sm:text-base"
+                      className="h-11 rounded-full border-border bg-card text-center text-sm sm:h-12 sm:text-base"
                     />
                     {registerErrors.username ? <p className="text-center text-sm text-rose-600">{registerErrors.username}</p> : null}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="reg-password" className="block text-center text-xs uppercase tracking-[0.32em] text-[#777777]">
+                    <Label htmlFor="reg-password" className="block text-center text-xs uppercase tracking-[0.32em] text-muted-foreground">
                       Пароль
                     </Label>
                     <Input
@@ -253,7 +240,7 @@ export function AuthPanel() {
                       value={registerData.password}
                       onChange={(event) => setRegisterData({ ...registerData, password: event.target.value })}
                       aria-invalid={!!registerErrors.password}
-                      className="h-11 rounded-full border-[#111111]/12 bg-white text-center text-sm sm:h-12 sm:text-base"
+                      className="h-11 rounded-full border-border bg-card text-center text-sm sm:h-12 sm:text-base"
                     />
                     {registerErrors.password ? <p className="text-center text-sm text-rose-600">{registerErrors.password}</p> : null}
                   </div>
@@ -262,7 +249,7 @@ export function AuthPanel() {
                     <Button
                       type="submit"
                       disabled={loading}
-                      className="min-h-11 w-full rounded-full bg-[#111111] px-8 text-white hover:bg-[#2a2a2a] sm:min-w-52 sm:w-auto"
+                      className="min-h-11 w-full rounded-full bg-[#111111] px-8 text-white hover:bg-foreground/90 sm:min-w-52 sm:w-auto"
                     >
                       {loading ? 'Создаём аккаунт...' : 'Создать аккаунт'}
                       <ArrowRight className="ml-2 h-4 w-4" />
@@ -272,8 +259,8 @@ export function AuthPanel() {
               </TabsContent>
             </Tabs>
 
-            <div className="pt-2 text-center text-sm text-[#666666]">
-              <Link to="/" className="transition-colors hover:text-[#111111]">
+            <div className="pt-2 text-center text-sm text-muted-foreground">
+              <Link to="/" className="transition-colors hover:text-foreground">
                 Вернуться на главную
               </Link>
             </div>

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router';
 import { Layout } from './components/Layout';
 import { useAuth } from './context/AuthContext';
+import { tokenStorage } from './services/api';
 
 // Lazy load pages for better performance
 const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
@@ -19,7 +20,6 @@ const CheckoutPage = lazy(() => import('./pages/CheckoutPage').then(m => ({ defa
 const ForbiddenPage = lazy(() => import('./pages/ForbiddenPage').then(m => ({ default: m.ForbiddenPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 const ManagerPage = lazy(() => import('./pages/ManagerPage').then(m => ({ default: m.ManagerPage })));
-const ManagerSchedulePage = lazy(() => import('./pages/ManagerSchedulePage').then(m => ({ default: m.ManagerSchedulePage })));
 
 function PageLoader() {
   return (
@@ -29,15 +29,15 @@ function PageLoader() {
   );
 }
 
+// Есть ли у пользователя сохранённая сессия (refresh token в sessionStorage)?
+const hasSession = () => !!tokenStorage.getRefreshToken();
+
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
 
-  if (loading && isAuthenticated) {
-    return <>{children}</>;
-  }
-
+  // Пока идёт проверка — если есть сессия, показываем контент оптимистично
   if (loading) {
-    return <div className="py-12 text-center text-sm text-slate-500">Проверяем доступ...</div>;
+    return hasSession() ? <>{children}</> : <PageLoader />;
   }
 
   if (!isAuthenticated) {
@@ -48,14 +48,16 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 }
 
 function AdminRoute({ children }: { children: ReactNode }) {
-  const { isAdmin, loading } = useAuth();
-
-  if (loading && isAdmin) {
-    return <>{children}</>;
-  }
+  const { isAdmin, isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return <div className="py-12 text-center text-sm text-slate-500">Проверяем права доступа...</div>;
+    // Уже знаем роль — показываем сразу; иначе тихо ждём (спиннер, не текст)
+    if (isAdmin) return <>{children}</>;
+    return hasSession() ? <PageLoader /> : <PageLoader />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
   }
 
   if (!isAdmin) {
@@ -66,10 +68,15 @@ function AdminRoute({ children }: { children: ReactNode }) {
 }
 
 function ManagerRoute({ children }: { children: ReactNode }) {
-  const { isManager, loading } = useAuth();
+  const { isManager, isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return <div className="py-12 text-center text-sm text-slate-500">Проверяем права доступа...</div>;
+    if (isManager) return <>{children}</>;
+    return <PageLoader />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
   }
 
   if (!isManager) {

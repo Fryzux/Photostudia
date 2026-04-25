@@ -13,19 +13,19 @@ class BookingConflictError(Exception):
 class BookingService:
     @staticmethod
     @transaction.atomic
-    def create_booking(user, hall, start_time, end_time, promo_code=None):
+    def create_booking(user, hall, start_time, end_time, promo_code=None, extra_services_total=None):
         """
         Creates a booking with overlap validation and generates an order within a transaction.
         Optionally applies a promo code discount to the order total.
         """
         if start_time >= end_time:
             raise ValidationError("End time must be after start time.")
-        
+
         # Check overlaps with SELECT FOR UPDATE to prevent race conditions
         overlapping = BookingRepository.get_overlapping_bookings(hall, start_time, end_time, lock=True)
         if overlapping.exists():
             raise BookingConflictError("This hall is already booked for the selected time slot.")
-        
+
         # Create Booking
         booking = Booking.objects.create(
             user=user,
@@ -33,10 +33,11 @@ class BookingService:
             start_time=start_time,
             end_time=end_time
         )
-        
+
         # Calculate amount
         duration_hours = Decimal((end_time - start_time).total_seconds()) / Decimal(3600)
-        total_amount = (hall.price_per_hour * duration_hours) + extra_services_total
+        services_cost = Decimal(str(extra_services_total)) if extra_services_total else Decimal('0')
+        total_amount = (hall.price_per_hour * duration_hours) + services_cost
         
         # Apply promo code discount if provided
         applied_promo = None
@@ -117,8 +118,4 @@ class PaymentService:
         order.applied_promo = applied_promo
         order.save()
 
-        if applied_promo:
-            applied_promo.usage_count = (applied_promo.usage_count or 0) + 1
-            applied_promo.save(update_fields=['usage_count', 'updated_at'])
-        
         return payment

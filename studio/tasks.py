@@ -2,7 +2,6 @@ from celery import shared_task
 from django.core.mail import send_mail
 from django.conf import settings
 import logging
-from datetime import timedelta # This import is used by the second task
 
 logger = logging.getLogger(__name__)
 

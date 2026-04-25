@@ -159,9 +159,9 @@ export function MyBookingsPage() {
   useEffect(() => {
     if (page <= totalPages) return;
     updateParam('page', String(totalPages));
-  }, [page, totalPages]);
+  }, [page, totalPages, updateParam]);
 
-  const cancellableStatuses = new Set(['NEW', 'PENDING', 'CONFIRMED']);
+  const cancellableStatuses = new Set<string>(['PENDING', 'CONFIRMED']);
 
   const calculateDuration = (start: string, end: string) => {
     const startDate = new Date(start);
@@ -185,27 +185,27 @@ export function MyBookingsPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <section data-reveal="section" className="reveal-section mono-panel rounded-[2rem] border border-[#111111]/8 px-5 py-8 text-center sm:px-8 sm:py-10">
-        <p className="mb-3 text-xs uppercase tracking-[0.36em] text-[#737373]">Мои брони</p>
-        <h1 className="text-4xl text-[#111111] sm:text-5xl">Управление бронированиями</h1>
-        <p className="mx-auto mt-4 max-w-2xl text-lg leading-7 text-[#5c5c5c] sm:text-xl sm:leading-8">
+      <section data-reveal="section" className="reveal-section mono-panel rounded-[2rem] border border-border px-5 py-8 text-center sm:px-8 sm:py-10">
+        <p className="mb-3 text-xs uppercase tracking-[0.36em] text-muted-foreground">Мои брони</p>
+        <h1 className="text-4xl text-foreground sm:text-5xl">Управление бронированиями</h1>
+        <p className="mx-auto mt-4 max-w-2xl text-lg leading-7 text-muted-foreground sm:text-xl sm:leading-8">
           Отслеживайте статусы, оплачивайте созданные заказы и быстро находите нужную бронь по названию зала или номеру.
         </p>
       </section>
 
-      <Card data-reveal="section" className="reveal-section mono-panel border border-[#111111]/8">
+      <Card data-reveal="section" className="reveal-section mono-panel border border-border">
         <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
-          <CardTitle className="text-2xl text-[#111111]">Поиск и фильтрация</CardTitle>
-          <CardDescription className="text-[#5c5c5c]">Можно быстро найти заказ по номеру, названию зала или статусу.</CardDescription>
+          <CardTitle className="text-2xl text-foreground">Поиск и фильтрация</CardTitle>
+          <CardDescription className="text-muted-foreground">Можно быстро найти заказ по номеру, названию зала или статусу.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_220px_220px_220px_160px]">
           <div className="space-y-2">
-            <Label htmlFor="booking-search" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Поиск</Label>
+            <Label htmlFor="booking-search" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Поиск</Label>
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#777777]" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="booking-search"
-                className="h-11 rounded-full border-[#111111]/12 bg-white pl-9 text-sm sm:h-12 sm:text-base"
+                className="h-11 rounded-full border-border bg-card pl-9 text-sm sm:h-12 sm:text-base"
                 placeholder="Номер заказа или название зала"
                 value={search}
                 onChange={(e) => updateParam('search', e.target.value)}
@@ -214,9 +214,9 @@ export function MyBookingsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="booking-status" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Статус</Label>
+            <Label htmlFor="booking-status" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Статус</Label>
             <Select value={status} onValueChange={(value) => updateParam('status', value)}>
-              <SelectTrigger id="booking-status" className="h-11 rounded-full border-[#111111]/12 bg-white text-sm sm:h-12 sm:text-base">
+              <SelectTrigger id="booking-status" className="h-11 rounded-full border-border bg-card text-sm sm:h-12 sm:text-base">
                 <SelectValue placeholder="Все статусы" />
               </SelectTrigger>
               <SelectContent>
@@ -231,17 +231,17 @@ export function MyBookingsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="booking-date-from" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Дата от</Label>
+            <Label htmlFor="booking-date-from" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Дата от</Label>
             <DatePickerInput id="booking-date-from" value={dateFrom} onChange={(value) => updateParam('date_from', value)} />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="booking-date-to" className="text-xs uppercase tracking-[0.32em] text-[#737373]">Дата до</Label>
+            <Label htmlFor="booking-date-to" className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Дата до</Label>
             <DatePickerInput id="booking-date-to" value={dateTo} onChange={(value) => updateParam('date_to', value)} />
           </div>
 
           <div className="flex items-end">
-            <Button variant="outline" className="h-11 w-full rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee] sm:h-12" onClick={() => setSearchParams({}, { replace: true })}>
+            <Button variant="outline" className="h-11 w-full rounded-full border-border bg-card text-foreground hover:bg-accent sm:h-12" onClick={() => setSearchParams({}, { replace: true })}>
               Сбросить
             </Button>
           </div>
@@ -257,12 +257,12 @@ export function MyBookingsPage() {
             const canCancel = cancellableStatuses.has(order.status);
 
             return (
-              <Card key={order.id} className="reveal-card mono-panel border border-[#111111]/8" style={{ transitionDelay: `${100 + index * 55}ms` }}>
+              <Card key={order.id} className="reveal-card mono-panel border border-border" style={{ transitionDelay: `${100 + index * 55}ms` }}>
                 <CardHeader className="px-5 pt-5 sm:px-6 sm:pt-6">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <CardTitle className="text-2xl text-[#111111]">{booking.hall.name}</CardTitle>
-                      <CardDescription className="mt-1 text-[#5c5c5c]">Заказ #{order.id}</CardDescription>
+                      <CardTitle className="text-2xl text-foreground">{booking.hall.name}</CardTitle>
+                      <CardDescription className="mt-1 text-muted-foreground">Заказ #{order.id}</CardDescription>
                     </div>
                     {order.status === 'COMPLETED' ? (
                       <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[#111111] px-3 py-1 text-sm font-medium text-white">
@@ -270,9 +270,9 @@ export function MyBookingsPage() {
                         Оплачено
                       </span>
                     ) : order.status === 'CANCELLED' ? (
-                      <span className="inline-flex w-fit items-center rounded-full bg-white px-3 py-1 text-sm font-medium text-[#5c5c5c]">Отменено</span>
+                      <span className="inline-flex w-fit items-center rounded-full bg-card px-3 py-1 text-sm font-medium text-muted-foreground">Отменено</span>
                     ) : (
-                      <span className="inline-flex w-fit items-center rounded-full bg-white px-3 py-1 text-sm font-medium text-[#111111]">Ожидает оплаты</span>
+                      <span className="inline-flex w-fit items-center rounded-full bg-card px-3 py-1 text-sm font-medium text-foreground">Ожидает оплаты</span>
                     )}
                   </div>
                 </CardHeader>
@@ -281,40 +281,40 @@ export function MyBookingsPage() {
                   <div className="grid gap-4">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="flex items-start gap-3">
-                        <Calendar className="mt-0.5 h-5 w-5 text-[#5c5c5c]" />
+                        <Calendar className="mt-0.5 h-5 w-5 text-muted-foreground" />
                         <div>
-                          <p className="text-sm font-medium text-[#111111]">Дата начала</p>
-                          <p className="text-sm text-[#5c5c5c]">
+                          <p className="text-sm font-medium text-foreground">Дата начала</p>
+                          <p className="text-sm text-muted-foreground">
                             {format(new Date(booking.start_time), 'dd MMMM yyyy, HH:mm', { locale: ru })}
                           </p>
                         </div>
                       </div>
 
                       <div className="flex items-start gap-3">
-                        <Clock className="mt-0.5 h-5 w-5 text-[#5c5c5c]" />
+                        <Clock className="mt-0.5 h-5 w-5 text-muted-foreground" />
                         <div>
-                          <p className="text-sm font-medium text-[#111111]">Дата окончания</p>
-                          <p className="text-sm text-[#5c5c5c]">
+                          <p className="text-sm font-medium text-foreground">Дата окончания</p>
+                          <p className="text-sm text-muted-foreground">
                             {format(new Date(booking.end_time), 'dd MMMM yyyy, HH:mm', { locale: ru })}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="rounded-[1.35rem] border border-[#111111]/8 bg-white/70 p-4">
+                    <div className="rounded-[1.35rem] border border-border bg-card/70 p-4">
                       <div className="mb-2 flex items-center justify-between">
-                        <span className="text-sm text-[#5c5c5c]">Длительность:</span>
-                        <span className="font-medium text-[#111111]">{duration.toFixed(1)} ч.</span>
+                        <span className="text-sm text-muted-foreground">Длительность:</span>
+                        <span className="font-medium text-foreground">{duration.toFixed(1)} ч.</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-[#5c5c5c]">Сумма к оплате:</span>
-                        <span className="text-lg font-bold text-[#111111]">{order.total_amount.toLocaleString('ru-RU')} ₽</span>
+                        <span className="text-sm text-muted-foreground">Сумма к оплате:</span>
+                        <span className="text-lg font-bold text-foreground">{order.total_amount.toLocaleString('ru-RU')} ₽</span>
                       </div>
                     </div>
 
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                       {order.status === 'PENDING' && (
-                        <Button className="h-11 w-full gap-2 rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a] sm:h-12 sm:flex-1" onClick={() => setPaymentDialog({ open: true, orderId: order.id })}>
+                        <Button className="h-11 w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90 sm:h-12 sm:flex-1" onClick={() => setPaymentDialog({ open: true, orderId: order.id })}>
                           <CreditCard className="h-4 w-4" />
                           Оплатить
                         </Button>
@@ -323,7 +323,7 @@ export function MyBookingsPage() {
                       {canCancel ? (
                         <Button
                           variant="outline"
-                          className="h-11 w-full gap-2 rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee] sm:h-12 sm:w-auto"
+                          className="h-11 w-full gap-2 rounded-full border-border bg-card text-foreground hover:bg-accent sm:h-12 sm:w-auto"
                           disabled={isCancellingCurrent}
                           onClick={() => setDeleteDialog({ open: true, bookingId: booking.id })}
                         >
@@ -341,12 +341,12 @@ export function MyBookingsPage() {
       )}
 
       {filteredOrders.length === 0 && (
-        <div data-reveal="section" className="reveal-section mono-panel rounded-[2rem] border border-dashed border-[#111111]/12 px-5 py-12 text-center sm:px-6">
+        <div data-reveal="section" className="reveal-section mono-panel rounded-[2rem] border border-dashed border-border px-5 py-12 text-center sm:px-6">
           <Calendar className="mx-auto mb-4 h-14 w-14 text-[#c2c2bc]" />
-          <h3 className="mb-2 text-xl text-[#111111]">Подходящих бронирований не найдено</h3>
-          <p className="mb-6 text-[#5c5c5c]">Попробуйте изменить фильтры или создайте новое бронирование.</p>
+          <h3 className="mb-2 text-xl text-foreground">Подходящих бронирований не найдено</h3>
+          <p className="mb-6 text-muted-foreground">Попробуйте изменить фильтры или создайте новое бронирование.</p>
           <Link to="/halls">
-            <Button className="rounded-full bg-[#111111] px-6 text-white hover:bg-[#2a2a2a]">Посмотреть залы</Button>
+            <Button className="rounded-full bg-[#111111] px-6 text-white hover:bg-foreground/90">Посмотреть залы</Button>
           </Link>
         </div>
       )}
@@ -355,44 +355,44 @@ export function MyBookingsPage() {
         open={paymentDialog.open}
         onOpenChange={(open) => setPaymentDialog((current) => ({ open, orderId: open ? current.orderId : null }))}
       >
-        <DialogContent className="border border-[#111111]/10 bg-white">
+        <DialogContent className="border border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="text-[#111111]">Оплата бронирования</DialogTitle>
-            <DialogDescription className="text-[#5c5c5c]">Выберите способ оплаты для завершения бронирования.</DialogDescription>
+            <DialogTitle className="text-foreground">Оплата бронирования</DialogTitle>
+            <DialogDescription className="text-muted-foreground">Выберите способ оплаты для завершения бронирования.</DialogDescription>
           </DialogHeader>
 
           <div className="py-4">
-            <Label className="mb-3 block text-xs uppercase tracking-[0.32em] text-[#737373]">Способ оплаты</Label>
+            <Label className="mb-3 block text-xs uppercase tracking-[0.32em] text-muted-foreground">Способ оплаты</Label>
             <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as 'card' | 'cash' | 'online')}>
-              <div className="flex cursor-pointer items-center space-x-2 rounded-[1.2rem] border border-[#111111]/8 p-3 hover:bg-[#f8f8f5]">
+              <div className="flex cursor-pointer items-center space-x-2 rounded-[1.2rem] border border-border p-3 hover:bg-[#f8f8f5]">
                 <RadioGroupItem value="card" id="card" />
                 <Label htmlFor="card" className="flex-1 cursor-pointer">
                   <div className="font-medium">Банковская карта</div>
-                  <div className="text-sm text-[#5c5c5c]">Visa, MasterCard, МИР</div>
+                  <div className="text-sm text-muted-foreground">Visa, MasterCard, МИР</div>
                 </Label>
               </div>
-              <div className="flex cursor-pointer items-center space-x-2 rounded-[1.2rem] border border-[#111111]/8 p-3 hover:bg-[#f8f8f5]">
+              <div className="flex cursor-pointer items-center space-x-2 rounded-[1.2rem] border border-border p-3 hover:bg-[#f8f8f5]">
                 <RadioGroupItem value="online" id="online" />
                 <Label htmlFor="online" className="flex-1 cursor-pointer">
                   <div className="font-medium">Онлайн-оплата</div>
-                  <div className="text-sm text-[#5c5c5c]">Через платёжную систему</div>
+                  <div className="text-sm text-muted-foreground">Через платёжную систему</div>
                 </Label>
               </div>
-              <div className="flex cursor-pointer items-center space-x-2 rounded-[1.2rem] border border-[#111111]/8 p-3 hover:bg-[#f8f8f5]">
+              <div className="flex cursor-pointer items-center space-x-2 rounded-[1.2rem] border border-border p-3 hover:bg-[#f8f8f5]">
                 <RadioGroupItem value="cash" id="cash" />
                 <Label htmlFor="cash" className="flex-1 cursor-pointer">
                   <div className="font-medium">Наличными</div>
-                  <div className="text-sm text-[#5c5c5c]">Оплата на месте</div>
+                  <div className="text-sm text-muted-foreground">Оплата на месте</div>
                 </Label>
               </div>
             </RadioGroup>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" className="rounded-full border-[#111111]/12 bg-white text-[#111111] hover:bg-[#f1f1ee]" onClick={() => setPaymentDialog({ open: false, orderId: null })}>
+            <Button variant="outline" className="rounded-full border-border bg-card text-foreground hover:bg-accent" onClick={() => setPaymentDialog({ open: false, orderId: null })}>
               Отмена
             </Button>
-            <Button className="rounded-full bg-[#111111] text-white hover:bg-[#2a2a2a]" onClick={handlePayment} disabled={paying}>
+            <Button className="rounded-full bg-foreground text-background hover:bg-foreground/90" onClick={handlePayment} disabled={paying}>
               {paying ? 'Обработка...' : 'Оплатить'}
             </Button>
           </DialogFooter>
@@ -400,10 +400,10 @@ export function MyBookingsPage() {
       </Dialog>
 
       <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog((current) => ({ open, bookingId: open ? current.bookingId : null }))}>
-        <AlertDialogContent className="border border-[#111111]/10 bg-white">
+        <AlertDialogContent className="border border-border bg-card">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-[#111111]">Подтвердите действие</AlertDialogTitle>
-            <AlertDialogDescription className="text-[#5c5c5c]">
+            <AlertDialogTitle className="text-foreground">Подтвердите действие</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
               Бронирование будет отменено, а действие попадет в журнал аудита на сервере.
             </AlertDialogDescription>
           </AlertDialogHeader>

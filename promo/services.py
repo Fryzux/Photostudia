@@ -10,23 +10,20 @@ def _to_money(value: Decimal) -> Decimal:
 
 
 def calculate_promo_for_amount(promo: PromoCode, amount: Decimal) -> tuple[Decimal, Decimal]:
+    """Calculate discount_amount and final_amount for a given promo and amount."""
     amount = Decimal(str(amount))
-    promo_value = Decimal(str(promo.value or 0))
+    percent = Decimal(str(promo.discount_percent or 0))
 
-    if promo.promo_type == 'FIXED':
-        discount_amount = min(amount, promo_value)
-    else:
-        percent = promo_value if promo_value > 0 else Decimal(str(promo.discount_percent or 0))
-        if percent < 0 or percent > 100:
-            raise ValidationError('Некорректное значение скидки.')
-        discount_amount = amount * (percent / Decimal('100'))
+    if percent < 0 or percent > 100:
+        raise ValidationError('Некорректное значение скидки.')
 
-    discount_amount = _to_money(max(discount_amount, Decimal('0')))
+    discount_amount = _to_money(amount * (percent / Decimal('100')))
     final_amount = _to_money(max(amount - discount_amount, Decimal('0')))
     return discount_amount, final_amount
 
 
 def validate_promo(promo: PromoCode) -> None:
+    """Validate that a promo code is currently usable (active and within time bounds)."""
     now = timezone.now()
 
     if not promo.is_active:
@@ -37,10 +34,3 @@ def validate_promo(promo: PromoCode) -> None:
 
     if promo.valid_to and now > promo.valid_to:
         raise ValidationError('Срок действия промокода истёк.')
-
-    if promo.expiry and now > promo.expiry:
-        raise ValidationError('Срок действия промокода истёк.')
-
-    if promo.usage_limit is not None and promo.usage_count >= promo.usage_limit:
-        raise ValidationError('Лимит использований промокода исчерпан.')
-

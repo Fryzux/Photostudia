@@ -16,7 +16,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 import django
 django.setup()
 
-from booking.models import Booking, Hall
+from studio.models import Booking, Hall
 from django.db.models import Count
 
 

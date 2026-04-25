@@ -12,6 +12,24 @@ import {
 } from '../services/api';
 import type { LoginCredentials, RegisterData } from '../types';
 
+const PROFILE_CACHE_KEY = 'ps_profile';
+
+function getCachedProfile(): User | null {
+  try {
+    const raw = sessionStorage.getItem(PROFILE_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedProfile(user: User | null) {
+  try {
+    if (user) sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(user));
+    else sessionStorage.removeItem(PROFILE_CACHE_KEY);
+  } catch {}
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -39,10 +57,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const task = (async () => {
-      setLoading(true);
       try {
         const userData = await getProfile();
         if (!mountedRef.current) return;
+        setCachedProfile(userData);
         startTransition(() => {
           setUser(userData);
           setLoading(false);
@@ -50,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Ошибка загрузки профиля:', error);
         tokenStorage.clearTokens();
+        setCachedProfile(null);
         if (!mountedRef.current) return;
         startTransition(() => {
           setUser(null);
@@ -65,38 +84,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    const fallbackTimer = setTimeout(() => {
+      setLoading(prev => {
+        if (prev) {
+          tokenStorage.clearTokens();
+          setCachedProfile(null);
+          startTransition(() => { setUser(null); });
+          return false;
+        }
+        return prev;
+      });
+    }, 3000);
+
     const syncAuthState = async () => {
-      // Сначала проверяем access token в памяти
       if (tokenStorage.getAccessToken()) {
         void loadUser();
         return;
       }
 
-      // Access token пустой (например, после перезагрузки страницы).
-      // Пробуем восстановить сессию через refresh token из sessionStorage.
       const rt = tokenStorage.getRefreshToken();
       if (rt) {
+        // Есть кэшированный профиль — показываем мгновенно, рефреш идёт фоново
+        const cached = getCachedProfile();
+        if (cached) {
+          startTransition(() => {
+            setUser(cached);
+            setLoading(false);
+          });
+          // Фоновый рефреш + обновление профиля
+          try {
+            await apiRefreshToken();
+            void loadUser();
+          } catch {
+            tokenStorage.clearTokens();
+            setCachedProfile(null);
+            startTransition(() => { setUser(null); });
+          }
+          return;
+        }
+
         try {
-          await apiRefreshToken();   // обновит _accessToken в памяти
+          await apiRefreshToken();
           void loadUser();
           return;
         } catch {
           tokenStorage.clearTokens();
+          setCachedProfile(null);
         }
       }
 
-      startTransition(() => {
-        setUser(null);
-      });
+      startTransition(() => { setUser(null); });
       setLoading(false);
     };
 
+    const handler = () => void syncAuthState();
     void syncAuthState();
-    window.addEventListener(AUTH_STATE_EVENT, () => void syncAuthState());
+    window.addEventListener(AUTH_STATE_EVENT, handler);
 
     return () => {
       mountedRef.current = false;
-      window.removeEventListener(AUTH_STATE_EVENT, syncAuthState);
+      clearTimeout(fallbackTimer);
+      window.removeEventListener(AUTH_STATE_EVENT, handler);
     };
   }, []);
 
@@ -114,9 +162,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await apiLogout();
     } finally {
-      startTransition(() => {
-        setUser(null);
-      });
+      setCachedProfile(null);
+      startTransition(() => { setUser(null); });
       setLoading(false);
     }
   };
