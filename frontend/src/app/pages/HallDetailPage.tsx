@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 import type { AvailabilitySlot, CreateBookingData, Hall, StudioService } from '../types';
 import { createBooking, getHall, getHallAvailability, getOrders, getStudioServices } from '../services/api';
+import { PROMO_CODE_REGEX } from '../constants';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -56,6 +57,7 @@ export function HallDetailPage() {
   const [selectedSlotKey, setSelectedSlotKey] = useState('');
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
   const [promoCode, setPromoCode] = useState('');
+  const [promoCodeError, setPromoCodeError] = useState('');
   const [submittingBooking, setSubmittingBooking] = useState(false);
   const [services, setServices] = useState<StudioService[]>([]);
 
@@ -97,8 +99,10 @@ export function HallDetailPage() {
       setAvailabilitySlots(slots);
     } catch (error: any) {
       setAvailabilitySlots([]);
-      setAvailabilityUnsupported(true);
-      if (!String(error?.message || '').includes('404')) {
+      const is404 = String(error?.message || '').includes('404') || error?.status === 404;
+      if (is404) {
+        setAvailabilityUnsupported(true);
+      } else {
         toast.error('Не удалось загрузить слоты доступности.');
       }
     } finally {
@@ -187,6 +191,11 @@ export function HallDetailPage() {
       extra_services_total: Number(servicesCost.toFixed(2)),
     };
     const normalizedPromoCode = promoCode.trim().toUpperCase();
+
+    if (normalizedPromoCode && !PROMO_CODE_REGEX.test(normalizedPromoCode)) {
+      toast.error('Промокод содержит недопустимые символы.');
+      return;
+    }
 
     setSubmittingBooking(true);
     try {
@@ -309,7 +318,9 @@ export function HallDetailPage() {
                       onClick={() => selectSlot(slot)}
                       disabled={!slot.available}
                       className={`booking-slot rounded-[1.2rem] border px-4 py-3 text-center text-sm ${
-                        slot.available ? 'booking-slot--free border-border text-foreground' : 'booking-slot--busy border-border text-muted-foreground'
+                        slot.available
+                          ? 'booking-slot--free border-border text-foreground'
+                          : 'booking-slot--busy cursor-not-allowed border-dashed border-border bg-card/40 text-muted-foreground/60 line-through'
                       } ${
                         selectedSlotKey === `${getTime(slot.start)}-${getTime(slot.end)}` ? 'booking-slot--selected' : ''
                       }`}
@@ -395,14 +406,27 @@ export function HallDetailPage() {
                   <Input
                     id="hall-promo-code"
                     value={promoCode}
-                    onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
+                    onChange={(event) => {
+                      const value = event.target.value.toUpperCase();
+                      setPromoCode(value);
+                      const normalized = value.trim();
+                      if (normalized && !PROMO_CODE_REGEX.test(normalized)) {
+                        setPromoCodeError('Только буквы A–Z, цифры и дефис (до 32 символов).');
+                      } else {
+                        setPromoCodeError('');
+                      }
+                    }}
                     placeholder="Введите промокод (если есть)"
                     maxLength={32}
                     className="h-11 rounded-full border-border bg-card text-sm sm:h-12 sm:text-base"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Код проверится и применится на экране оплаты после создания бронирования.
-                  </p>
+                  {promoCodeError ? (
+                    <p className="text-xs text-rose-600">{promoCodeError}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Код проверится и применится на экране оплаты после создания бронирования.
+                    </p>
+                  )}
                 </div>
 
                 <div className="mt-4 rounded-[1rem] border border-border bg-[#fbfbf8] p-3 text-sm text-muted-foreground">

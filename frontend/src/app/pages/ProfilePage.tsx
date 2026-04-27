@@ -37,6 +37,9 @@ export function ProfilePage() {
   useEffect(() => {
     if (!selectedOrderId) return;
 
+    if (import.meta.env.PROD && !import.meta.env.VITE_API_URL) {
+      console.error('[ProfilePage] VITE_API_URL не задан в production — WebSocket подключится к localhost, что почти наверняка неправильно.');
+    }
     const apiBase = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
     const apiUrl = new URL(apiBase);
     const protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
