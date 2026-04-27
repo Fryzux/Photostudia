@@ -7,7 +7,8 @@ import { useTheme } from 'next-themes';
 
 import { useAuth } from '../context/AuthContext';
 import { Button } from './ui/button';
-import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from './ui/sheet';
+import { contacts } from '../data/studio';
 
 const homeSectionItems = [
   { label: 'Залы', to: '/#home-halls', section: 'home-halls' },
@@ -281,6 +282,7 @@ export function Layout() {
                   </Button>
                 </SheetTrigger>
                 <SheetContent className="border-l border-border bg-card">
+                  <SheetTitle className="sr-only">Меню</SheetTitle>
                   <div className="mt-6 flex flex-col gap-4">
                     {isAuthenticated ? (
                       <div className="border-b border-border pb-4 text-center">
@@ -380,11 +382,11 @@ export function Layout() {
               <ul className="space-y-4">
                 <li className="flex items-start gap-3 text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4 shrink-0 text-foreground" />
-                  <span>ул. Световая, 24, Москва,<br />студия 402, вход с торца</span>
+                  <span>{contacts.address}</span>
                 </li>
                 <li className="flex items-center gap-3 text-sm text-muted-foreground">
                   <Phone className="h-4 w-4 shrink-0 text-foreground" />
-                  <span>+7 (999) 123-45-67</span>
+                  <span>{contacts.phone}</span>
                 </li>
                 <li className="flex items-center gap-3 text-sm text-muted-foreground">
                   <Mail className="h-4 w-4 shrink-0 text-foreground" />
