@@ -120,12 +120,11 @@ export function CheckoutPage() {
       await createPayment({ order_id: pendingOrder.id, method: paymentMethod, promo_code: promoCodeToSend });
       toast.success('Платёж прошёл успешно.');
       setJustPaidOrderId(pendingOrder.id);
-      const data = await getOrders();
-      setOrders(data);
     } catch (error: any) {
       toast.error(error.message || 'Не удалось провести оплату.');
     } finally {
       setPaying(false);
+      void getOrders().then(setOrders).catch(() => {});
     }
   };
 

@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 
 import type { Order } from '../types';
 import { cancelBooking, createPayment, getOrders } from '../services/api';
+import { BOOKING_CACHE_TTL_MS, BOOKING_PAGE_SIZE } from '../constants';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -19,8 +20,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Skeleton } from '../components/ui/skeleton';
 
 const BOOKING_CACHE_KEY = 'exposition-bookings-cache-v1';
-const CACHE_TTL_MS = 60_000;
-const PAGE_SIZE = 6;
 
 export function MyBookingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -50,7 +49,7 @@ export function MyBookingsPage() {
       if (cachedRaw) {
         try {
           const cached = JSON.parse(cachedRaw) as { timestamp: number; orders: Order[] };
-          if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
+          if (Date.now() - cached.timestamp < BOOKING_CACHE_TTL_MS) {
             setOrders(cached.orders);
             setLoading(false);
           }
@@ -80,15 +79,19 @@ export function MyBookingsPage() {
   }, []);
 
   const reloadOrders = async () => {
-    const data = await getOrders();
-    setOrders(data);
-    sessionStorage.setItem(
-      BOOKING_CACHE_KEY,
-      JSON.stringify({
-        timestamp: Date.now(),
-        orders: data,
-      }),
-    );
+    try {
+      const data = await getOrders();
+      setOrders(data);
+      sessionStorage.setItem(
+        BOOKING_CACHE_KEY,
+        JSON.stringify({
+          timestamp: Date.now(),
+          orders: data,
+        }),
+      );
+    } catch {
+      toast.error('Не удалось обновить данные. Попробуйте позже.');
+    }
   };
 
   const updateParam = (key: string, value: string) => {
@@ -152,9 +155,9 @@ export function MyBookingsPage() {
     return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / BOOKING_PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pagedOrders = filteredOrders.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const pagedOrders = filteredOrders.slice((currentPage - 1) * BOOKING_PAGE_SIZE, currentPage * BOOKING_PAGE_SIZE);
 
   useEffect(() => {
     if (page <= totalPages) return;
