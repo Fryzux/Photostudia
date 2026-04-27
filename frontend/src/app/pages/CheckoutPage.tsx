@@ -191,7 +191,7 @@ export function CheckoutPage() {
       <section data-reveal="section" className="reveal-section mono-panel overflow-hidden rounded-[2rem] border border-border p-5 sm:p-8">
         <p className="mb-3 text-xs uppercase tracking-[0.36em] text-muted-foreground">Checkout</p>
         <h1 className="mb-3 text-4xl text-foreground sm:text-5xl">Оформление и оплата бронирования</h1>
-        <p className="max-w-3xl text-lg leading-7 text-muted-foreground sm:text-xl sm:leading-8">Заказ уже создан на сервере со статусом `PENDING`. Осталось выбрать способ оплаты и подтвердить бронирование.</p>
+        <p className="max-w-3xl text-lg leading-7 text-muted-foreground sm:text-xl sm:leading-8">Осталось выбрать способ оплаты и подтвердить бронирование.</p>
       </section>
 
       <div className="grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
