@@ -166,11 +166,16 @@ export function Layout() {
     ...(isAdmin ? [{ label: 'Админ', to: '/admin-panel', active: isActive('/admin') || isActive('/admin-panel') }] : []),
   ];
 
+  const isHome = location.pathname === '/';
+  const isHeroHeader = isHome && !isScrolled;
+
   const navItemClass = (active: boolean) =>
     [
       'relative whitespace-nowrap text-[0.9rem] uppercase tracking-[0.1em] transition-colors xl:text-[0.95rem] xl:tracking-[0.12em]',
-      active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
-      'after:absolute after:-bottom-2 after:left-0 after:h-px after:bg-foreground after:transition-all',
+      isHeroHeader
+        ? active ? 'text-white' : 'text-white/72 hover:text-white'
+        : active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+      'after:absolute after:-bottom-2 after:left-0 after:h-px after:bg-current after:transition-all',
       active ? 'after:w-full' : 'after:w-0 hover:after:w-full',
     ].join(' ');
 
@@ -221,8 +226,10 @@ export function Layout() {
   return (
     <div className="min-h-screen bg-background">
       <header
-        className={`sticky top-0 z-40 border-b backdrop-blur transition-all duration-300 ${
-          isScrolled
+        className={`fixed inset-x-0 top-0 z-50 border-b backdrop-blur transition-all duration-300 ${
+          isHeroHeader
+            ? 'border-white/10 bg-black/16 shadow-none backdrop-blur-md'
+            : isScrolled
             ? 'border-border bg-card/95 shadow-[0_10px_30px_rgba(17,17,17,0.06)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'
             : 'border-border bg-card/88'
         }`}
@@ -230,7 +237,11 @@ export function Layout() {
         <div className="mx-auto w-full px-4 py-2 sm:px-6 sm:py-3 lg:px-10">
           {/* Desktop */}
           <div className="hidden h-20 min-w-0 items-center justify-between gap-4 xl:flex">
-            <Link to="/#about" onClick={handleBrandClick} className="shrink-0 text-foreground">
+            <Link
+              to="/#about"
+              onClick={handleBrandClick}
+              className={`shrink-0 transition-colors ${isHeroHeader ? 'text-white drop-shadow-[0_8px_22px_rgba(0,0,0,0.42)]' : 'text-foreground'}`}
+            >
               <p className={`font-display origin-left text-5xl leading-none transition-transform duration-300 will-change-transform ${isScrolled ? 'scale-[0.88]' : 'scale-100'}`}>
                 Экспозиция
               </p>
@@ -241,23 +252,39 @@ export function Layout() {
             </nav>
 
             <div className={`flex shrink-0 items-center gap-3 transition-transform duration-300 ${isScrolled ? 'translate-y-[-1px]' : 'translate-y-0'}`}>
-              <ThemeToggle />
+              <ThemeToggle className={isHeroHeader ? 'border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white' : ''} />
               {isAuthenticated ? (
                 <>
                   <Link to="/profile">
-                    <Button variant="outline" size="sm" className="rounded-full border-border bg-card text-foreground">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={`rounded-full ${isHeroHeader ? 'border-white/35 bg-white/10 text-white hover:bg-white hover:text-[#111111]' : 'border-border bg-card text-foreground'}`}
+                    >
                       <User className="mr-2 h-4 w-4" />
                       {user?.first_name || user?.username}
                     </Button>
                   </Link>
-                  <Button variant="ghost" size="sm" onClick={() => void handleLogout()} className="rounded-full text-foreground">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void handleLogout()}
+                    className={`rounded-full ${isHeroHeader ? 'text-white hover:bg-white/15 hover:text-white' : 'text-foreground'}`}
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
                     Выйти
                   </Button>
                 </>
               ) : (
                 <Link to="/login">
-                  <Button size="sm" className="rounded-full border border-foreground bg-transparent px-5 text-foreground hover:bg-foreground hover:text-background">
+                  <Button
+                    size="sm"
+                    className={`rounded-full border bg-transparent px-5 ${
+                      isHeroHeader
+                        ? 'border-white/60 text-white shadow-[0_10px_28px_rgba(0,0,0,0.18)] hover:bg-white hover:text-[#111111]'
+                        : 'border-foreground text-foreground hover:bg-foreground hover:text-background'
+                    }`}
+                  >
                     Войти
                   </Button>
                 </Link>
@@ -267,17 +294,29 @@ export function Layout() {
 
           {/* Mobile */}
           <div className="flex h-14 items-center justify-between sm:h-16 xl:hidden">
-            <Link to="/#about" onClick={handleBrandClick} className="text-foreground">
+            <Link
+              to="/#about"
+              onClick={handleBrandClick}
+              className={`transition-colors ${isHeroHeader ? 'text-white drop-shadow-[0_8px_22px_rgba(0,0,0,0.42)]' : 'text-foreground'}`}
+            >
               <p className={`font-display origin-left text-[2.35rem] leading-none transition-transform duration-300 will-change-transform sm:text-4xl ${isScrolled ? 'scale-[0.93]' : 'scale-100'}`}>
                 Экспозиция
               </p>
             </Link>
 
             <div className="flex items-center gap-2">
-              <ThemeToggle />
+              <ThemeToggle className={isHeroHeader ? 'border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white' : ''} />
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-10 rounded-full border border-border px-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`h-10 rounded-full border px-4 ${
+                      isHeroHeader
+                        ? 'border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white'
+                        : 'border-border text-foreground'
+                    }`}
+                  >
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
@@ -324,7 +363,10 @@ export function Layout() {
         </div>
       </header>
 
-      <main ref={mainRef} className="mx-auto w-full flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+      <main
+        ref={mainRef}
+        className={isHome ? 'w-full flex-1' : 'mx-auto w-full flex-1 px-4 pb-6 pt-24 sm:px-6 sm:pb-8 sm:pt-28 lg:px-10'}
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}

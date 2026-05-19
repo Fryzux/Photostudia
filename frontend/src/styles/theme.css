@@ -196,6 +196,10 @@
     animation: soft-fade 0.75s ease-out both;
   }
 
+  .hero-copy {
+    animation: hero-copy-in 0.92s 0.12s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
   .reveal-section {
     opacity: 0;
     transform: translate3d(0, 34px, 0);
@@ -595,6 +599,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .hero-copy,
   .reveal-section,
   .reveal-card {
     opacity: 1 !important;
@@ -610,6 +615,19 @@
   .booking-flow-arrow::after {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+@keyframes hero-copy-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
   }
 }
 

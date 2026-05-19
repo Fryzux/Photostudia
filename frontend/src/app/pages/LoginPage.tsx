@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Camera, Moon, Sun } from 'lucide-react';
+import { ArrowLeft, Moon, Sun } from 'lucide-react';
 import { Link } from 'react-router';
 import { motion } from 'motion/react';
 import { useTheme } from 'next-themes';
@@ -56,13 +56,6 @@ export function LoginPage() {
           className="mb-10 text-center sm:mb-12"
         >
           <Link to="/" className="inline-flex flex-col items-center gap-5 text-foreground">
-            <motion.div
-              whileHover={{ rotate: 180 }}
-              transition={{ duration: 0.8, ease: 'easeInOut' }}
-              className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-card shadow-sm sm:h-16 sm:w-16"
-            >
-              <Camera className="h-6 w-6" />
-            </motion.div>
             <p className="font-display text-5xl leading-none sm:text-6xl">Экспозиция</p>
           </Link>
 

@@ -4,7 +4,6 @@ import { ArrowRight } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
-import { Card, CardContent } from '../components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '../components/ui/carousel';
 import { contacts, hallShowcase, portfolioItems, workflowSteps } from '../data/studio';
 
@@ -16,17 +15,12 @@ export function HomePage() {
   const studioMapEmbedUrl = `https://yandex.ru/map-widget/v1/?ll=37.504%2C55.675&z=16&pt=37.504,55.675,pm2rdm&text=%D0%BF%D1%80%D0%BE%D1%81%D0%BF%D0%B5%D0%BA%D1%82+%D0%92%D0%B5%D1%80%D0%BD%D0%B0%D0%B4%D1%81%D0%BA%D0%BE%D0%B3%D0%BE+86%D0%90`;
 
   return (
-    <div className="space-y-10 pb-8 sm:space-y-14 sm:pb-10">
+    <div className="pb-8 sm:pb-10">
 
       {/* HERO С ФОНОМ */}
       <section
         id="about"
-        className="soft-fade scroll-mt-32 mx-auto max-w-[112rem] text-center"
-        style={{
-          position: 'relative',
-          borderRadius: '2.4rem',
-          overflow: 'hidden',
-        }}
+        className="soft-fade relative isolate flex min-h-screen min-h-[100svh] w-full scroll-mt-0 items-center justify-center overflow-hidden text-center"
       >
         <video
           className="absolute inset-0 h-full w-full object-cover"
@@ -40,44 +34,44 @@ export function HomePage() {
           <source src={heroVideo} type="video/mp4" />
         </video>
 
-        {/* мягкий слой для читаемости текста без потери видео */}
+        {/* Мягкий editorial-слой для читаемости текста без потери фактуры видео. */}
         <div
+          className="absolute inset-0"
           style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.2) 100%)',
+            background:
+              'linear-gradient(180deg, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.18) 44%, rgba(0,0,0,0.34) 100%)',
           }}
         />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.14),rgba(255,255,255,0)_58%)]" />
 
-        <div className="pointer-events-none absolute inset-0 rounded-[2.4rem] border border-white/65 bg-white/42 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-[3.2px]" />
+        <div className="hero-copy relative z-10 mx-auto flex min-h-[100svh] w-full max-w-5xl flex-col items-center justify-center px-5 pb-14 pt-28 sm:px-8 sm:pb-16">
+          <div className="mx-auto max-w-3xl space-y-6 sm:space-y-8">
+            <div className="inline-flex rounded-full border border-white/30 bg-white/12 px-4 py-2 text-[0.68rem] uppercase tracking-[0.3em] text-white shadow-[0_10px_32px_rgba(0,0,0,0.22)] backdrop-blur-md sm:px-5 sm:text-xs sm:tracking-[0.36em]">
+              Фотостудия Экспозиция
+            </div>
 
-        <div className="relative z-10 rounded-[2.1rem] border border-white/30 bg-transparent px-5 py-12 sm:rounded-[2.4rem] sm:px-10 sm:py-20">
-          <div className="mx-auto max-w-3xl space-y-6 px-2 py-6 sm:space-y-8 sm:px-6 sm:py-10">
-              <div className="inline-flex rounded-full border border-[#111111]/18 bg-white/82 px-4 py-2 text-[0.68rem] uppercase tracking-[0.3em] text-foreground sm:px-5 sm:text-xs sm:tracking-[0.36em]">
-                Фотостудия Экспозиция
-              </div>
+            <div className="space-y-4 sm:space-y-5">
+              <h1 className="font-display text-5xl leading-[0.92] text-white drop-shadow-[0_18px_42px_rgba(0,0,0,0.45)] sm:text-7xl lg:text-8xl">
+                Экспозиция
+              </h1>
+              <p className="mx-auto max-w-2xl text-lg leading-7 text-white/88 drop-shadow-[0_12px_30px_rgba(0,0,0,0.36)] sm:text-2xl sm:leading-8">
+                Каждый кадр - в идеальном свете
+              </p>
+            </div>
 
-              <div className="space-y-4 sm:space-y-5">
-                <h1 className="font-display text-5xl leading-[0.92] text-[#090909] drop-shadow-[0_2px_10px_rgba(255,255,255,0.78)] sm:text-7xl lg:text-8xl">
-                  Экспозиция
-                </h1>
-                <p className="mx-auto max-w-2xl text-lg leading-7 text-[#121212]/95 drop-shadow-[0_1px_8px_rgba(255,255,255,0.6)] sm:text-2xl sm:leading-8">
-                  Спокойная фотостудия с чистой геометрией, мягким светом и понятным онлайн-бронированием.
-                </p>
-              </div>
-
-              <div className="flex justify-center">
-                <Link to="/halls" className="inline-flex justify-center">
-                  <Button className="h-14 rounded-full border border-white/35 bg-[#111111] px-12 text-xl text-white shadow-[0_16px_30px_rgba(0,0,0,0.28)] hover:bg-[#262626] sm:h-16 sm:min-w-80 sm:px-16 sm:text-2xl">
-                    Забронировать зал
-                    <ArrowRight className="ml-3 h-6 w-6" />
-                  </Button>
-                </Link>
-              </div>
+            <div className="flex justify-center">
+              <Link to="/halls" className="inline-flex w-full max-w-xs justify-center sm:w-auto sm:max-w-none">
+                <Button className="h-14 w-full rounded-full border border-white/45 bg-white px-8 text-xl text-[#111111] shadow-[0_20px_48px_rgba(0,0,0,0.34)] hover:bg-white/90 sm:h-16 sm:min-w-80 sm:px-16 sm:text-2xl">
+                  Забронировать зал
+                  <ArrowRight className="ml-3 h-6 w-6" />
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
+      <div className="space-y-10 px-4 pt-12 sm:space-y-14 sm:px-6 sm:pt-16 lg:px-10">
       {/* О СТУДИИ */}
       <section data-reveal="section" className="reveal-section scroll-mt-32 mx-auto max-w-[108rem] text-center">
         <div className="space-y-4">
@@ -224,7 +218,7 @@ export function HomePage() {
               <Link to={isAuthenticated ? '/profile' : '/login'}>
                 <Button
                   variant="outline"
-                  className="h-11 w-full rounded-full border-2 border-foreground bg-foreground/10 px-8 text-foreground hover:bg-foreground/20 sm:h-12 sm:min-w-56 sm:w-auto"
+                  className="h-11 w-full rounded-full border-2 border-foreground bg-foreground/10 px-8 text-foreground hover:bg-foreground/20 dark:border-white/35 dark:bg-white/10 dark:text-white dark:shadow-[0_14px_32px_rgba(0,0,0,0.3)] dark:hover:border-white/50 dark:hover:bg-white/20 sm:h-12 sm:min-w-56 sm:w-auto"
                 >
                   Открыть кабинет
                 </Button>
@@ -251,6 +245,7 @@ export function HomePage() {
         </div>
       </section>
 
+      </div>
     </div>
   );
 }

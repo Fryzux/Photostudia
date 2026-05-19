@@ -188,7 +188,7 @@ export function HallsPage() {
           <div className="flex items-end">
             <Button
               variant="outline"
-              className="h-11 w-full rounded-full border-border bg-card text-foreground hover:bg-accent sm:h-12"
+              className="h-11 w-full rounded-full border-border bg-card text-foreground hover:bg-accent dark:border-white/30 dark:bg-white/10 dark:text-white dark:shadow-[0_12px_28px_rgba(0,0,0,0.28)] dark:hover:border-white/45 dark:hover:bg-white/20 sm:h-12"
               onClick={() => setSearchParams({}, { replace: true })}
             >
               Сбросить

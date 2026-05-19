@@ -89,17 +89,23 @@ export function AuthPanel() {
                 Личный кабинет
               </div>
               <h1 className="text-4xl text-foreground sm:text-6xl">Вход и регистрация</h1>
-              <p className="mx-auto max-w-2xl text-lg leading-7 text-[#5f5f5f] sm:text-xl sm:leading-8">
+              <p className="mx-auto max-w-2xl text-lg leading-7 text-[#5f5f5f] dark:text-muted-foreground sm:text-xl sm:leading-8">
                 Всё собрано в одном спокойном экране: доступ к залам, бронированиям, оплате и истории заказов.
               </p>
             </div>
 
             <Tabs defaultValue="login" className="w-full text-left">
-              <TabsList className="mx-auto grid h-auto w-full max-w-md grid-cols-2 rounded-full bg-secondary p-1">
-                <TabsTrigger value="login" className="rounded-full text-center">
+              <TabsList className="mx-auto grid h-auto w-full max-w-md grid-cols-2 rounded-full bg-secondary p-1 dark:bg-white/10 dark:ring-1 dark:ring-white/10">
+                <TabsTrigger
+                  value="login"
+                  className="rounded-full text-center dark:text-white/70 dark:data-[state=active]:bg-white dark:data-[state=active]:text-[#111111] dark:data-[state=active]:shadow-[0_10px_24px_rgba(0,0,0,0.25)]"
+                >
                   Вход
                 </TabsTrigger>
-                <TabsTrigger value="register" className="rounded-full text-center">
+                <TabsTrigger
+                  value="register"
+                  className="rounded-full text-center dark:text-white/70 dark:data-[state=active]:bg-white dark:data-[state=active]:text-[#111111] dark:data-[state=active]:shadow-[0_10px_24px_rgba(0,0,0,0.25)]"
+                >
                   Регистрация
                 </TabsTrigger>
               </TabsList>
@@ -142,7 +148,7 @@ export function AuthPanel() {
                     <Button
                       type="submit"
                       disabled={loading}
-                      className="min-h-11 w-full rounded-full bg-[#111111] px-8 text-white hover:bg-foreground/90 sm:min-w-52 sm:w-auto"
+                      className="min-h-11 w-full rounded-full bg-[#111111] px-8 text-white shadow-[0_14px_30px_rgba(17,17,17,0.18)] hover:bg-foreground/90 dark:bg-white dark:text-[#111111] dark:shadow-[0_16px_34px_rgba(0,0,0,0.36)] dark:hover:bg-white/90 sm:min-w-52 sm:w-auto"
                     >
                       {loading ? 'Открываем сессию...' : 'Войти'}
                       <ArrowRight className="ml-2 h-4 w-4" />
@@ -249,7 +255,7 @@ export function AuthPanel() {
                     <Button
                       type="submit"
                       disabled={loading}
-                      className="min-h-11 w-full rounded-full bg-[#111111] px-8 text-white hover:bg-foreground/90 sm:min-w-52 sm:w-auto"
+                      className="min-h-11 w-full rounded-full bg-[#111111] px-8 text-white shadow-[0_14px_30px_rgba(17,17,17,0.18)] hover:bg-foreground/90 dark:bg-white dark:text-[#111111] dark:shadow-[0_16px_34px_rgba(0,0,0,0.36)] dark:hover:bg-white/90 sm:min-w-52 sm:w-auto"
                     >
                       {loading ? 'Создаём аккаунт...' : 'Создать аккаунт'}
                       <ArrowRight className="ml-2 h-4 w-4" />
