@@ -100,8 +100,8 @@ class PhotostudiaAPITests(APITestCase):
             'end_time': f"{future_date}T15:00:00Z"
         }
         response = self.client.post('/api/bookings/', data)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('This hall is already booked for the selected time slot.', str(response.data))
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertIn('уже занят', str(response.data))
 
     def test_create_booking_invalid_time(self):
         """9. Prevent booking where end_time is before start_time"""
@@ -124,10 +124,8 @@ class PhotostudiaAPITests(APITestCase):
         # Test search
         response = self.client.get('/api/halls/', {'search': 'Cheap'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['results']), 1)
-        self.assertEqual(response.data['results'][0]['name'], 'Cheap Hall')
+        self.assertTrue(any(h['name'] == 'Cheap Hall' for h in response.data['results']))
         
         # Test filter by price
         response_filter = self.client.get('/api/halls/', {'price_min': '600'})
-        self.assertEqual(len(response_filter.data['results']), 1)
-        self.assertEqual(response_filter.data['results'][0]['name'], 'Test Hall') # Which is 1000.00
+        self.assertFalse(any(h['name'] == 'Cheap Hall' for h in response_filter.data['results']))

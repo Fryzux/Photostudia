@@ -26,11 +26,12 @@ print("=============================================")
 print("  PHOTOSTUDIA BACKEND DEMO SCRIPT")
 print("=============================================")
 print("\n[✔] Шаг 1. Безопасность и Бизнес-процесс 1: Регистрация")
+user_name = f"usr_{int(time.time())}"
 user_email = f"demo_user_{int(time.time())}@test.com"
 pwd = "StrongPassword123!"
 
 status, data = make_request(f"{BASE_URL}/auth/register/", "POST", {
-    "username": f"usr_{int(time.time())}",
+    "username": user_name,
     "email": user_email,
     "password": pwd,
     "first_name": "Demo"
@@ -38,7 +39,7 @@ status, data = make_request(f"{BASE_URL}/auth/register/", "POST", {
 print("Регистрация клиента:", status, "(201 - Успех)" if status == 201 else f"Ошибка: {data}")
 
 status, data = make_request(f"{BASE_URL}/auth/login/", "POST", {
-    "email": user_email,
+    "username": user_name,
     "password": pwd
 })
 token = data.get('access')
@@ -55,7 +56,9 @@ if hall_status == 403:
     print(" -> 403 Forbidden! РОЛЕВАЯ ЗАЩИТА СРАБОТАЛА! (Обычные юзеры не могут)")
 
 print("\n[✔] Шаг 3. Запрос ИИ (AI-Аналитика)")
-ai_status, ai_data = make_request(f"{BASE_URL}/ai/predict/", "GET", headers=headers)
+ai_status, ai_data = make_request(f"{BASE_URL}/ai/predict/", "POST", {
+    "date": time.strftime('%Y-%m-%d')
+}, headers=headers)
 print("Статус запроса к ИИ:", ai_status)
 if ai_status == 200:
     print("ИИ ответил успешно! Вот прогноз (JSON):")

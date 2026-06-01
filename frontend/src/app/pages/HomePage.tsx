@@ -105,7 +105,7 @@ export function HomePage() {
                         <p className="text-sm uppercase tracking-[0.28em] text-muted-foreground">
                           от {hall.price_per_hour.toLocaleString('ru-RU')} ₽ / час
                         </p>
-                        <Link to={`/booking?hall_id=${index + 1}`}>
+                        <Link to="/halls">
                           <Button className="h-10 w-full rounded-full bg-foreground text-background transition hover:bg-foreground/90 focus-visible:ring-2 focus-visible:ring-[#111111]/40 sm:h-11">
                             Забронировать
                           </Button>

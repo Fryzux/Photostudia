@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { AlertCircle, ArrowLeft, CalendarRange, Info, PackageCheck, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -37,7 +37,6 @@ function combineDateTime(date: string, time: string) {
   const localDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
   if (Number.isNaN(localDate.getTime())) return '';
 
-  // Отправляем в backend timezone-aware ISO, чтобы избежать сдвига часов.
   return localDate.toISOString();
 }
 
@@ -48,13 +47,30 @@ function formatMoney(value: number) {
 export function HallDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  
+  const initialDate = searchParams.get('date') || '';
+  const initialTime = searchParams.get('time') || '';
+
   const [hall, setHall] = useState<Hall | null>(null);
   const [loading, setLoading] = useState(true);
-  const [availabilityDate, setAvailabilityDate] = useState('');
+  const [availabilityDate, setAvailabilityDate] = useState(initialDate);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [availabilityUnsupported, setAvailabilityUnsupported] = useState(false);
   const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([]);
-  const [selectedSlotKey, setSelectedSlotKey] = useState('');
+  
+  const [selectedSlotKey, setSelectedSlotKey] = useState(() => {
+    if (initialTime) {
+      const parts = initialTime.split(':');
+      if (parts.length >= 2) {
+        const hour = Number(parts[0]);
+        const endHour = String(hour + 1).padStart(2, '0');
+        return `${initialTime}-${endHour}:00`;
+      }
+    }
+    return '';
+  });
+  
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
   const [promoCode, setPromoCode] = useState('');
   const [promoCodeError, setPromoCodeError] = useState('');
@@ -88,7 +104,9 @@ export function HallDetailPage() {
   const loadAvailability = async (date: string) => {
     if (!id || !date) {
       setAvailabilitySlots([]);
-      setSelectedSlotKey('');
+      if (!initialTime || date !== initialDate) {
+        setSelectedSlotKey('');
+      }
       return;
     }
 
@@ -97,6 +115,15 @@ export function HallDetailPage() {
     try {
       const slots = await getHallAvailability(Number(id), date);
       setAvailabilitySlots(slots);
+      
+      // If we have an initialTime and it's the initial date, check if the pre-selected slot is actually available
+      if (initialTime && date === initialDate && selectedSlotKey) {
+        const slotMatch = slots.find(s => `${getTime(s.start)}-${getTime(s.end)}` === selectedSlotKey);
+        if (slotMatch && !slotMatch.available) {
+          toast.error('Выбранный интервал уже занят. Выберите другое время.');
+          setSelectedSlotKey('');
+        }
+      }
     } catch (error: any) {
       setAvailabilitySlots([]);
       const is404 = String(error?.message || '').includes('404') || error?.status === 404;
@@ -117,6 +144,8 @@ export function HallDetailPage() {
 
   useEffect(() => {
     if (!availabilityDate || !id) return;
+
+    void loadAvailability(availabilityDate);
 
     const intervalId = window.setInterval(() => {
       void loadAvailability(availabilityDate);

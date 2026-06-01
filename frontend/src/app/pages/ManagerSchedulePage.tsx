@@ -168,21 +168,33 @@ export function ManagerSchedulePage() {
           ) : days.length === 0 ? (
             <p className="text-sm text-muted-foreground">Некорректный диапазон дат.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <div className="min-w-[980px] space-y-2">
-                <div className="grid gap-2" style={{ gridTemplateColumns: `100px repeat(${days.length}, minmax(130px, 1fr))` }}>
-                  <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Время</div>
+            <div className="overflow-x-auto pb-4">
+              <style>{`
+                .schedule-grid {
+                  --label-w: 50px;
+                  --cell-w: 90px;
+                }
+                @media (min-width: 640px) {
+                  .schedule-grid {
+                    --label-w: 100px;
+                    --cell-w: 130px;
+                  }
+                }
+              `}</style>
+              <div className="min-w-[620px] sm:min-w-[980px] space-y-1.5 sm:space-y-2">
+                <div className="grid gap-1 sm:gap-2 schedule-grid" style={{ gridTemplateColumns: `var(--label-w) repeat(${days.length}, minmax(var(--cell-w), 1fr))` }}>
+                  <div className="text-[10px] sm:text-xs uppercase tracking-[0.18em] text-muted-foreground flex items-center">Время</div>
                   {days.map((day) => (
-                    <div key={day} className="rounded-xl border border-border bg-card/70 px-3 py-2 text-center">
-                      <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{format(parseISO(day), 'EEE', { locale: ru })}</p>
-                      <p className="text-sm font-medium text-foreground">{format(parseISO(day), 'dd.MM')}</p>
+                    <div key={day} className="rounded-lg sm:rounded-xl border border-border bg-card/70 px-1 py-1.5 sm:px-3 sm:py-2 text-center">
+                      <p className="text-[9px] sm:text-xs uppercase tracking-[0.16em] text-muted-foreground">{format(parseISO(day), 'EEE', { locale: ru })}</p>
+                      <p className="text-[11px] sm:text-sm font-medium text-foreground">{format(parseISO(day), 'dd.MM')}</p>
                     </div>
                   ))}
                 </div>
 
                 {hours.map((hour) => (
-                  <div key={hour} className="grid gap-2" style={{ gridTemplateColumns: `100px repeat(${days.length}, minmax(130px, 1fr))` }}>
-                    <div className="flex items-center justify-center rounded-xl border border-border bg-card/70 py-2 text-sm text-muted-foreground">
+                  <div key={hour} className="grid gap-1 sm:gap-2 schedule-grid" style={{ gridTemplateColumns: `var(--label-w) repeat(${days.length}, minmax(var(--cell-w), 1fr))` }}>
+                    <div className="flex items-center justify-center rounded-lg sm:rounded-xl border border-border bg-card/70 py-1.5 sm:py-2 text-[11px] sm:text-sm text-muted-foreground">
                       {hour.toString().padStart(2, '0')}:00
                     </div>
 
@@ -191,7 +203,7 @@ export function ManagerSchedulePage() {
 
                       if (!order) {
                         return (
-                          <div key={`${day}-${hour}`} className="rounded-xl border border-dashed border-border bg-[#fbfbf9] px-2 py-2 text-center text-xs text-[#9a9a95]">
+                          <div key={`${day}-${hour}`} className="flex items-center justify-center rounded-lg sm:rounded-xl border border-dashed border-border bg-[#fbfbf9] px-1 py-1.5 sm:px-2 sm:py-2 text-center text-[10px] sm:text-xs text-[#9a9a95]">
                             Свободно
                           </div>
                         );
@@ -202,11 +214,11 @@ export function ManagerSchedulePage() {
                           key={`${day}-${hour}`}
                           type="button"
                           onClick={() => setSelectedOrder(order)}
-                          className={`rounded-xl border px-2 py-2 text-left text-xs transition hover:opacity-90 ${statusTone(order.status)}`}
+                          className={`rounded-lg sm:rounded-xl border px-1.5 py-1.5 sm:px-2 sm:py-2 text-left transition hover:opacity-90 ${statusTone(order.status)}`}
                         >
-                          <p className="font-semibold">#{order.id} · {order.booking.hall.name}</p>
-                          <p>{new Date(order.booking.start_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}–{new Date(order.booking.end_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</p>
-                          <p className="opacity-80">{order.status}</p>
+                          <p className="font-semibold text-[10px] sm:text-xs truncate w-full">#{order.id} · {order.booking.hall.name}</p>
+                          <p className="text-[9px] sm:text-xs">{new Date(order.booking.start_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}–{new Date(order.booking.end_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</p>
+                          <p className="opacity-80 text-[9px] sm:text-xs">{order.status}</p>
                         </button>
                       );
                     })}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 import { addDays, format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { CalendarDays, Sparkles } from 'lucide-react';
@@ -231,17 +232,29 @@ export function AiInsightsPage() {
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <div className="min-w-[860px] space-y-2">
+              <div className="overflow-x-auto pb-4">
+                <style>{`
+                  .heatmap-grid {
+                    --label-w: 48px;
+                    --cell-w: 36px;
+                  }
+                  @media (min-width: 640px) {
+                    .heatmap-grid {
+                      --label-w: 120px;
+                      --cell-w: 92px;
+                    }
+                  }
+                `}</style>
+                <div className="min-w-[340px] sm:min-w-[860px] space-y-1.5 sm:space-y-2">
                   <div
-                    className="grid gap-2"
-                    style={{ gridTemplateColumns: `120px repeat(${forecast.days.length}, minmax(92px, 1fr))` }}
+                    className="grid gap-1 sm:gap-2 heatmap-grid"
+                    style={{ gridTemplateColumns: `var(--label-w) repeat(${forecast.days.length}, minmax(var(--cell-w), 1fr))` }}
                   >
-                    <div className="text-xs uppercase tracking-[0.2em] text-[#7a7a7a]">Часы</div>
+                    <div className="flex items-center text-[10px] uppercase tracking-widest text-[#7a7a7a] sm:text-xs">Часы</div>
                     {forecast.days.map((day) => (
-                      <div key={day} className="rounded-xl border border-border bg-card/70 px-2 py-2 text-center">
-                        <p className="text-xs uppercase tracking-[0.18em] text-[#7a7a7a]">{format(parseISO(day), 'EEE', { locale: ru })}</p>
-                        <p className="text-sm font-medium text-foreground">{format(parseISO(day), 'dd.MM')}</p>
+                      <div key={day} className="rounded-lg border border-border bg-card/70 px-1 py-1.5 text-center sm:rounded-xl sm:px-2 sm:py-2">
+                        <p className="text-[9px] uppercase tracking-widest text-[#7a7a7a] sm:text-xs">{format(parseISO(day), 'EEE', { locale: ru })}</p>
+                        <p className="text-[11px] font-medium text-foreground sm:text-sm">{format(parseISO(day), 'dd.MM')}</p>
                       </div>
                     ))}
                   </div>
@@ -249,10 +262,10 @@ export function AiInsightsPage() {
                   {forecast.hours.map((hour) => (
                     <div
                       key={hour}
-                      className="grid gap-2"
-                      style={{ gridTemplateColumns: `120px repeat(${forecast.days.length}, minmax(92px, 1fr))` }}
+                      className="grid gap-1 sm:gap-2 heatmap-grid"
+                      style={{ gridTemplateColumns: `var(--label-w) repeat(${forecast.days.length}, minmax(var(--cell-w), 1fr))` }}
                     >
-                      <div className="flex items-center justify-center rounded-xl border border-border bg-card/70 px-2 py-2 text-sm text-muted-foreground">
+                      <div className="flex items-center justify-center rounded-lg border border-border bg-card/70 px-1 py-1.5 text-[11px] text-muted-foreground sm:rounded-xl sm:px-2 sm:py-2 sm:text-sm">
                         {hour.toString().padStart(2, '0')}:00
                       </div>
 
@@ -260,13 +273,14 @@ export function AiInsightsPage() {
                         const cell = heatmapMap.get(`${day}-${hour}`);
                         const load = cell?.load_percent ?? 0;
                         return (
-                          <div
+                          <Link
                             key={`${day}-${hour}`}
-                            className={`rounded-xl border px-2 py-2 text-center text-sm font-medium ${getLoadToneClass(load)}`}
-                            title={`${format(parseISO(day), 'dd.MM.yyyy')} ${hour.toString().padStart(2, '0')}:00 · ${load}%`}
+                            to={`/halls/${selectedHall.id}?date=${day}&time=${hour.toString().padStart(2, '0')}:00`}
+                            className={`flex items-center justify-center rounded-lg border px-0 py-1.5 text-[10px] font-medium transition-transform hover:scale-105 hover:shadow-md sm:rounded-xl sm:px-2 sm:py-2 sm:text-sm ${getLoadToneClass(load)}`}
+                            title={`Забронировать: ${format(parseISO(day), 'dd.MM.yyyy')} ${hour.toString().padStart(2, '0')}:00 · Прогноз: ${load}%`}
                           >
                             {load}%
-                          </div>
+                          </Link>
                         );
                       })}
                     </div>

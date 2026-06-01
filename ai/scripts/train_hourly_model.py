@@ -25,10 +25,13 @@ def generate_hourly_training_data():
     print("Fetching booking history from database...")
 
     bookings = Booking.objects.all().values('hall_id', 'start_time', 'end_time')
+    
+    # Always include some synthetic data to ensure model sees all hours and variations
+    df_synthetic = generate_synthetic_data(n=10000)
 
     if not bookings:
-        print("No bookings found, generating synthetic data...")
-        return generate_synthetic_data()
+        print("No bookings found, using synthetic data only...")
+        return df_synthetic
 
     records = []
     for b in bookings:
@@ -52,17 +55,17 @@ def generate_hourly_training_data():
 
     df_booked = pd.DataFrame(records)
 
-    # Generate "not booked" records for unoccupied hours
+    # Generate "not booked" records for unoccupied hours across full 24h range
     halls = list(Hall.objects.values_list('id', flat=True))
     from datetime import datetime, timedelta as td
     import random
 
     not_booked = []
-    for _ in range(len(records) * 2):  # 2x as many not-booked samples
+    for _ in range(len(records) * 3):
         hall_id = random.choice(halls)
-        days_back = random.randint(1, 730)
+        days_back = random.randint(1, 365)
         ref_date = datetime.now() - td(days=days_back)
-        hour = random.randint(9, 20)
+        hour = random.randint(0, 23)
 
         # Check if this slot was actually booked
         was_booked = df_booked[
@@ -82,31 +85,39 @@ def generate_hourly_training_data():
             })
 
     df_not_booked = pd.DataFrame(not_booked)
-    df = pd.concat([df_booked, df_not_booked], ignore_index=True).sample(frac=1, random_state=42)
-    print(f"Dataset: {len(df_booked)} booked, {len(df_not_booked)} not-booked samples")
+    df_real = pd.concat([df_booked, df_not_booked], ignore_index=True)
+    
+    # Combine real and synthetic data
+    df = pd.concat([df_real, df_synthetic], ignore_index=True).sample(frac=1, random_state=42)
+    print(f"Dataset: {len(df_real)} real samples, {len(df_synthetic)} synthetic samples")
     return df
 
 
-def generate_synthetic_data(n=3000):
+def generate_synthetic_data(n=10000):
     np.random.seed(42)
     import random
     data = []
     for _ in range(n):
-        hour = np.random.randint(9, 21)
+        hour = np.random.randint(0, 24)
         day = np.random.randint(0, 7)
         month = np.random.randint(1, 13)
-        hall_id = np.random.randint(1, 4)
+        hall_id = np.random.randint(1, 10)
 
-        # Probability depends on: weekends higher, midday higher, Dec higher
-        prob = 0.3
-        if day >= 5:
-            prob += 0.25
-        if 11 <= hour <= 16:
-            prob += 0.2
-        if month == 12:
-            prob += 0.15
-        if 9 <= hour <= 10 or 19 <= hour <= 20:
-            prob -= 0.15
+        # High-granularity probabilities
+        if 11 <= hour <= 19:  # Core peak hours
+            prob = 0.5
+            if day >= 5: prob += 0.3 # Weekend boost
+        elif 9 <= hour <= 21: # Extended working hours
+            prob = 0.2
+            if day >= 5: prob += 0.2
+        elif hour == 8 or hour == 22: # Shoulder hours
+            prob = 0.05
+        else: # Deep night
+            prob = 0.01
+            
+        if month == 12: prob += 0.1 # Seasonal boost
+        
+        prob = max(0.01, min(0.95, prob))
 
         booked = 1 if random.random() < prob else 0
         data.append({

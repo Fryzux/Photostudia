@@ -140,44 +140,64 @@ export function ManagerPage() {
               <Skeleton className="h-64 w-full" />
             </div>
           ) : forecast.length > 0 ? (
-            <div className="min-w-[800px] border-t border-[#111111]/5">
-              <div className="grid grid-cols-13 divide-x divide-[#111111]/5 border-b border-[#111111]/5 bg-gray-50 text-sm font-medium">
-                <div className="p-4 text-center text-slate-500">Время</div>
-                {forecast.map((day) => (
-                  <div key={day.date} className="p-4 text-center">
-                    <div className="text-slate-900">{day.day_label}</div>
-                    <div className="text-xs text-slate-500">{day.date.split('-').slice(1).join('.')}</div>
-                  </div>
-                ))}
-              </div>
+            <div className="border-t border-[#111111]/5 pb-4">
+              <style>{`
+                .manager-heatmap {
+                  --label-w: 60px;
+                  --cell-w: 50px;
+                }
+                @media (min-width: 640px) {
+                  .manager-heatmap {
+                    --label-w: 100px;
+                    --cell-w: 1fr;
+                  }
+                }
+              `}</style>
+              <div className="min-w-[420px] sm:min-w-[800px]">
+                <div 
+                  className="grid divide-x divide-[#111111]/5 border-b border-[#111111]/5 bg-gray-50 text-sm font-medium manager-heatmap"
+                  style={{ gridTemplateColumns: `var(--label-w) repeat(${forecast.length}, minmax(var(--cell-w), 1fr))` }}
+                >
+                  <div className="flex items-center justify-center p-2 text-center text-xs sm:p-4 sm:text-sm text-slate-500">Время</div>
+                  {forecast.map((day) => (
+                    <div key={day.date} className="p-2 text-center sm:p-4">
+                      <div className="text-[10px] sm:text-sm text-slate-900">{day.day_label}</div>
+                      <div className="text-[9px] sm:text-xs text-slate-500">{day.date.split('-').slice(1).join('.')}</div>
+                    </div>
+                  ))}
+                </div>
 
-              {/* Часы по вертикали */}
-              {forecast[0].slots.map((slot, slotIdx) => (
-                <div key={slot.hour} className="grid grid-cols-13 divide-x divide-[#111111]/5 border-b border-[#111111]/5 last:border-0 hover:bg-slate-50/50">
-                  <div className="flex items-center justify-center p-3 text-xs font-medium text-slate-500">
-                    {slot.label}
-                  </div>
-                  {forecast.map((day) => {
-                    const currentSlot = day.slots[slotIdx];
-                    const prob = currentSlot.booking_probability;
-                    
-                    // Цветовое кодирование спроса
-                    let bgColor = 'bg-green-100/50 hover:bg-green-100'; // Высокий
-                    let textColor = 'text-green-700';
-                    if (prob < 0.6) {
-                      bgColor = 'bg-yellow-50 hover:bg-yellow-100/50'; // Средний
-                      textColor = 'text-yellow-700';
-                    }
-                    if (prob < 0.3) {
-                      bgColor = 'bg-red-100/60 hover:bg-red-200/60 cursor-pointer transition-colors'; // Низкий
-                      textColor = 'text-red-700 font-bold';
-                    }
+                {/* Часы по вертикали */}
+                {forecast[0].slots.map((slot, slotIdx) => (
+                  <div 
+                    key={slot.hour} 
+                    className="grid divide-x divide-[#111111]/5 border-b border-[#111111]/5 last:border-0 hover:bg-slate-50/50 manager-heatmap"
+                    style={{ gridTemplateColumns: `var(--label-w) repeat(${forecast.length}, minmax(var(--cell-w), 1fr))` }}
+                  >
+                    <div className="flex items-center justify-center p-2 text-[10px] sm:text-xs font-medium text-slate-500">
+                      {slot.label}
+                    </div>
+                    {forecast.map((day) => {
+                      const currentSlot = day.slots[slotIdx];
+                      const prob = currentSlot.booking_probability;
+                      
+                      // Цветовое кодирование спроса
+                      let bgColor = 'bg-green-100/50 hover:bg-green-100'; // Высокий
+                      let textColor = 'text-green-700';
+                      if (prob < 0.6) {
+                        bgColor = 'bg-yellow-50 hover:bg-yellow-100/50'; // Средний
+                        textColor = 'text-yellow-700';
+                      }
+                      if (prob < 0.3) {
+                        bgColor = 'bg-red-100/60 hover:bg-red-200/60 cursor-pointer transition-colors'; // Низкий
+                        textColor = 'text-red-700 font-bold';
+                      }
 
-                    const isLowDemand = prob < 0.3;
+                      const isLowDemand = prob < 0.3;
 
-                    return (
-                      <div
-                        key={day.date}
+                      return (
+                        <div
+                          key={day.date}
                         className={`flex flex-col items-center justify-center gap-1 p-2 ${bgColor}`}
                         onClick={() => isLowDemand && handleOpenPromoDialog(day.date, currentSlot)}
                         title={isLowDemand ? 'Нажмите, чтобы создать акцию' : 'Нажмите недоступно'}
@@ -191,6 +211,7 @@ export function ManagerPage() {
                   })}
                 </div>
               ))}
+              </div>
             </div>
           ) : (
             <div className="p-8 text-center text-slate-500">Нет данных для отображения.</div>
