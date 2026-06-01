@@ -126,21 +126,30 @@ class HallViewSet(viewsets.ModelViewSet):
             start_time__date=target_date
         ).order_by('start_time')
 
-        booked_slots = [
-            {
-                "booking_id": b.id,
-                "start_time": b.start_time.isoformat(),
-                "end_time": b.end_time.isoformat(),
-            }
-            for b in bookings
-        ]
+        # Generate hourly slots from 09:00 to 21:00
+        slots = []
+        for hour in range(9, 21):
+            start_dt = datetime.combine(target_date, time(hour, 0))
+            end_dt = datetime.combine(target_date, time(hour + 1, 0))
+            
+            # Check if this slot overlaps with any booking
+            is_available = not any(
+                b.start_time < make_aware(end_dt) and b.end_time > make_aware(start_dt)
+                for b in bookings
+            )
+            
+            slots.append({
+                "start": start_dt.time().isoformat(),
+                "end": end_dt.time().isoformat(),
+                "available": is_available
+            })
 
         return Response({
             "hall_id": hall.id,
             "hall_name": hall.name,
             "date": date_str,
-            "booked_slots": booked_slots,
-            "is_fully_free": len(booked_slots) == 0,
+            "slots": slots,
+            "is_fully_free": len(bookings) == 0,
         })
 
 

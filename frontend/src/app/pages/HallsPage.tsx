@@ -121,8 +121,8 @@ export function HallsPage() {
             Подберите зал по названию, вместимости и стоимости. Все фильтры сохраняются в адресной строке.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6 lg:grid-cols-4">
-          <div className="space-y-2 lg:col-span-2">
+        <CardContent className="grid gap-4 px-5 pb-5 sm:grid-cols-2 sm:px-6 sm:pb-6 lg:grid-cols-5">
+          <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="hall-search" className="block text-center text-xs uppercase tracking-[0.32em] text-muted-foreground">
               Поиск
             </Label>
@@ -185,13 +185,13 @@ export function HallsPage() {
             </Select>
           </div>
 
-          <div className="flex items-end">
+          <div className="flex items-end sm:col-span-2 lg:col-span-5">
             <Button
               variant="outline"
               className="h-11 w-full rounded-full border-border bg-card text-foreground hover:bg-accent sm:h-12"
               onClick={() => setSearchParams({}, { replace: true })}
             >
-              Сбросить
+              Сбросить фильтры
             </Button>
           </div>
         </CardContent>
