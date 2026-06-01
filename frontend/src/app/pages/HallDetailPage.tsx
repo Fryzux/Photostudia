@@ -403,7 +403,7 @@ export function HallDetailPage() {
                           <label
                             key={service.id}
                             className={`flex cursor-pointer items-start justify-between gap-3 rounded-[1rem] border px-3 py-2.5 transition ${
-                              checked ? 'border-[#111111]/24 bg-card' : 'border-border bg-[#fafaf8] hover:border-[#111111]/18'
+                              checked ? 'border-primary/20 bg-card' : 'border-border bg-secondary/50 hover:border-primary/20'
                             }`}
                           >
                             <div>
@@ -418,7 +418,7 @@ export function HallDetailPage() {
                                 type="checkbox"
                                 checked={checked}
                                 onChange={() => toggleService(service.id)}
-                                className="h-4 w-4 rounded border-[#111111]/20 accent-[#111111]"
+                                className="h-4 w-4 rounded border-border accent-primary"
                               />
                             </div>
                           </label>
@@ -458,7 +458,7 @@ export function HallDetailPage() {
                   )}
                 </div>
 
-                <div className="mt-4 rounded-[1rem] border border-border bg-[#fbfbf8] p-3 text-sm text-muted-foreground">
+                <div className="mt-4 rounded-[1rem] border border-border bg-secondary/30 p-3 text-sm text-muted-foreground">
                   <div className="mb-1 flex items-center justify-between">
                     <span>Выбранный интервал</span>
                     <span>{selectedSlotSummary ? `${getTime(selectedSlotSummary.start)} - ${getTime(selectedSlotSummary.end)}` : '—'}</span>

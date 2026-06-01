@@ -559,16 +559,29 @@
     background: rgba(255, 255, 255, 0.82);
   }
 
+  .dark .booking-slot--free {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
   .booking-slot--free:not(.booking-slot--selected):hover {
     transform: translateY(-1px);
     background: rgba(255, 255, 255, 0.95);
     box-shadow: 0 10px 20px rgba(17, 17, 17, 0.06);
   }
 
+  .dark .booking-slot--free:not(.booking-slot--selected):hover {
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  }
+
   .booking-slot--busy {
     background: rgba(239, 239, 236, 0.65);
     backdrop-filter: blur(8px);
     cursor: not-allowed;
+  }
+
+  .dark .booking-slot--busy {
+    background: rgba(255, 255, 255, 0.03);
   }
 
   .booking-slot--busy::after {
@@ -584,6 +597,14 @@
     pointer-events: none;
   }
 
+  .dark .booking-slot--busy::after {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.04) 0 6px,
+      rgba(255, 255, 255, 0) 6px 12px
+    );
+  }
+
   .booking-slot--selected {
     border-color: rgba(17, 17, 17, 0.7);
     background: #111111;
@@ -591,9 +612,21 @@
     box-shadow: 0 14px 28px rgba(17, 17, 17, 0.16);
   }
 
+  .dark .booking-slot--selected {
+    border-color: rgba(255, 255, 255, 0.4);
+    background: #ffffff;
+    color: #111111;
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.4);
+  }
+
   .booking-slot--selected:hover {
     background: #111111;
     color: #ffffff;
+  }
+
+  .dark .booking-slot--selected:hover {
+    background: #ffffff;
+    color: #111111;
   }
 
 }

@@ -2,14 +2,15 @@ import editorialPortraitImage from '../../assets/portfolio-editorial-portrait.jp
 import familySessionImage from '../../assets/portfolio-family-session.jpg';
 import weddingSessionImage from '../../assets/portfolio-wedding-session.jpg';
 import interiorHallCustomImage from '../../assets/hall-interior-custom.jpg';
+import urbanGeometryImage from '../../assets/portfolio-urban-geometry.jpg';
+import expositionImage from '../../assets/exposition.jpg';
 
 export const portfolioItems = [
   {
     id: 1,
     title: 'Тихий портрет',
     category: 'Портрет',
-    image:
-      'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1200&q=80',
+    image: urbanGeometryImage,
     description: 'Нейтральный фон, мягкий свет и внимание только к лицу, фактуре и выражению.',
   },
   {
@@ -31,7 +32,7 @@ export const portfolioItems = [
     title: 'Свадебный фотосет',
     category: 'Свадьба',
     image: weddingSessionImage,
-    description: 'Нежные свадебные кадры с чистым светом, естественной пластикой и акцентом на эмоции пары и семьи.',
+    description: 'Нежные свадебные кадры с чистым свелом, естественной пластикой и акцентом на эмоции пары и семьи.',
   },
 ];
 
@@ -41,8 +42,7 @@ export const hallShowcase = [
     title: 'Циклорама',
     price_per_hour: 3500,
     equipment: ['3 импульсных моноблока', 'Рефлектор и софтбокс', 'Фоновые стойки'],
-    image:
-      'https://unsplash.com/photos/WPD64XgO5zk/download?force=true&w=1400',
+    image: expositionImage,
     description: 'Светлый зал с чистым фоном для каталогов, портретов, кампейнов и съёмок на ровном белом фоне.',
   },
   {
@@ -58,8 +58,7 @@ export const hallShowcase = [
     title: 'Лофт',
     price_per_hour: 5500,
     equipment: ['Большие окна', '2 генератора света', 'Подвесы для фонов'],
-    image:
-      'https://unsplash.com/photos/XriehBZJ7Zk/download?force=true&w=1400',
+    image: urbanGeometryImage,
     description: 'Просторный зал с большими окнами и индустриальным характером для lookbook, видео и командных съёмок.',
   },
 ];
