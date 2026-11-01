@@ -39,11 +39,17 @@ class BookingService:
         services_cost = Decimal(str(extra_services_total)) if extra_services_total else Decimal('0')
         total_amount = (hall.price_per_hour * duration_hours) + services_cost
         
-        # Apply promo code discount if provided
+        # Apply promo code discount if provided.
+        # total_amount keeps the base price; the discount is stored on the order
+        # so PaymentService does not apply it a second time.
         applied_promo = None
+        promo = None
+        discount_amount = Decimal('0')
+        final_amount = None
         if promo_code:
             from django.utils import timezone
             from promo.models import PromoCode
+            from promo.services import calculate_promo_for_amount
             now = timezone.now()
             try:
                 promo = PromoCode.objects.get(
@@ -55,17 +61,19 @@ class BookingService:
                     hour_from__lte=start_time.hour,
                     hour_to__gt=start_time.hour,
                 )
-                discount = Decimal(promo.discount_percent) / Decimal(100)
-                total_amount = total_amount * (Decimal(1) - discount)
+                discount_amount, final_amount = calculate_promo_for_amount(promo, total_amount)
                 applied_promo = promo.code
             except PromoCode.DoesNotExist:
                 raise ValidationError(f"Промокод '{promo_code}' недействителен или не подходит для этого слота.")
-        
+
         # Create pending Order
         order = Order.objects.create(
             user=user,
             booking=booking,
             total_amount=total_amount,
+            applied_promo=promo,
+            discount_amount=discount_amount,
+            final_amount=final_amount,
             status='PENDING'
         )
         
@@ -88,7 +96,15 @@ class PaymentService:
         final_amount = Decimal(order.total_amount)
         applied_promo = None
 
-        if promo_code:
+        if order.applied_promo_id:
+            # Promo was already applied at booking time — never discount twice
+            normalized_code = str(promo_code or '').strip().upper()
+            if normalized_code and normalized_code != order.applied_promo.code:
+                raise ValidationError("К заказу уже применён другой промокод.")
+            discount_amount = order.discount_amount
+            final_amount = order.final_amount
+            applied_promo = order.applied_promo
+        elif promo_code:
             from promo.models import PromoCode
             from promo.services import calculate_promo_for_amount, validate_promo
 

@@ -129,3 +129,68 @@ class PhotostudiaAPITests(APITestCase):
         # Test filter by price
         response_filter = self.client.get('/api/halls/', {'price_min': '600'})
         self.assertFalse(any(h['name'] == 'Cheap Hall' for h in response_filter.data['results']))
+
+
+class PromoDoubleDiscountTests(APITestCase):
+    """Промокод, применённый при бронировании, не должен списываться повторно при оплате."""
+
+    def setUp(self):
+        from datetime import datetime
+        from django.utils import timezone
+        from promo.models import PromoCode
+
+        self.user = User.objects.create_user(username='promo_user', email='p@test.com', password='StrongPassword123!')
+        self.hall = Hall.objects.create(name='Promo Hall', capacity=5, price_per_hour=1000)
+        now = timezone.now()
+        self.promo = PromoCode.objects.create(
+            code='PROMO-TEST', hall=self.hall, discount_percent=30,
+            valid_from=now - timedelta(days=1), valid_to=now + timedelta(days=1),
+            hour_from=0, hour_to=24,
+        )
+        day = (now + timedelta(days=2)).date()
+        self.start = timezone.make_aware(datetime.combine(day, time(10, 0)))
+        self.end = timezone.make_aware(datetime.combine(day, time(12, 0)))
+
+    def test_promo_at_booking_is_stored_on_order(self):
+        from decimal import Decimal
+        from studio.services import BookingService
+
+        _, order, applied = BookingService.create_booking(
+            self.user, self.hall, self.start, self.end, promo_code='PROMO-TEST')
+        order.refresh_from_db()
+
+        self.assertEqual(applied, 'PROMO-TEST')
+        self.assertEqual(order.total_amount, Decimal('2000.00'))
+        self.assertEqual(order.discount_amount, Decimal('600.00'))
+        self.assertEqual(order.final_amount, Decimal('1400.00'))
+        self.assertEqual(order.applied_promo, self.promo)
+
+    def test_same_promo_at_payment_is_not_applied_twice(self):
+        from decimal import Decimal
+        from studio.services import BookingService, PaymentService
+
+        _, order, _ = BookingService.create_booking(
+            self.user, self.hall, self.start, self.end, promo_code='PROMO-TEST')
+        payment = PaymentService.process_payment(order, order.total_amount, 'card', promo_code='PROMO-TEST')
+        order.refresh_from_db()
+
+        self.assertEqual(payment.amount, Decimal('1400.00'))
+        self.assertEqual(order.final_amount, Decimal('1400.00'))
+        self.assertEqual(order.discount_amount, Decimal('600.00'))
+
+    def test_second_promo_at_payment_is_rejected(self):
+        from django.core.exceptions import ValidationError
+        from django.utils import timezone
+        from promo.models import PromoCode
+        from studio.services import BookingService, PaymentService
+
+        now = timezone.now()
+        PromoCode.objects.create(
+            code='PROMO-OTHR', hall=self.hall, discount_percent=50,
+            valid_from=now - timedelta(days=1), valid_to=now + timedelta(days=1),
+        )
+        _, order, _ = BookingService.create_booking(
+            self.user, self.hall, self.start, self.end, promo_code='PROMO-TEST')
+
+        with self.assertRaises(ValidationError):
+            PaymentService.process_payment(order, order.total_amount, 'card', promo_code='PROMO-OTHR')
