@@ -324,3 +324,192 @@ class OrderListQueryTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['results']), 10)
         self.assertLessEqual(len(ctx.captured_queries), 4)
+
+
+import threading
+from decimal import Decimal
+from time import sleep
+from unittest import mock
+from django.test import TransactionTestCase, skipUnlessDBFeature
+from django.utils import timezone
+from studio.services import BookingConflictError, BookingService
+
+class BookingRaceTests(TransactionTestCase):
+    """Concurrent requests for a free slot must not both succeed. Needs PostgreSQL row locks."""
+
+    @skipUnlessDBFeature('has_select_for_update')
+    def test_concurrent_bookings_of_free_slot_create_one(self):
+        user = User.objects.create_user(username='racer', password='StrongPassword123!')
+        hall = Hall.objects.create(name='Race Hall', capacity=5, price_per_hour=Decimal('1000.00'))
+        start = timezone.now().replace(microsecond=0) + timedelta(days=1)
+        end = start + timedelta(hours=1)
+
+        barrier = threading.Barrier(2)
+        results = []
+        real_create = Booking.objects.create
+
+        def slow_create(**kwargs):
+            # Keeps the gap between the overlap check and the insert wide open.
+            sleep(0.5)
+            return real_create(**kwargs)
+
+        def book():
+            try:
+                barrier.wait(timeout=5)
+                BookingService.create_booking(user=user, hall=hall, start_time=start, end_time=end)
+                results.append('created')
+            except BookingConflictError:
+                results.append('conflict')
+            finally:
+                connection.close()
+
+        with mock.patch.object(Booking.objects, 'create', side_effect=slow_create):
+            threads = [threading.Thread(target=book) for _ in range(2)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=15)
+
+        self.assertEqual(Booking.objects.filter(hall=hall).count(), 1)
+        self.assertCountEqual(results, ['created', 'conflict'])
+
+    @skipUnlessDBFeature('has_select_for_update')
+    def test_concurrent_moves_to_free_slot_move_one(self):
+        user = User.objects.create_user(username='racer', password='StrongPassword123!')
+        hall = Hall.objects.create(name='Race Hall', capacity=5, price_per_hour=Decimal('1000.00'))
+        base = timezone.now().replace(microsecond=0) + timedelta(days=1)
+        first = Booking.objects.create(user=user, hall=hall, start_time=base, end_time=base + timedelta(hours=1))
+        second = Booking.objects.create(
+            user=user, hall=hall, start_time=base + timedelta(hours=2), end_time=base + timedelta(hours=3))
+        start, end = base + timedelta(hours=5), base + timedelta(hours=6)
+
+        barrier = threading.Barrier(2)
+        results = []
+        real_save = Booking.save
+
+        def slow_save(instance, *args, **kwargs):
+            sleep(0.5)
+            return real_save(instance, *args, **kwargs)
+
+        def move(booking):
+            try:
+                barrier.wait(timeout=5)
+                BookingService.update_booking(booking, hall, start, end)
+                results.append('moved')
+            except BookingConflictError:
+                results.append('conflict')
+            finally:
+                connection.close()
+
+        with mock.patch.object(Booking, 'save', slow_save):
+            threads = [threading.Thread(target=move, args=(booking,)) for booking in (first, second)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=15)
+
+        self.assertEqual(Booking.objects.filter(hall=hall, start_time=start).count(), 1)
+        self.assertCountEqual(results, ['moved', 'conflict'])
+
+
+class BookingUpdateOverlapTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='mover', password='StrongPassword123!', is_staff=True)
+        self.hall = Hall.objects.create(name='Hall A', capacity=5, price_per_hour=Decimal('1000.00'))
+        self.other_hall = Hall.objects.create(name='Hall B', capacity=5, price_per_hour=Decimal('1000.00'))
+        self.base = timezone.now().replace(microsecond=0) + timedelta(days=1)
+        self.booking = self._book(self.hall, 0, 1)
+        self.client.force_authenticate(user=self.user)
+
+    def _book(self, hall, start_hour, end_hour):
+        return Booking.objects.create(
+            user=self.user,
+            hall=hall,
+            start_time=self.base + timedelta(hours=start_hour),
+            end_time=self.base + timedelta(hours=end_hour),
+        )
+
+    def _patch(self, start_hour, end_hour, **extra):
+        return self.client.patch(f'/api/bookings/{self.booking.id}/', {
+            'start_time': (self.base + timedelta(hours=start_hour)).isoformat(),
+            'end_time': (self.base + timedelta(hours=end_hour)).isoformat(),
+            **extra,
+        }, format='json')
+
+    def test_move_onto_occupied_slot_is_rejected(self):
+        self._book(self.hall, 2, 4)
+        response = self._patch(3, 5)
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.start_time, self.base)
+
+    def test_move_onto_occupied_slot_of_other_hall_is_rejected(self):
+        self._book(self.other_hall, 2, 4)
+        response = self._patch(3, 5, hall_id=self.other_hall.id)
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.hall_id, self.hall.id)
+
+    def test_changing_only_end_time_onto_occupied_slot_is_rejected(self):
+        self._book(self.hall, 2, 4)
+        response = self.client.patch(f'/api/bookings/{self.booking.id}/', {
+            'end_time': (self.base + timedelta(hours=3)).isoformat(),
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+
+    def test_move_onto_free_slot_succeeds(self):
+        response = self._patch(6, 7)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.start_time, self.base + timedelta(hours=6))
+
+    def test_shift_overlapping_own_old_time_succeeds(self):
+        response = self._patch(0, 2)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class BookingUpdatePermissionTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='customer', password='StrongPassword123!')
+        self.hall = Hall.objects.create(name='Hall A', capacity=5, price_per_hour=Decimal('1000.00'))
+        self.start = timezone.now().replace(microsecond=0) + timedelta(days=1)
+        self.end = self.start + timedelta(hours=1)
+        self.booking = Booking.objects.create(
+            user=self.user, hall=self.hall, start_time=self.start, end_time=self.end)
+        self.url = f'/api/bookings/{self.booking.id}/'
+        self.longer = {'end_time': (self.start + timedelta(hours=8)).isoformat()}
+
+    def test_customer_cannot_extend_own_booking_with_patch(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.patch(self.url, self.longer, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.end_time, self.end)
+
+    def test_customer_cannot_replace_own_booking_with_put(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.put(self.url, {
+            'hall_id': self.hall.id,
+            'start_time': self.start.isoformat(),
+            **self.longer,
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.end_time, self.end)
+
+    def test_manager_cannot_patch_booking(self):
+        manager = User.objects.create_user(username='manager', password='StrongPassword123!', is_manager=True)
+        self.client.force_authenticate(user=manager)
+        response = self.client.patch(self.url, self.longer, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_staff_can_patch_booking(self):
+        admin = User.objects.create_user(username='staff', password='StrongPassword123!', is_staff=True)
+        self.client.force_authenticate(user=admin)
+        response = self.client.patch(self.url, self.longer, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_customer_can_still_view_and_cancel_own_booking(self):
+        self.client.force_authenticate(user=self.user)
+        self.assertEqual(self.client.get(self.url).status_code, status.HTTP_200_OK)
+        self.assertEqual(self.client.delete(self.url).status_code, status.HTTP_204_NO_CONTENT)

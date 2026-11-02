@@ -197,6 +197,12 @@ class BookingViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     filterset_fields = ['hall', 'start_time']
 
+    def get_permissions(self):
+        # Moving a booking does not recalculate its order, so customers must not change it themselves.
+        if self.action in ('update', 'partial_update'):
+            return [permissions.IsAdminUser()]
+        return super().get_permissions()
+
     def get_queryset(self):
         # Admin can see all, user can see only theirs
         qs = Booking.objects.select_related('hall', 'user').prefetch_related('hall__gallery_images')
@@ -245,6 +251,25 @@ class BookingViewSet(viewsets.ModelViewSet):
         if applied_promo:
             data['promo_applied'] = applied_promo
         return Response(data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        try:
+            return super().update(request, *args, **kwargs)
+        except BookingConflictError as e:
+            return Response(
+                {"error": "Конфликт бронирования", "details": str(e)},
+                status=status.HTTP_409_CONFLICT
+            )
+
+    def perform_update(self, serializer):
+        booking = serializer.instance
+        data = serializer.validated_data
+        BookingService.update_booking(
+            booking,
+            data.get('hall', booking.hall),
+            data.get('start_time', booking.start_time),
+            data.get('end_time', booking.end_time),
+        )
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi

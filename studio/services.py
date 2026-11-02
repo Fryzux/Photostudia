@@ -1,7 +1,7 @@
 from django.db import transaction, IntegrityError
 from django.core.exceptions import ValidationError
 from .repositories import BookingRepository
-from .models import Booking, Order, Payment
+from .models import Booking, Hall, Order, Payment
 from decimal import Decimal
 import uuid
 
@@ -21,8 +21,9 @@ class BookingService:
         if start_time >= end_time:
             raise ValidationError("End time must be after start time.")
 
-        # Check overlaps with SELECT FOR UPDATE to prevent race conditions
-        overlapping = BookingRepository.get_overlapping_bookings(hall, start_time, end_time, lock=True)
+        # Requests for one hall queue on its row: locking overlapping bookings locks nothing when the slot is free.
+        Hall.objects.select_for_update().get(pk=hall.pk)
+        overlapping = BookingRepository.get_overlapping_bookings(hall, start_time, end_time)
         if overlapping.exists():
             raise BookingConflictError("This hall is already booked for the selected time slot.")
 
@@ -78,6 +79,28 @@ class BookingService:
         )
         
         return booking, order, applied_promo
+
+    @staticmethod
+    @transaction.atomic
+    def update_booking(booking, hall, start_time, end_time):
+        """
+        Moves a booking to a new hall or time with the same overlap check as create_booking.
+        """
+        if start_time >= end_time:
+            raise ValidationError("End time must be after start time.")
+
+        Hall.objects.select_for_update().get(pk=hall.pk)
+        overlapping = BookingRepository.get_overlapping_bookings(
+            hall, start_time, end_time, exclude_booking_id=booking.id
+        )
+        if overlapping.exists():
+            raise BookingConflictError("This hall is already booked for the selected time slot.")
+
+        booking.hall = hall
+        booking.start_time = start_time
+        booking.end_time = end_time
+        booking.save()
+        return booking
 
 class PaymentService:
     @staticmethod
