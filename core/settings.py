@@ -53,6 +53,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'django.middleware.http.ConditionalGetMiddleware',  # ETag + 304 Not Modified for GET
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -123,6 +124,24 @@ else:
             'PORT': os.environ.get('POSTGRES_PORT', '5432'),
         }
     }
+
+# Cache: Redis when CACHE_REDIS_URL is set (Docker), otherwise in-process.
+# Tests run with a dummy cache so cached data never leaks between test cases;
+# cache tests opt in with override_settings.
+_cache_redis_url = os.environ.get('CACHE_REDIS_URL')
+if _cache_redis_url:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': _cache_redis_url,
+            'KEY_PREFIX': 'ps',
+            'TIMEOUT': 300,
+        }
+    }
+elif IS_TESTING:
+    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.dummy.DummyCache'}}
+else:
+    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},

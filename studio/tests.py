@@ -194,3 +194,133 @@ class PromoDoubleDiscountTests(APITestCase):
 
         with self.assertRaises(ValidationError):
             PaymentService.process_payment(order, order.total_amount, 'card', promo_code='PROMO-OTHR')
+
+
+from django.test import override_settings
+
+
+@override_settings(CACHES={'default': {
+    'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    'LOCATION': 'studio-cache-tests',
+}})
+class ResponseCacheTests(APITestCase):
+    """Кэш ответов: повторный запрос не ходит в БД, изменения данных сбрасывают кэш."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.user = User.objects.create_user(username='cache_user', email='c@test.com', password='StrongPassword123!')
+        self.other = User.objects.create_user(username='cache_other', email='o@test.com', password='StrongPassword123!')
+        self.admin = User.objects.create_superuser(username='cache_admin', email='a@test.com', password='StrongPassword123!')
+        self.hall = Hall.objects.create(name='Cache Hall', capacity=5, price_per_hour=1000)
+        self.day = date.today() + timedelta(days=3)
+
+    def _book(self, user, start, end):
+        from studio.services import BookingService
+        with self.captureOnCommitCallbacks(execute=True):
+            return BookingService.create_booking(user, self.hall, start, end)
+
+    def _aware(self, day, hour):
+        from datetime import datetime
+        from django.utils import timezone
+        return timezone.make_aware(datetime.combine(day, time(hour, 0)))
+
+    def test_halls_list_second_request_hits_no_db(self):
+        self.client.get('/api/halls/')
+        with self.assertNumQueries(0):
+            response = self.client.get('/api/halls/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('public', response['Cache-Control'])
+
+    def test_hall_change_invalidates_list(self):
+        self.client.get('/api/halls/')
+        with self.captureOnCommitCallbacks(execute=True):
+            Hall.objects.create(name='New Hall', capacity=3, price_per_hour=500)
+        names = [h['name'] for h in self.client.get('/api/halls/').data['results']]
+        self.assertIn('New Hall', names)
+
+    def test_availability_invalidated_after_booking(self):
+        url = f'/api/halls/{self.hall.id}/availability/'
+        before = self.client.get(url, {'date': self.day.isoformat()}).data
+        self.assertTrue(all(s['available'] for s in before['slots']))
+
+        self._book(self.user, self._aware(self.day, 10), self._aware(self.day, 12))
+
+        after = self.client.get(url, {'date': self.day.isoformat()}).data
+        busy = [s['start'] for s in after['slots'] if not s['available']]
+        self.assertEqual(busy, ['10:00:00', '11:00:00'])
+
+    def test_availability_includes_booking_from_previous_day(self):
+        prev = self.day - timedelta(days=1)
+        self._book(self.user, self._aware(prev, 22), self._aware(self.day, 10))
+
+        data = self.client.get(f'/api/halls/{self.hall.id}/availability/', {'date': self.day.isoformat()}).data
+        self.assertFalse(data['slots'][0]['available'])  # 09:00 занят ночной бронью
+        self.assertFalse(data['is_fully_free'])
+
+    def test_analytics_cached_per_user(self):
+        self._book(self.user, self._aware(self.day, 10), self._aware(self.day, 11))
+
+        self.client.force_authenticate(self.user)
+        self.assertEqual(self.client.get('/api/analytics/summary/').data['total_bookings'], 1)
+        self.client.force_authenticate(self.other)
+        self.assertEqual(self.client.get('/api/analytics/summary/').data['total_bookings'], 0)
+
+    def test_analytics_invalidated_after_booking(self):
+        self.client.force_authenticate(self.user)
+        self.assertEqual(self.client.get('/api/analytics/summary/').data['total_bookings'], 0)
+        self._book(self.user, self._aware(self.day, 10), self._aware(self.day, 11))
+        self.assertEqual(self.client.get('/api/analytics/summary/').data['total_bookings'], 1)
+
+    def test_services_cache_separates_staff_and_public(self):
+        from studio.models import StudioService
+        StudioService.objects.create(name='Active', price=100)
+        StudioService.objects.create(name='Hidden', price=100, is_active=False)
+
+        public = [s['name'] for s in self.client.get('/api/services/').data['results']]
+        self.client.force_authenticate(self.admin)
+        staff_response = self.client.get('/api/services/')
+        staff = [s['name'] for s in staff_response.data['results']]
+
+        self.assertEqual(public, ['Active'])
+        self.assertEqual(sorted(staff), ['Active', 'Hidden'])
+        self.assertIn('private', staff_response['Cache-Control'])
+
+    def test_weekly_forecast_computed_once(self):
+        from unittest import mock
+        from ai.services import AIService
+
+        self.client.force_authenticate(self.user)
+        with mock.patch.object(AIService, 'predict_weekly_demand', return_value=[]) as predict:
+            self.client.get('/api/ai/weekly/', {'hall_id': self.hall.id})
+            self.client.get('/api/ai/weekly/', {'hall_id': self.hall.id})
+        predict.assert_called_once()
+
+
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
+
+class OrderListQueryTests(APITestCase):
+    """Список заказов не делает отдельный запрос на каждый заказ (N+1)."""
+
+    def test_order_list_query_count_is_constant(self):
+        from datetime import datetime
+        from django.utils import timezone
+        from studio.models import HallImage
+
+        admin = User.objects.create_superuser(username='nq_admin', email='nq@test.com', password='StrongPassword123!')
+        hall = Hall.objects.create(name='NQ Hall', capacity=5, price_per_hour=1000)
+        HallImage.objects.create(hall=hall, image='halls/gallery/x.jpg')
+        base = timezone.make_aware(datetime.combine(date.today() + timedelta(days=5), time(9, 0)))
+        for i in range(10):
+            booking = Booking.objects.create(user=admin, hall=hall, start_time=base + timedelta(hours=i),
+                                             end_time=base + timedelta(hours=i + 1))
+            Order.objects.create(user=admin, booking=booking, total_amount=1000)
+
+        self.client.force_authenticate(admin)
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.get('/api/orders/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['results']), 10)
+        self.assertLessEqual(len(ctx.captured_queries), 4)

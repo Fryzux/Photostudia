@@ -41,6 +41,7 @@ import {
   deleteStudioService,
 } from '../services/api';
 import type { CreateUserData, UpdateUserData } from '../services/api';
+import { queryClient, queryKeys } from '../hooks/queries';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -205,8 +206,11 @@ export function AdminPage() {
     setAnalytics(await getAnalytics());
   };
 
+  // reloadHalls / reloadServices вызываются после изменений — сбрасываем и кэш
+  // React Query, чтобы каталог на публичных страницах сразу обновился
   const reloadHalls = async () => {
     setHalls(await getHalls());
+    void queryClient.invalidateQueries({ queryKey: queryKeys.halls });
   };
 
   const reloadOrders = async () => {
@@ -223,6 +227,7 @@ export function AdminPage() {
 
   const reloadServices = async () => {
     setServices(await getStudioServices());
+    void queryClient.invalidateQueries({ queryKey: queryKeys.services });
   };
 
   const reloadLogs = async (params: { search?: string; action?: string; date_from?: string; date_to?: string } = {}) => {

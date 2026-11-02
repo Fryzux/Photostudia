@@ -59,6 +59,10 @@ class Booking(models.Model):
                 name='check_start_before_end'
             ),
         ]
+        indexes = [
+            # overlap check and availability: WHERE hall_id = ? AND start_time < ? AND end_time > ?
+            models.Index(fields=['hall', 'start_time'], name='booking_hall_start_idx'),
+        ]
 
     def __str__(self):
         return f"Booking {self.hall.name} from {self.start_time} to {self.end_time} by {self.user}"
@@ -78,6 +82,15 @@ class Order(models.Model):
     final_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            # "my orders" list: WHERE user_id = ? ORDER BY created_at DESC
+            models.Index(fields=['user', '-created_at'], name='order_user_created_idx'),
+            # admin list and revenue: ORDER BY created_at DESC / WHERE status = ?
+            models.Index(fields=['-created_at'], name='order_created_idx'),
+            models.Index(fields=['status'], name='order_status_idx'),
+        ]
 
     def __str__(self):
         return f"Order {self.id} - {self.status}"

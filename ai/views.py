@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from django.core.cache import cache
 from rest_framework import views, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -6,6 +7,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from .serializers import AIPredictRequestSerializer
 from .services import AIService
+from studio import cache as studio_cache
 
 
 class PredictAPIView(views.APIView):
@@ -20,7 +22,9 @@ class PredictAPIView(views.APIView):
         date_str = serializer.validated_data['date'].strftime('%Y-%m-%d')
         
         try:
-            prediction = AIService.predict(date_str)
+            # predict() учитывает число броней за предыдущий день → зависит от 'bookings'
+            key = studio_cache.make_key('ai:day', date_str, deps=('ai', 'bookings'))
+            prediction = studio_cache.get_or_set(key, lambda: AIService.predict(date_str), studio_cache.TTL_AI)
             return Response(prediction, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({
@@ -84,20 +88,26 @@ class ForecastAPIView(views.APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        key = studio_cache.make_key('ai:forecast', hall_id, date_from_str, date_to_str, deps=('ai',))
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached, status=status.HTTP_200_OK)
+
         try:
-            # Собираем плоский список ячеек по всем дням
-            heatmap = []
-            current = date_from
-            while current <= date_to:
-                day_forecast = AIService.forecast_hourly(hall_id, current.strftime('%Y-%m-%d'))
-                for cell in day_forecast:
-                    heatmap.append({
-                        'date': cell['date'],
-                        'hour': cell['hour'],
-                        'load_percent': round(cell['load_pct']),
-                        'confidence': 0.75,
-                    })
-                current += timedelta(days=1)
+            # Собираем плоский список ячеек по всем дням — один вызов модели на весь период
+            date_strs = [
+                (date_from + timedelta(days=i)).strftime('%Y-%m-%d')
+                for i in range((date_to - date_from).days + 1)
+            ]
+            heatmap = [
+                {
+                    'date': cell['date'],
+                    'hour': cell['hour'],
+                    'load_percent': round(cell['load_pct']),
+                    'confidence': 0.75,
+                }
+                for cell in AIService.forecast_hourly_range(hall_id, date_strs)
+            ]
 
             # Уникальные дни и часы
             days = sorted({cell['date'] for cell in heatmap})
@@ -136,6 +146,7 @@ class ForecastAPIView(views.APIView):
                 },
                 'recommendations': recommendations,
             }
+            cache.set(key, result, studio_cache.TTL_AI)
             return Response(result, status=status.HTTP_200_OK)
         except Exception as e:
             return Response(
@@ -160,7 +171,10 @@ class WeeklyPredictAPIView(views.APIView):
             
         try:
             hall_id = int(hall_id)
-            weekly_forecast = AIService.predict_weekly_demand(hall_id)
+            # Прогноз зависит от даты «сегодня», поэтому она входит в ключ
+            key = studio_cache.make_key('ai:weekly', hall_id, datetime.now().date().isoformat(), deps=('ai',))
+            weekly_forecast = studio_cache.get_or_set(
+                key, lambda: AIService.predict_weekly_demand(hall_id), studio_cache.TTL_AI)
             return Response(weekly_forecast, status=status.HTTP_200_OK)
         except ValueError:
             return Response({"error": "hall_id must be an integer"}, status=status.HTTP_400_BAD_REQUEST)

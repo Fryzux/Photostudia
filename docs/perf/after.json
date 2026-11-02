@@ -1,0 +1,100 @@
+{
+  "runs": 30,
+  "database": "postgresql",
+  "cache": "RedisCache",
+  "dataset": {
+    "halls": 6,
+    "users": 200,
+    "bookings": 3000
+  },
+  "results": [
+    {
+      "endpoint": "GET /api/halls/",
+      "cold_ms": 9.27,
+      "median_ms": 1.02,
+      "p95_ms": 1.53,
+      "cold_queries": 3,
+      "warm_queries": 0
+    },
+    {
+      "endpoint": "GET /api/halls/{id}/",
+      "cold_ms": 4.34,
+      "median_ms": 0.92,
+      "p95_ms": 1.09,
+      "cold_queries": 2,
+      "warm_queries": 0
+    },
+    {
+      "endpoint": "GET /api/services/",
+      "cold_ms": 5.07,
+      "median_ms": 1.05,
+      "p95_ms": 1.47,
+      "cold_queries": 2,
+      "warm_queries": 0
+    },
+    {
+      "endpoint": "GET /api/halls/{id}/availability/",
+      "cold_ms": 8.55,
+      "median_ms": 1.2,
+      "p95_ms": 1.38,
+      "cold_queries": 3,
+      "warm_queries": 0
+    },
+    {
+      "endpoint": "GET /api/analytics/summary/ (admin)",
+      "cold_ms": 6.04,
+      "median_ms": 1.27,
+      "p95_ms": 1.43,
+      "cold_queries": 4,
+      "warm_queries": 0
+    },
+    {
+      "endpoint": "GET /api/analytics/summary/ (user)",
+      "cold_ms": 3.68,
+      "median_ms": 1.08,
+      "p95_ms": 1.18,
+      "cold_queries": 2,
+      "warm_queries": 0
+    },
+    {
+      "endpoint": "GET /api/orders/ (admin)",
+      "cold_ms": 13.83,
+      "median_ms": 11.21,
+      "p95_ms": 12.61,
+      "cold_queries": 3,
+      "warm_queries": 3
+    },
+    {
+      "endpoint": "GET /api/ai/weekly/",
+      "cold_ms": 11.91,
+      "median_ms": 1.05,
+      "p95_ms": 1.18,
+      "cold_queries": 0,
+      "warm_queries": 0
+    },
+    {
+      "endpoint": "POST /api/ai/forecast/ (7 days)",
+      "cold_ms": 20.53,
+      "median_ms": 2.59,
+      "p95_ms": 2.98,
+      "cold_queries": 2,
+      "warm_queries": 2
+    },
+    {
+      "endpoint": "POST /api/ai/forecast/ (31 days)",
+      "cold_ms": 16.24,
+      "median_ms": 3.66,
+      "p95_ms": 4.73,
+      "cold_queries": 2,
+      "warm_queries": 2
+    },
+    {
+      "endpoint": "POST /api/ai/predict/",
+      "cold_ms": 6.41,
+      "median_ms": 2.96,
+      "p95_ms": 3.2,
+      "cold_queries": 3,
+      "warm_queries": 2
+    }
+  ]
+}

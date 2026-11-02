@@ -20,6 +20,8 @@ class Command(BaseCommand):
             self.stderr.write(result.stderr)
 
         if result.returncode == 0:
+            from studio.cache import bump
+            bump('ai')  # закэшированные прогнозы старой модели больше не отдаются
             self.stdout.write(self.style.SUCCESS('Почасовая AI-модель успешно обучена и сохранена в ai/ai_hourly_model.pkl'))
         else:
             self.stderr.write(self.style.ERROR(f'Ошибка при обучении модели (код {result.returncode})'))

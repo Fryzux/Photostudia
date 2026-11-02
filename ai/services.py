@@ -77,43 +77,50 @@ class AIService:
         Возвращает почасовой прогноз загрузки для зала на конкретную дату.
         Формат: [{date, hour, load_pct}, ...]  (часы 08:00–22:00)
         """
+        return cls.forecast_hourly_range(hall_id, [date_str])
+
+    @classmethod
+    def forecast_hourly_range(cls, hall_id: int, date_strs):
+        """
+        Почасовой прогноз сразу для нескольких дат.
+        Все дни считаются одним вызовом predict_proba: у RandomForest основная
+        стоимость — накладные расходы на вызов, а не число строк.
+        """
         try:
             model = cls.load_hourly_model()
             use_ml = True
         except FileNotFoundError:
             use_ml = False
 
-        target_date = datetime.strptime(date_str, '%Y-%m-%d')
-        day_of_week = target_date.weekday()
-        month = target_date.month
-        season = (month % 12 + 3) // 3
         hours = list(range(8, 22))  # 08:00–21:00 (14 слотов)
+        rows = []
+        for date_str in date_strs:
+            target_date = datetime.strptime(date_str, '%Y-%m-%d')
+            month = target_date.month
+            for h in hours:
+                rows.append({
+                    'date': date_str,
+                    'hall_id': hall_id,
+                    'day_of_week': target_date.weekday(),
+                    'month': month,
+                    'season': (month % 12 + 3) // 3,
+                    'hour': h,
+                })
 
         if use_ml:
-            features = pd.DataFrame([{
-                'hall_id': hall_id,
-                'day_of_week': day_of_week,
-                'month': month,
-                'season': season,
-                'hour': h,
-            } for h in hours])
+            features = pd.DataFrame(rows)[['hall_id', 'day_of_week', 'month', 'season', 'hour']]
             probabilities = model.predict_proba(features)[:, 1]
         else:
             # Fallback: эвристика на основе дня недели
-            weekend_boost = 0.3 if day_of_week >= 5 else 0.0
             probabilities = [
-                min(1.0, 0.2 + weekend_boost + (0.1 if 10 <= h <= 18 else 0.0))
-                for h in hours
+                min(1.0, 0.2 + (0.3 if r['day_of_week'] >= 5 else 0.0) + (0.1 if 10 <= r['hour'] <= 18 else 0.0))
+                for r in rows
             ]
 
-        result = []
-        for i, hour in enumerate(hours):
-            result.append({
-                'date': date_str,
-                'hour': hour,
-                'load_pct': round(float(probabilities[i]) * 100, 1),
-            })
-        return result
+        return [
+            {'date': r['date'], 'hour': r['hour'], 'load_pct': round(float(p) * 100, 1)}
+            for r, p in zip(rows, probabilities)
+        ]
 
     @classmethod
     def predict_weekly_demand(cls, hall_id: int):
@@ -124,28 +131,25 @@ class AIService:
         model = cls.load_hourly_model()
 
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        days = [today + timedelta(days=day_offset) for day_offset in range(7)]
+        hours = list(range(9, 21))  # 09:00 – 20:00 (12 слотов)
+
+        # Одна матрица признаков на всю неделю (7 × 12 строк) и один вызов модели
+        features = pd.DataFrame([{
+            'hall_id': hall_id,
+            'day_of_week': day.weekday(),
+            'month': day.month,
+            'season': (day.month % 12 + 3) // 3,
+            'hour': h,
+        } for day in days for h in hours])
+        probabilities = model.predict_proba(features)[:, 1]  # probability of 'booked'
+
         result = []
-
-        for day_offset in range(7):
-            day = today + timedelta(days=day_offset)
+        for day_index, day in enumerate(days):
             day_of_week = day.weekday()
-            month = day.month
-            season = (month % 12 + 3) // 3
-
-            hours = list(range(9, 21))  # 09:00 – 20:00 (12 слотов)
-            features = pd.DataFrame([{
-                'hall_id': hall_id,
-                'day_of_week': day_of_week,
-                'month': month,
-                'season': season,
-                'hour': h,
-            } for h in hours])
-
-            probabilities = model.predict_proba(features)[:, 1]  # probability of 'booked'
-
             slots = []
             for i, hour in enumerate(hours):
-                prob = float(probabilities[i])
+                prob = float(probabilities[day_index * len(hours) + i])
                 slots.append({
                     'hour': hour,
                     'label': f"{hour:02d}:00–{hour + 1:02d}:00",

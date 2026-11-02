@@ -52,6 +52,7 @@ type BackendBooking = {
   hall: BackendHall;
   start_time: string;
   end_time: string;
+  order_id?: number;
 };
 
 type BackendOrder = {
@@ -309,6 +310,7 @@ function normalizeBooking(raw: BackendBooking): Booking {
     hall: normalizeHall(raw.hall),
     start_time: typeof raw.start_time === 'string' ? raw.start_time : '',
     end_time: typeof raw.end_time === 'string' ? raw.end_time : '',
+    order_id: typeof raw.order_id === 'number' ? raw.order_id : undefined,
   };
 }
 

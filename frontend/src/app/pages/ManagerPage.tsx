@@ -3,7 +3,8 @@ import { BadgePercent, Plus, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
 import type { CreatePromoCodeData, DailyForecast, Hall, HourlySlot } from '../types';
-import { createPromoCode, getHalls, getWeeklyForecast } from '../services/api';
+import { createPromoCode } from '../services/api';
+import { useHalls, useWeeklyForecast } from '../hooks/queries';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog';
@@ -13,11 +14,13 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 
 export function ManagerPage() {
-  const [halls, setHalls] = useState<Hall[]>([]);
+  const hallsQuery = useHalls();
+  const halls: Hall[] = hallsQuery.data ?? [];
   const [selectedHallId, setSelectedHallId] = useState<number | null>(null);
-  const [forecast, setForecast] = useState<DailyForecast[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingForecast, setLoadingForecast] = useState(false);
+  const forecastQuery = useWeeklyForecast(selectedHallId);
+  const forecast: DailyForecast[] = forecastQuery.data ?? [];
+  const loading = hallsQuery.isLoading;
+  const loadingForecast = forecastQuery.isLoading;
 
   const [promoDialog, setPromoDialog] = useState<{
     open: boolean;
@@ -31,38 +34,22 @@ export function ManagerPage() {
   const [creatingPromo, setCreatingPromo] = useState(false);
 
   useEffect(() => {
-    const loadHalls = async () => {
-      try {
-        const hallsData = await getHalls();
-        setHalls(hallsData);
-        if (hallsData.length > 0) {
-          setSelectedHallId(hallsData[0].id);
-        }
-      } catch (error) {
-        toast.error('Не удалось загрузить залы');
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadHalls();
-  }, []);
+    if (!selectedHallId && hallsQuery.data?.length) {
+      setSelectedHallId(hallsQuery.data[0].id);
+    }
+  }, [hallsQuery.data, selectedHallId]);
 
   useEffect(() => {
-    if (!selectedHallId) return;
+    if (hallsQuery.isError) {
+      toast.error('Не удалось загрузить залы');
+    }
+  }, [hallsQuery.isError]);
 
-    const loadForecast = async () => {
-      setLoadingForecast(true);
-      try {
-        const data = await getWeeklyForecast(selectedHallId);
-        setForecast(data);
-      } catch (error: any) {
-        toast.error(error.message || 'Ошибка загрузки прогноза');
-      } finally {
-        setLoadingForecast(false);
-      }
-    };
-    loadForecast();
-  }, [selectedHallId]);
+  useEffect(() => {
+    if (forecastQuery.error) {
+      toast.error(forecastQuery.error.message || 'Ошибка загрузки прогноза');
+    }
+  }, [forecastQuery.error]);
 
   const handleOpenPromoDialog = (date: string, slot: HourlySlot) => {
     setPromoDialog({ open: true, date, slot });

@@ -4,7 +4,7 @@ import { CalendarCheck, Search, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 import type { Hall } from '../types';
-import { getHalls } from '../services/api';
+import { useHalls } from '../hooks/queries';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
@@ -16,8 +16,9 @@ import { Skeleton } from '../components/ui/skeleton';
 
 export function HallsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [halls, setHalls] = useState<Hall[]>([]);
-  const [loading, setLoading] = useState(true);
+  const hallsQuery = useHalls();
+  const halls: Hall[] = hallsQuery.data ?? [];
+  const loading = hallsQuery.isLoading;
   const [showUnavailableModal, setShowUnavailableModal] = useState(false);
 
   const query = searchParams.get('q') ?? '';
@@ -27,19 +28,10 @@ export function HallsPage() {
   const preselectedHallId = Number(searchParams.get('hall_id') || 0);
 
   useEffect(() => {
-    const loadHalls = async () => {
-      try {
-        const data = await getHalls();
-        setHalls(data);
-      } catch (error) {
-        toast.error('Не удалось загрузить залы');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadHalls();
-  }, []);
+    if (hallsQuery.isError) {
+      toast.error('Не удалось загрузить залы');
+    }
+  }, [hallsQuery.isError]);
 
   useEffect(() => {
     if (!preselectedHallId || !halls.length) return;

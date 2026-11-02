@@ -6,9 +6,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 from datetime import datetime, time, timedelta
-from django.db.models import Sum
+from django.db.models import Count, Q, Sum
 from django.core.exceptions import ValidationError
 from django.conf import settings
+from django.utils.cache import patch_cache_control, patch_vary_headers
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter
 from django.utils import timezone
 import os
@@ -19,6 +20,18 @@ logger = logging.getLogger(__name__)
 from .models import Booking, HallImage, Order, Payment, Hall, StudioService
 from .serializers import BookingSerializer, OrderSerializer, PaymentSerializer, PaymentCreateSerializer, HallSerializer, OrderStatusUpdateSerializer, StudioServiceSerializer
 from .services import BookingService, PaymentService, BookingConflictError
+from . import cache as studio_cache
+
+
+def cacheable_response(request, data, max_age=60):
+    """Response for public catalog data: browsers may reuse it for max_age seconds."""
+    response = Response(data)
+    if request.user and request.user.is_authenticated:
+        patch_cache_control(response, private=True, max_age=max_age)
+    else:
+        patch_cache_control(response, public=True, max_age=max_age)
+    patch_vary_headers(response, ['Authorization'])
+    return response
 
 
 class IsAdminOrReadOnly(permissions.BasePermission):
@@ -67,6 +80,20 @@ class HallViewSet(viewsets.ModelViewSet):
     filterset_class = HallFilter
     search_fields = ['name']
 
+    def list(self, request, *args, **kwargs):
+        host, query = studio_cache.request_fingerprint(request)
+        key = studio_cache.make_key('halls:list', host, query, deps=('halls',))
+        data = studio_cache.get_or_set(
+            key, lambda: super(HallViewSet, self).list(request, *args, **kwargs).data, studio_cache.TTL_CATALOG)
+        return cacheable_response(request, data)
+
+    def retrieve(self, request, *args, **kwargs):
+        host, _ = studio_cache.request_fingerprint(request)
+        key = studio_cache.make_key('halls:detail', kwargs.get('pk'), host, deps=('halls',))
+        data = studio_cache.get_or_set(
+            key, lambda: super(HallViewSet, self).retrieve(request, *args, **kwargs).data, studio_cache.TTL_CATALOG)
+        return cacheable_response(request, data)
+
     @action(detail=True, methods=['post'], url_path='images',
             permission_classes=[IsAuthenticated], parser_classes=[MultiPartParser, FormParser])
     def upload_images(self, request, pk=None):
@@ -104,7 +131,6 @@ class HallViewSet(viewsets.ModelViewSet):
         from datetime import datetime, date as date_type
         from django.utils.timezone import make_aware
 
-        hall = self.get_object()
         date_str = request.query_params.get('date')
 
         if not date_str:
@@ -121,36 +147,46 @@ class HallViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        bookings = Booking.objects.filter(
-            hall=hall,
-            start_time__date=target_date
-        ).order_by('start_time')
+        def build():
+            hall = self.get_object()
+            day_start = make_aware(datetime.combine(target_date, time.min))
+            day_end = day_start + timedelta(days=1)
+            # Overlap with the whole day, so bookings crossing midnight are included
+            bookings = list(Booking.objects.filter(
+                hall=hall,
+                start_time__lt=day_end,
+                end_time__gt=day_start,
+            ).order_by('start_time').only('start_time', 'end_time'))
 
-        # Generate hourly slots from 09:00 to 21:00
-        slots = []
-        for hour in range(9, 21):
-            start_dt = datetime.combine(target_date, time(hour, 0))
-            end_dt = datetime.combine(target_date, time(hour + 1, 0))
-            
-            # Check if this slot overlaps with any booking
-            is_available = not any(
-                b.start_time < make_aware(end_dt) and b.end_time > make_aware(start_dt)
-                for b in bookings
-            )
-            
-            slots.append({
-                "start": start_dt.time().isoformat(),
-                "end": end_dt.time().isoformat(),
-                "available": is_available
-            })
+            # Generate hourly slots from 09:00 to 21:00
+            slots = []
+            for hour in range(9, 21):
+                start_dt = datetime.combine(target_date, time(hour, 0))
+                end_dt = datetime.combine(target_date, time(hour + 1, 0))
 
-        return Response({
-            "hall_id": hall.id,
-            "hall_name": hall.name,
-            "date": date_str,
-            "slots": slots,
-            "is_fully_free": len(bookings) == 0,
-        })
+                # Check if this slot overlaps with any booking
+                is_available = not any(
+                    b.start_time < make_aware(end_dt) and b.end_time > make_aware(start_dt)
+                    for b in bookings
+                )
+
+                slots.append({
+                    "start": start_dt.time().isoformat(),
+                    "end": end_dt.time().isoformat(),
+                    "available": is_available
+                })
+
+            return {
+                "hall_id": hall.id,
+                "hall_name": hall.name,
+                "date": date_str,
+                "slots": slots,
+                "is_fully_free": len(bookings) == 0,
+            }
+
+        hall_key = int(pk) if str(pk).isdigit() else pk
+        key = studio_cache.make_key('avail', hall_key, target_date.isoformat(), deps=(f'bookings:{hall_key}', 'halls'))
+        return Response(studio_cache.get_or_set(key, build, studio_cache.TTL_AVAILABILITY))
 
 
 class BookingViewSet(viewsets.ModelViewSet):
@@ -163,7 +199,7 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # Admin can see all, user can see only theirs
-        qs = Booking.objects.select_related('hall', 'user')
+        qs = Booking.objects.select_related('hall', 'user').prefetch_related('hall__gallery_images')
         if self.request.user.is_staff:
             return qs
         return qs.filter(user=self.request.user)
@@ -241,28 +277,34 @@ class AnalyticsSummaryView(views.APIView):
         from django.contrib.auth import get_user_model
         User = get_user_model()
 
+        # Order count and revenue in one query instead of two
+        order_totals = dict(
+            total_orders=Count('id'),
+            total_revenue=Sum('total_amount', filter=Q(status='COMPLETED')),
+        )
+
         if not request.user.is_staff:
-            total_orders = Order.objects.filter(user=request.user).count()
-            total_bookings = Booking.objects.filter(user=request.user).count()
-            total_revenue = Order.objects.filter(user=request.user, status='COMPLETED').aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-            return Response({
-                "total_orders": total_orders,
-                "total_bookings": total_bookings,
-                "total_revenue": float(total_revenue),
-            })
+            def build():
+                orders = Order.objects.filter(user=request.user).aggregate(**order_totals)
+                return {
+                    "total_orders": orders['total_orders'],
+                    "total_bookings": Booking.objects.filter(user=request.user).count(),
+                    "total_revenue": float(orders['total_revenue'] or 0),
+                }
+            key = studio_cache.make_key('analytics:user', request.user.id, deps=('bookings', 'orders'))
         else:
-            total_orders = Order.objects.count()
-            total_bookings = Booking.objects.count()
-            total_revenue = Order.objects.filter(status='COMPLETED').aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-            total_users = User.objects.count()
-            total_halls = Hall.objects.count()
-            return Response({
-                "total_orders": total_orders,
-                "total_bookings": total_bookings,
-                "total_revenue": float(total_revenue),
-                "total_users": total_users,
-                "total_halls": total_halls,
-            })
+            def build():
+                orders = Order.objects.aggregate(**order_totals)
+                return {
+                    "total_orders": orders['total_orders'],
+                    "total_bookings": Booking.objects.count(),
+                    "total_revenue": float(orders['total_revenue'] or 0),
+                    "total_users": User.objects.count(),
+                    "total_halls": Hall.objects.count(),
+                }
+            key = studio_cache.make_key('analytics:admin', deps=('bookings', 'orders', 'halls'))
+
+        return Response(studio_cache.get_or_set(key, build, studio_cache.TTL_ANALYTICS))
 
 
 class OrderListView(generics.ListAPIView):
@@ -274,9 +316,14 @@ class OrderListView(generics.ListAPIView):
     filterset_fields = ['status']
 
     def get_queryset(self):
+        # gallery_images prefetch removes the per-order query from HallSerializer.get_images (N+1)
+        qs = (Order.objects
+              .select_related('booking__hall', 'user', 'applied_promo')
+              .prefetch_related('booking__hall__gallery_images')
+              .order_by('-created_at'))
         if self.request.user.is_staff:
-            return Order.objects.select_related('booking__hall', 'user').all().order_by('-created_at')
-        return Order.objects.select_related('booking__hall', 'user').filter(user=self.request.user).order_by('-created_at')
+            return qs
+        return qs.filter(user=self.request.user)
 
 
 class OrderStatusUpdateView(generics.UpdateAPIView):
@@ -391,3 +438,12 @@ class StudioServiceViewSet(viewsets.ModelViewSet):
         if not (self.request.user and self.request.user.is_staff):
             qs = qs.filter(is_active=True)
         return qs
+
+    def list(self, request, *args, **kwargs):
+        _, query = studio_cache.request_fingerprint(request)
+        is_staff = bool(request.user and request.user.is_staff)
+        key = studio_cache.make_key('services:list', is_staff, query, deps=('services',))
+        data = studio_cache.get_or_set(
+            key, lambda: super(StudioServiceViewSet, self).list(request, *args, **kwargs).data,
+            studio_cache.TTL_CATALOG)
+        return cacheable_response(request, data)

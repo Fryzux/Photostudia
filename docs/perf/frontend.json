@@ -1,0 +1,26 @@
+{
+  "scenario": "SPA navigation without page reloads: /halls -> /halls/5 -> /halls -> /halls/6 -> /halls -> /halls/5 -> /halls -> /halls/4 -> /halls/5 -> /halls (detail pages opened with ?date=2026-11-05), 2 s per step",
+  "measured_with": "performance.getEntriesByType('resource'), requests to :8000/api/ after the initial /halls load",
+  "before": {
+    "api_requests": 18,
+    "by_endpoint": {
+      "/api/halls/": 4,
+      "/api/halls/{id}/": 5,
+      "/api/halls/{id}/availability/": 5,
+      "/api/services/": 4
+    }
+  },
+  "after": {
+    "api_requests": 5,
+    "by_endpoint": {
+      "/api/halls/": 0,
+      "/api/halls/{id}/": 0,
+      "/api/halls/{id}/availability/": 4,
+      "/api/services/": 1
+    }
+  },
+  "bundle_main_chunk_gzip_kb": {
+    "before": 163.95,
+    "after": 175.05
+  }
+}

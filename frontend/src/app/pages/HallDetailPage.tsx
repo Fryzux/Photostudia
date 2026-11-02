@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, ArrowLeft, CalendarRange, Info, PackageCheck, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
-import type { AvailabilitySlot, CreateBookingData, Hall, StudioService } from '../types';
-import { createBooking, getHall, getHallAvailability, getOrders, getStudioServices } from '../services/api';
+import type { AvailabilitySlot, CreateBookingData } from '../types';
+import { createBooking, getOrders } from '../services/api';
+import { queryKeys, useHall, useHallAvailability, useStudioServices } from '../hooks/queries';
 import { PROMO_CODE_REGEX } from '../constants';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Badge } from '../components/ui/badge';
@@ -52,13 +54,21 @@ export function HallDetailPage() {
   const initialDate = searchParams.get('date') || '';
   const initialTime = searchParams.get('time') || '';
 
-  const [hall, setHall] = useState<Hall | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const hallId = id ? Number(id) : null;
+  const hallQuery = useHall(hallId);
+  const hall = hallQuery.data ?? null;
+  const loading = hallQuery.isLoading;
   const [availabilityDate, setAvailabilityDate] = useState(initialDate);
-  const [availabilityLoading, setAvailabilityLoading] = useState(false);
-  const [availabilityUnsupported, setAvailabilityUnsupported] = useState(false);
-  const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([]);
-  
+  const availabilityQuery = useHallAvailability(hallId, availabilityDate);
+  const availabilitySlots: AvailabilitySlot[] = availabilityQuery.data ?? [];
+  // Индикатор только на первой загрузке даты; фоновый опрос раз в 15 с не мигает
+  const availabilityLoading = availabilityQuery.isLoading;
+  const availabilityError = availabilityQuery.error as (Error & { status?: number }) | null;
+  const availabilityUnsupported =
+    !!availabilityError &&
+    (String(availabilityError.message || '').includes('404') || availabilityError.status === 404);
+
   const [selectedSlotKey, setSelectedSlotKey] = useState(() => {
     if (initialTime) {
       const parts = initialTime.split(':');
@@ -75,86 +85,40 @@ export function HallDetailPage() {
   const [promoCode, setPromoCode] = useState('');
   const [promoCodeError, setPromoCodeError] = useState('');
   const [submittingBooking, setSubmittingBooking] = useState(false);
-  const [services, setServices] = useState<StudioService[]>([]);
+  const servicesQuery = useStudioServices();
+  const services = useMemo(
+    () => (servicesQuery.data ?? []).filter((item) => item.is_active),
+    [servicesQuery.data],
+  );
 
   useEffect(() => {
-    getStudioServices()
-      .then((list) => setServices(list.filter((item) => item.is_active)))
-      .catch(() => setServices([]));
-  }, []);
+    if (hallQuery.isError) {
+      toast.error('Не удалось загрузить зал');
+      navigate('/halls');
+    }
+  }, [hallQuery.isError, navigate]);
 
   useEffect(() => {
-    if (!id) return;
-
-    const loadHall = async () => {
-      try {
-        const data = await getHall(Number(id));
-        setHall(data);
-      } catch (error) {
-        toast.error('Не удалось загрузить зал');
-        navigate('/halls');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadHall();
-  }, [id, navigate]);
-
-  const loadAvailability = async (date: string) => {
-    if (!id || !date) {
-      setAvailabilitySlots([]);
-      if (!initialTime || date !== initialDate) {
-        setSelectedSlotKey('');
-      }
-      return;
+    if (availabilityError && !availabilityUnsupported) {
+      toast.error('Не удалось загрузить слоты доступности.');
     }
+  }, [availabilityError, availabilityUnsupported]);
 
-    setAvailabilityLoading(true);
-    setAvailabilityUnsupported(false);
-    try {
-      const slots = await getHallAvailability(Number(id), date);
-      setAvailabilitySlots(slots);
-      
-      // If we have an initialTime and it's the initial date, check if the pre-selected slot is actually available
-      if (initialTime && date === initialDate && selectedSlotKey) {
-        const slotMatch = slots.find(s => `${getTime(s.start)}-${getTime(s.end)}` === selectedSlotKey);
-        if (slotMatch && !slotMatch.available) {
-          toast.error('Выбранный интервал уже занят. Выберите другое время.');
-          setSelectedSlotKey('');
-        }
-      }
-    } catch (error: any) {
-      setAvailabilitySlots([]);
-      const is404 = String(error?.message || '').includes('404') || error?.status === 404;
-      if (is404) {
-        setAvailabilityUnsupported(true);
-      } else {
-        toast.error('Не удалось загрузить слоты доступности.');
-      }
-    } finally {
-      setAvailabilityLoading(false);
+  // If we have an initialTime and it's the initial date, check if the pre-selected slot is actually available
+  useEffect(() => {
+    const slots = availabilityQuery.data;
+    if (!slots || !initialTime || availabilityDate !== initialDate || !selectedSlotKey) return;
+    const slotMatch = slots.find(s => `${getTime(s.start)}-${getTime(s.end)}` === selectedSlotKey);
+    if (slotMatch && !slotMatch.available) {
+      toast.error('Выбранный интервал уже занят. Выберите другое время.');
+      setSelectedSlotKey('');
     }
-  };
+  }, [availabilityQuery.data]);
 
   const selectSlot = (slot: AvailabilitySlot) => {
     if (!slot.available || !availabilityDate) return;
     setSelectedSlotKey(`${getTime(slot.start)}-${getTime(slot.end)}`);
   };
-
-  useEffect(() => {
-    if (!availabilityDate || !id) return;
-
-    void loadAvailability(availabilityDate);
-
-    const intervalId = window.setInterval(() => {
-      void loadAvailability(availabilityDate);
-    }, 15000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [availabilityDate, id]);
 
   if (loading) {
     return (
@@ -229,14 +193,22 @@ export function HallDetailPage() {
     setSubmittingBooking(true);
     try {
       const booking = await createBooking(bookingPayload);
-      const orders = await getOrders();
-      const relatedOrder =
-        orders.find((order) => order.booking.id === booking.id) ??
-        orders.find((order) => order.status === 'PENDING');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.availability(hall.id, availabilityDate) });
+
+      // Бэкенд возвращает order_id в ответе на создание брони — список всех заказов нужен
+      // только как запасной путь для старого API
+      let orderId = booking.order_id;
+      if (!orderId) {
+        const orders = await getOrders();
+        orderId = (
+          orders.find((order) => order.booking.id === booking.id) ??
+          orders.find((order) => order.status === 'PENDING')
+        )?.id;
+      }
 
       toast.success('Бронь создана. Переходим к оплате.');
-      if (relatedOrder) {
-        const nextParams = new URLSearchParams({ orderId: String(relatedOrder.id) });
+      if (orderId) {
+        const nextParams = new URLSearchParams({ orderId: String(orderId) });
         if (normalizedPromoCode) {
           nextParams.set('promo', normalizedPromoCode);
         }
@@ -330,7 +302,6 @@ export function HallDetailPage() {
                   onChange={(nextDate) => {
                     setAvailabilityDate(nextDate);
                     setSelectedSlotKey('');
-                    void loadAvailability(nextDate);
                   }}
                   className="text-center"
                 />

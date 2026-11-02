@@ -52,6 +52,8 @@ export interface Booking {
   hall: Hall;
   start_time: string;
   end_time: string;
+  /** Есть только в ответе на создание брони */
+  order_id?: number;
 }
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
